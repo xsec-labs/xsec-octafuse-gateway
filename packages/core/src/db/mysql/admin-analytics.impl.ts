@@ -1,0 +1,201 @@
+/**
+ * MySQL：管理后台分析聚合查询。
+ */
+import { ANALYTICS_TTFT_SELECT_SQL } from '../../lib/analytics-ttft-sql';
+import { sqlMoneyRound } from '../../lib/money-precision';
+import type { MySqlDatabaseClient } from '../../storage/database-client';
+import type { AdminAnalyticsRepository } from '../../storage/gateway-repository-interfaces';
+import type {
+	ModelAnalyticsRow,
+	ModelProviderReliabilityRow,
+	ProviderAnalyticsRow,
+	ProviderReliabilityRow,
+	UserAnalyticsRow,
+} from '../../storage/repository-dtos';
+import { asMySqlPool } from './mysql2-compat';
+
+export function createMySqlAdminAnalyticsRepository(db: MySqlDatabaseClient): AdminAnalyticsRepository {
+	const pool = asMySqlPool(db.raw);
+	return {
+		async queryModelAnalytics(options: { start: string; end: string; tag?: string; providerId?: string; userEmail?: string }): Promise<ModelAnalyticsRow[]> {
+			const joins: string[] = [];
+			const conditions: string[] = ['rl.created_at >= ?', 'rl.created_at <= ?', 'rl.model_id IS NOT NULL'];
+			const bindValues: unknown[] = [];
+			if (options.tag) {
+				joins.push('INNER JOIN model_tags mt ON mt.model_id = rl.model_id AND mt.tag = ?');
+				bindValues.push(options.tag);
+			}
+			bindValues.push(options.start, options.end);
+			if (options.providerId) {
+				conditions.push('rl.provider_id = ?');
+				bindValues.push(options.providerId);
+			}
+			if (options.userEmail) {
+				conditions.push('rl.user_email = ?');
+				bindValues.push(options.userEmail);
+			}
+			const [rows] = await pool.query<ModelAnalyticsRow[]>(
+				`SELECT
+					rl.model_id as model_id,
+					rl.route_group as route_group,
+					COUNT(*) as request_count,
+					COALESCE(${sqlMoneyRound('SUM(rl.charged_cost)')}, 0) as charged_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.metered_cost)')}, 0) as metered_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.standard_cost)')}, 0) as standard_cost,
+					COALESCE(SUM(rl.input_tokens), 0) as input_tokens,
+					COALESCE(SUM(rl.output_tokens), 0) as output_tokens,
+					COALESCE(SUM(rl.cache_read_tokens), 0) as cache_read_tokens,
+					COALESCE(SUM(rl.cache_write_tokens), 0) as cache_write_tokens,
+					SUM(CASE WHEN rl.status = 'success' THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN rl.status = 'error' THEN 1 ELSE 0 END) as error_count,
+					AVG(rl.latency_ms) as avg_latency_ms,
+					${ANALYTICS_TTFT_SELECT_SQL},
+					AVG(rl.upstream_response_ms) as avg_upstream_response_ms,
+					CASE WHEN COALESCE(SUM(rl.stream_duration_ms), 0) > 0
+						THEN COALESCE(SUM(rl.output_tokens), 0) * 1000.0 / SUM(rl.stream_duration_ms)
+						ELSE NULL
+					END as tokens_per_second,
+					CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(rl.upstream_failover_count), 0) * 100.0 / COUNT(*) ELSE 0 END as failover_rate,
+					AVG(rl.upstream_attempt_count) as avg_attempts
+				 FROM api_key_request_logs rl ${joins.join(' ')}
+				 WHERE ${conditions.join(' AND ')}
+				 GROUP BY rl.model_id, rl.route_group`,
+				bindValues
+			);
+			return rows;
+		},
+
+		async queryDistinctModelTags(): Promise<string[]> {
+			const [rows] = await pool.query<{ tag: string }[]>('SELECT DISTINCT tag FROM model_tags ORDER BY tag ASC');
+			return rows.map((t) => t.tag);
+		},
+
+		async queryUserAnalytics(options: { start: string; end: string; email?: string }): Promise<UserAnalyticsRow[]> {
+			const conditions: string[] = ['rl.created_at >= ?', 'rl.created_at <= ?', "rl.user_email IS NOT NULL AND rl.user_email != ''"];
+			const bindValues: unknown[] = [options.start, options.end];
+			if (options.email) {
+				conditions.push('rl.user_email LIKE ?');
+				bindValues.push(`%${options.email}%`);
+			}
+			const [rows] = await pool.query<UserAnalyticsRow[]>(
+				`SELECT
+					rl.user_email as user_email,
+					COUNT(*) as request_count,
+					COALESCE(SUM(rl.input_tokens), 0) as input_tokens,
+					COALESCE(SUM(rl.output_tokens), 0) as output_tokens,
+					COALESCE(${sqlMoneyRound('SUM(rl.charged_cost)')}, 0) as charged_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.metered_cost)')}, 0) as metered_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.standard_cost)')}, 0) as standard_cost,
+					COUNT(DISTINCT rl.model_id) as distinct_models,
+					MAX(rl.created_at) as last_active_at,
+				${sqlMoneyRound('MAX(u.budget_max)')} as budget_max,
+				${sqlMoneyRound('MAX(u.budget_spent)')} as budget_spent,
+				SUM(CASE WHEN rl.status = 'success' THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN rl.status = 'error' THEN 1 ELSE 0 END) as error_count
+			 FROM api_key_request_logs rl
+			 LEFT JOIN users u ON u.id = rl.user_id
+				 WHERE ${conditions.join(' AND ')}
+				 GROUP BY rl.user_email`,
+				bindValues
+			);
+			return rows;
+		},
+
+		async queryProviderAnalytics(options: { start: string; end: string; tag?: string; modelId?: string; routeGroup?: string }): Promise<ProviderAnalyticsRow[]> {
+			const joins: string[] = ['LEFT JOIN providers p ON p.id = rl.provider_id'];
+			const conditions: string[] = ['rl.created_at >= ?', 'rl.created_at <= ?', 'rl.provider_id IS NOT NULL'];
+			const bindValues: unknown[] = [];
+			if (options.tag) {
+				joins.push('INNER JOIN model_tags mt ON mt.model_id = rl.model_id AND mt.tag = ?');
+				bindValues.push(options.tag);
+			}
+			bindValues.push(options.start, options.end);
+			if (options.modelId) {
+				conditions.push('rl.model_id = ?');
+				bindValues.push(options.modelId);
+			}
+			if (options.routeGroup) {
+				conditions.push('rl.route_group = ?');
+				bindValues.push(options.routeGroup);
+			}
+			const [rows] = await pool.query<ProviderAnalyticsRow[]>(
+				`SELECT
+					rl.provider_id as provider_id,
+					MAX(p.name) as provider_name,
+					COUNT(*) as request_count,
+					COALESCE(${sqlMoneyRound('SUM(rl.charged_cost)')}, 0) as charged_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.metered_cost)')}, 0) as metered_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.standard_cost)')}, 0) as standard_cost,
+					COALESCE(SUM(rl.input_tokens), 0) as input_tokens,
+					COALESCE(SUM(rl.output_tokens), 0) as output_tokens,
+					COALESCE(SUM(rl.cache_read_tokens), 0) as cache_read_tokens,
+					COALESCE(SUM(rl.cache_write_tokens), 0) as cache_write_tokens,
+					COUNT(DISTINCT rl.model_id) as distinct_models,
+					SUM(CASE WHEN rl.status = 'success' THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN rl.status = 'error' THEN 1 ELSE 0 END) as error_count,
+					AVG(rl.latency_ms) as avg_latency_ms,
+					${ANALYTICS_TTFT_SELECT_SQL},
+					AVG(rl.upstream_response_ms) as avg_upstream_response_ms,
+					CASE WHEN COALESCE(SUM(rl.stream_duration_ms), 0) > 0
+						THEN COALESCE(SUM(rl.output_tokens), 0) * 1000.0 / SUM(rl.stream_duration_ms)
+						ELSE NULL
+					END as tokens_per_second,
+					CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(rl.upstream_failover_count), 0) * 100.0 / COUNT(*) ELSE 0 END as failover_rate,
+					AVG(rl.upstream_attempt_count) as avg_attempts
+				 FROM api_key_request_logs rl ${joins.join(' ')}
+				 WHERE ${conditions.join(' AND ')}
+				 GROUP BY rl.provider_id`,
+				bindValues
+			);
+			return rows;
+		},
+
+		async queryProviderReliability(options: { start: string; end: string }): Promise<ProviderReliabilityRow[]> {
+			const [rows] = await pool.query<ProviderReliabilityRow[]>(
+				`SELECT
+					rl.provider_id as provider_id,
+					MAX(p.name) as provider_name,
+					COUNT(*) as request_count,
+					SUM(CASE WHEN rl.status = 'success' THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN rl.status = 'error' THEN 1 ELSE 0 END) as error_count,
+					AVG(rl.latency_ms) as avg_latency_ms,
+					AVG(rl.upstream_response_ms) as avg_upstream_response_ms,
+					CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(rl.upstream_failover_count), 0) * 100.0 / COUNT(*) ELSE 0 END as failover_rate,
+					AVG(rl.upstream_attempt_count) as avg_attempts,
+					COALESCE(${sqlMoneyRound('SUM(rl.charged_cost)')}, 0) as charged_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.metered_cost)')}, 0) as metered_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.standard_cost)')}, 0) as standard_cost
+				 FROM api_key_request_logs rl
+				 LEFT JOIN providers p ON p.id = rl.provider_id
+				 WHERE rl.created_at >= ? AND rl.created_at <= ? AND rl.provider_id IS NOT NULL
+				 GROUP BY rl.provider_id`,
+				[options.start, options.end]
+			);
+			return rows;
+		},
+
+		async queryModelProviderReliability(options: { start: string; end: string }): Promise<ModelProviderReliabilityRow[]> {
+			const [rows] = await pool.query<ModelProviderReliabilityRow[]>(
+				`SELECT
+					rl.model_id as model_id,
+					rl.provider_id as provider_id,
+					MAX(p.name) as provider_name,
+					COUNT(*) as request_count,
+					SUM(CASE WHEN rl.status = 'success' THEN 1 ELSE 0 END) as success_count,
+					AVG(rl.latency_ms) as avg_latency_ms,
+					AVG(rl.upstream_response_ms) as avg_upstream_response_ms,
+					CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(rl.upstream_failover_count), 0) * 100.0 / COUNT(*) ELSE 0 END as failover_rate,
+					AVG(rl.upstream_attempt_count) as avg_attempts,
+					COALESCE(${sqlMoneyRound('SUM(rl.charged_cost)')}, 0) as charged_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.metered_cost)')}, 0) as metered_cost,
+					COALESCE(${sqlMoneyRound('SUM(rl.standard_cost)')}, 0) as standard_cost
+				 FROM api_key_request_logs rl
+				 LEFT JOIN providers p ON p.id = rl.provider_id
+				 WHERE rl.created_at >= ? AND rl.created_at <= ? AND rl.model_id IS NOT NULL AND rl.provider_id IS NOT NULL
+				 GROUP BY rl.model_id, rl.provider_id`,
+				[options.start, options.end]
+			);
+			return rows;
+		},
+	};
+}

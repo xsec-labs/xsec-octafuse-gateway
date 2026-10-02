@@ -1,0 +1,116 @@
+[
+	{
+		"id": "gemini-3.1-flash-image",
+		"display_name": "Gemini 3.1 Flash Image",
+		"description": "A fast Google model for high-quality image generation and editing with multimodal reasoning. Also known as Nano Banana 2, it combines fast generation with advanced editing and multimodal visual reasoning.",
+		"i18n": {
+			"en": "A fast Google model for high-quality image generation and editing with multimodal reasoning. Also known as Nano Banana 2, it combines fast generation with advanced editing and multimodal visual reasoning.",
+			"zh": "结合多模态推理能力的高速 Google 图片生成与编辑模型。亦称 Nano Banana 2，将高速生成与高级编辑和多模态视觉推理结合起来。"
+		},
+		"vendor": "google",
+		"context_window": null,
+		"max_tokens": null,
+		"tags": [
+			"New"
+		],
+		"pricing": {
+			"usd": {
+				"image_billing_mode": "token",
+				"tiers": [
+					{
+						"upto": null,
+						"input_price": 0.5,
+						"output_price": 3,
+						"cache_read_price": null,
+						"cache_write_price": null,
+						"image_input_price": 0.5,
+						"image_input_cache_price": null,
+						"image_output_price": 60
+					}
+				]
+			},
+			"cny": {
+				"image_billing_mode": "token",
+				"tiers": [
+					{
+						"upto": null,
+						"input_price": 3.5,
+						"output_price": 21,
+						"cache_read_price": null,
+						"cache_write_price": null,
+						"image_input_price": 3.5,
+						"image_input_cache_price": null,
+						"image_output_price": 420
+					}
+				]
+			}
+		},
+		"modalities": {
+			"input": [
+				"text",
+				"image"
+			],
+			"output": [
+				"image"
+			]
+		},
+		"released": "2026-02-01"
+	},
+	{
+		"id": "gemini-3-pro-image-preview",
+		"display_name": "Gemini 3 Pro Image Preview",
+		"description": "Google's advanced image generation preview for grounded creation and detailed visual editing. Built on Gemini 3 Pro, it emphasizes grounded creation, stronger multimodal reasoning, and detailed image editing.",
+		"i18n": {
+			"en": "Google's advanced image generation preview for grounded creation and detailed visual editing. Built on Gemini 3 Pro, it emphasizes grounded creation, stronger multimodal reasoning, and detailed image editing.",
+			"zh": "Google 高级图片生成预览模型，擅长有依据的创作与精细视觉编辑。基于 Gemini 3 Pro，强调有依据的创作、更强的多模态推理和精细图像编辑。"
+		},
+		"vendor": "google",
+		"context_window": null,
+		"max_tokens": null,
+		"tags": [
+			"New"
+		],
+		"pricing": {
+			"usd": {
+				"image_billing_mode": "token",
+				"tiers": [
+					{
+						"upto": null,
+						"input_price": 2,
+						"output_price": 12,
+						"cache_read_price": null,
+						"cache_write_price": null,
+						"image_input_price": 2,
+						"image_input_cache_price": null,
+						"image_output_price": 120
+					}
+				]
+			},
+			"cny": {
+				"image_billing_mode": "token",
+				"tiers": [
+					{
+						"upto": null,
+						"input_price": 14,
+						"output_price": 84,
+						"cache_read_price": null,
+						"cache_write_price": null,
+						"image_input_price": 14,
+						"image_input_cache_price": null,
+						"image_output_price": 840
+					}
+				]
+			}
+		},
+		"modalities": {
+			"input": [
+				"text",
+				"image"
+			],
+			"output": [
+				"image"
+			]
+		},
+		"released": "2025-11-01"
+	}
+]

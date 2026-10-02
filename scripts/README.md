@@ -1,0 +1,32 @@
+# `scripts/` (Octafuse)
+
+Non-runtime helpers: smoke tests, DB migration / reconciliation tooling, and dev UX scripts. Business logic lives in **`packages/core`**, **`packages/proxy`**, **`packages/admin`**.
+
+## Layout
+
+| Path | Purpose |
+|------|---------|
+| `smoke/` | HTTP smoke against a running Node **Proxy** / **Admin** (`test:gateway:*-smoke`) plus in-process **`@octafuse/core`** write-path tests. See [smoke/README.md](./smoke/README.md). |
+| `deploy/` | Cloudflare：`gen-wrangler.mjs`、`wrangler-d1-cli.mjs`、**`bootstrap-cloudflare.mjs`**（外部首次一键）、**`deploy-instance.mjs`**（`npm run deploy:cloudflare`）。**远程 deploy 会在 wrangler 里写入 `database_id`，继续本地 dev 前须再 `npm run gen:wrangler`** — 见 [local-development.md §1](../docs/developers/local-development.md#️-本地-d1-与-database_id远程-deploy-后必读)。外部用户入口：[cloudflare-quickstart.md](../docs/operators/deployment/cloudflare-quickstart.md)。 |
+| `print-dev-start.mjs` | Optional banner before `wrangler dev` (local URL hints). |
+| `db/` | Remote D1 export, D1↔Postgres ETL / reconciliation, Postgres diagnostics (**schema apply** lives in **`packages/core/src/migrate/`** via **`npm run db:migrate:pg`** / **`db:migrate:mysql`**) |
+
+### `db/` layout
+
+| Subdir | Purpose |
+|--------|---------|
+| `lib/` | D1 execution helpers, ETL table order, remote export helpers |
+| `d1-remote-export/` | Remote D1 schema / data export (`npm run db:export:remote:*`) |
+| `cutover/` | D1 → Postgres ETL, reconciliation (see [docs/operators/migrations/d1-postgres-cutover.md](../docs/operators/migrations/d1-postgres-cutover.md)) |
+| `diag/` | e.g. `npm run db:list:pg` |
+| `export-provider-api-keys.mjs` | **Before** migration `0015_single_provider_key`：导出 `provider_api_keys` 全量 JSON 留档（见 [single-provider-key-cutover.md](../docs/operators/migrations/single-provider-key-cutover.md)） |
+
+Root **`package.json`** exposes common DB commands: D1 via **`gen:wrangler`** + **`db:migrate`** / **`db:migrate:remote`** / **`db:query`** (generated **`packages/core/wrangler.d1.jsonc`**, SQL under **`packages/core/migrations-d1/`**); Cloudflare instance env: **`cloudflare-worker/`** (see **`cloudflare-worker/README.md`**). Postgres via **`db:migrate:pg`** / **`db:migrate:pg:docker`** and **`db:list:pg`**（SQL 在 `packages/core/migrations-postgres/`）；MySQL via **`db:migrate:mysql`** / **`db:migrate:mysql:docker`**（SQL 在 `packages/core/migrations-mysql/`）。两种 Node 数据库均从环境读取 `DATABASE_URL`，MySQL 还需 `DATABASE_DRIVER=mysql`。Also **`test:gateway:node-smoke`** / **`test:gateway:postgres-smoke`**, **`dev:proxy:node`** (Node Proxy after root `dotenv -c`; DB driver and URL in `.env`). Env template: **`.env.example`**. Other scripts: `npx tsx scripts/...`. See [docs/operators/migrations/d1-postgres-cutover.md](../docs/operators/migrations/d1-postgres-cutover.md) and [docs/developers/local-development.md](../docs/developers/local-development.md).
+
+### In-process smoke (no Proxy)
+
+`smoke/test-critical-write-paths.ts` exercises **`@octafuse/core`** critical write paths with mocks (`node:test`). From repo root:
+
+```bash
+npx tsx --test scripts/smoke/test-critical-write-paths.ts
+```

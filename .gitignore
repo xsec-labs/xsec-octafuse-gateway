@@ -1,0 +1,35 @@
+node_modules/
+.wrangler/
+dist/
+.next/
+.open-next/
+.env
+.env.*
+!.env.example
+!**/.env.example
+!docker/deploy/.env.example
+*.log
+.DS_Store
+
+.dev.vars
+.provider
+.release
+
+docker/local
+docker/test
+
+data/
+
+# Generated Wrangler configs (source: *.base.jsonc + npm run gen:wrangler)
+packages/proxy/wrangler.jsonc
+packages/admin/wrangler.jsonc
+packages/core/wrangler.d1.jsonc
+
+# Per-instance Cloudflare Worker deploy env (committed example: cloudflare-worker/example.env)
+cloudflare-worker/*.env
+!cloudflare-worker/example.env
+
+# Local-only deploy helpers (usage in script headers; not committed)
+cloudflare-worker/_deploy-common.sh
+cloudflare-worker/deploy-soloent.sh
+cloudflare-worker/deploy-octarouter.sh

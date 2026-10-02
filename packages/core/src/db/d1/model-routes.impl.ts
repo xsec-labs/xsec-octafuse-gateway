@@ -1,0 +1,164 @@
+/**
+ * D1：`model_routes`。
+ */
+import type { D1DatabaseClient } from '../../storage/database-client';
+import type { ModelRoutesRepository } from '../../storage/gateway-repository-interfaces';
+import type { ModelRouteDetailRow, ModelRouteJoinRow } from '../../storage/repository-dtos';
+import { MODEL_ROUTE_PATCH_COLS } from '../patch-allowlists';
+
+const MODEL_ROUTE_LIST_JOIN_SQL = `SELECT mr.id, mr.model_id, mr.provider_id, mr.provider_model_name, mr.priority, mr.status,
+				mr.route_group, mr.weight, mr.price_override, mr.custom_params, mr.upstream_protocol,
+				mr.route_pool_id, mr.upstream_operation, mr.adapter,
+				rp.name AS pool_name, rp.strategy AS pool_strategy, rp.status AS pool_status,
+				(SELECT json_group_array(json_object(
+					'id', ms.id,
+					'request_protocol', ms.request_protocol,
+					'request_operation', ms.request_operation,
+					'status', ms.status
+				)) FROM model_surfaces ms WHERE ms.route_pool_id = mr.route_pool_id) AS surfaces,
+				m.display_name as model_name, p.name as provider_name
+			 FROM model_routes mr
+			 LEFT JOIN models m ON mr.model_id = m.id
+			 LEFT JOIN providers p ON mr.provider_id = p.id
+			 LEFT JOIN route_pools rp ON mr.route_pool_id = rp.id`;
+
+export function createD1ModelRoutesRepository(db: D1DatabaseClient): ModelRoutesRepository {
+	const raw = db.raw;
+	return {
+		async listModelRoutesWithJoins(filters: { modelId?: string; providerId?: string }): Promise<ModelRouteJoinRow[]> {
+			const conditions: string[] = [];
+			const bindValues: unknown[] = [];
+			if (filters.modelId) {
+				conditions.push('mr.model_id = ?');
+				bindValues.push(filters.modelId);
+			}
+			if (filters.providerId) {
+				conditions.push('mr.provider_id = ?');
+				bindValues.push(filters.providerId);
+			}
+			const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+			const sqlText = `${MODEL_ROUTE_LIST_JOIN_SQL} ${where} ORDER BY mr.model_id, mr.priority DESC`;
+			const rows = await raw.prepare(sqlText).bind(...bindValues).all<ModelRouteJoinRow>();
+			return rows.results ?? [];
+		},
+
+		async insertModelRoute(params: {
+			id: string;
+			modelId: string;
+			providerId: string;
+			providerModelName: string;
+			priority: number;
+			status: string;
+			routeGroup: string;
+			weight?: number;
+			priceOverride: unknown;
+			customParams: string | null;
+			upstreamProtocol: string;
+			routePoolId: string;
+			upstreamOperation: string;
+			adapter: string;
+		}): Promise<void> {
+			await raw
+				.prepare(
+					`INSERT INTO model_routes (id, model_id, provider_id, provider_model_name, priority, status, route_group, weight, price_override, custom_params, upstream_protocol, route_pool_id, upstream_operation, adapter, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+				)
+				.bind(
+					params.id,
+					params.modelId,
+					params.providerId,
+					params.providerModelName,
+					params.priority,
+					params.status,
+					params.routeGroup,
+					params.weight ?? 1,
+					params.priceOverride ?? null,
+					params.customParams,
+					params.upstreamProtocol,
+					params.routePoolId,
+					params.upstreamOperation,
+					params.adapter
+				)
+				.run();
+		},
+
+		async getModelRouteRowById(id: string): Promise<ModelRouteDetailRow | null> {
+			return raw.prepare('SELECT * FROM model_routes WHERE id = ?').bind(id).first<ModelRouteDetailRow>();
+		},
+
+		async ensureModelSurfacePool(params): Promise<{ poolId: string; surfaceId: string }> {
+			const existing = await raw
+				.prepare(
+					`SELECT id, route_pool_id FROM model_surfaces
+					 WHERE model_id = ? AND lower(route_group) = lower(?)
+					   AND lower(request_protocol) = lower(?) AND request_operation = ?
+					 LIMIT 1`
+				)
+				.bind(
+					params.modelId,
+					params.routeGroup,
+					params.requestProtocol,
+					params.requestOperation
+				)
+				.first<{ id: string; route_pool_id: string }>();
+			if (existing) return { poolId: existing.route_pool_id, surfaceId: existing.id };
+
+			await raw.batch([
+				raw
+					.prepare(
+						`INSERT INTO route_pools
+						 (id, model_id, route_group, name, strategy, status, created_at, updated_at)
+						 VALUES (?, ?, ?, ?, NULL, 'active', datetime('now'), datetime('now'))`
+					)
+					.bind(params.poolId, params.modelId, params.routeGroup, params.poolName),
+				raw
+					.prepare(
+						`INSERT INTO model_surfaces
+						 (id, model_id, route_group, request_protocol, request_operation, route_pool_id, status, created_at, updated_at)
+						 VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now'), datetime('now'))`
+					)
+					.bind(
+						params.surfaceId,
+						params.modelId,
+						params.routeGroup,
+						params.requestProtocol,
+						params.requestOperation,
+						params.poolId
+					),
+			]);
+			return { poolId: params.poolId, surfaceId: params.surfaceId };
+		},
+
+		async updateRoutePoolStrategy(poolId: string, strategy: string | null): Promise<number> {
+			const updated = await raw
+				.prepare(
+					`UPDATE route_pools SET strategy = ?, updated_at = datetime('now') WHERE id = ?`
+				)
+				.bind(strategy, poolId)
+				.run();
+			return updated.meta.changes;
+		},
+
+		async updateModelRouteByPatch(id: string, patch: Record<string, unknown>): Promise<number> {
+			const updateFields: string[] = [];
+			const bindValues: unknown[] = [];
+			for (const [key, value] of Object.entries(patch)) {
+				if (value !== undefined && MODEL_ROUTE_PATCH_COLS.has(key)) {
+					updateFields.push(`${key} = ?`);
+					bindValues.push(value);
+				}
+			}
+			if (updateFields.length === 0) return 0;
+			const updated = await raw
+				.prepare(`UPDATE model_routes SET ${updateFields.join(', ')} WHERE id = ?`)
+				.bind(...bindValues, id)
+				.run();
+			return updated.meta.changes;
+		},
+
+		async deleteModelRouteById(id: string): Promise<number> {
+			const deleted = await raw.prepare('DELETE FROM model_routes WHERE id = ?').bind(id).run();
+			return deleted.meta.changes;
+		},
+	};
+}

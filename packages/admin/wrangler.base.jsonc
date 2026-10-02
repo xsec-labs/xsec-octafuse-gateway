@@ -1,0 +1,33 @@
+{
+	// 模板：由 `npm run gen:wrangler` 生成 `wrangler.jsonc`（勿手改生成文件）。
+	// Gateway Admin（Next.js OpenNext）：Cloudflare 部署仅支持 D1；管理 API 为 `/api/admin/*`（Hono `/admin/*`）。
+	// 本地 preview 与 db:migrate 共用 .wrangler/state；远程 deploy 写入 database_id 后须再 npm run gen:wrangler 才能与 migrate 一致。
+	// `ADMIN_PASSWORD` 勿写入本文件：本地 `npm run preview` 用 `packages/admin/.dev.vars.example`；生产用 Dashboard Secrets 或 `npx wrangler secret put ADMIN_PASSWORD --name <worker>`。
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "octafuse-gateway-admin",
+	"workers_dev": false,
+	"preview_urls": false,
+	"compatibility_date": "2025-11-25",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "octafuse-gateway"
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"vars": {
+		"ADMIN_USERNAME": "admin",
+		// Admin 无 Next middleware.ts。Workerd 上 getMiddlewareManifest() 的动态 require 会 500；
+		// 上游 issue 仍 open 时用 minimal mode 跳过该路径（见 opennextjs-cloudflare#1232）。
+		"NEXT_PRIVATE_MINIMAL_MODE": "1"
+	}
+}
