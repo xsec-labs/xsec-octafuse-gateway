@@ -44,7 +44,7 @@ type OpenAiProps = Props & { iconClassName?: string };
 /** OpenAI 协议行内图标（img + sr-only 标签）。 */
 export function OpenAiEndpointIcon({ className, label, iconClassName }: OpenAiProps) {
   return (
-    <span className={className}>
+    <span className={`relative ${className ?? ''}`}>
       <img
         src="/brand/openai-emblem.svg"
         alt=""
