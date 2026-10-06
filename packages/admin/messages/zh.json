@@ -396,6 +396,27 @@
 			"apiKeyEditHint": "留空保持当前密钥；填写新值则替换。",
 			"statusEnabled": "启用供应商",
 			"statusHint": "禁用后不会参与路由与 Playground。"
+		},
+		"feedback": {
+			"copyName": "{name}（副本）",
+			"nameRequired": "请输入供应商名称。",
+			"keyRequired": "请为新供应商填写 API 密钥。",
+			"listFailed": "无法读取供应商列表",
+			"readList": "重新读取供应商",
+			"saveFailed": "尚未确认供应商保存结果",
+			"deleteFailed": "尚未确认供应商删除结果",
+			"statusFailed": "尚未确认供应商状态变更",
+			"copyFailed": "无法读取供应商密钥",
+			"clipboardFailed": "无法写入剪贴板，请检查浏览器权限后重试。",
+			"catalogFailed": "无法读取导入模板",
+			"readCatalog": "重新读取模板",
+			"importFailed": "尚未确认供应商导入结果",
+			"importResult": "已创建 {count} 个供应商",
+			"importComplete": "请检查导入的供应商并填写 API 密钥，再启用它们。",
+			"deleteTitle": "删除供应商？",
+			"deleteDescription": "从网关删除 {name}。",
+			"deleteHint": "删除前，请先移除或重新分配引用此供应商的模型路由。",
+			"importRowFailed": "此模板导入失败。请检查模板配置和存储状态，再重新选择导入。"
 		}
 	},
 	"models": {

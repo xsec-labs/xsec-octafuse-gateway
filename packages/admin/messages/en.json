@@ -396,6 +396,27 @@
 			"apiKeyEditHint": "Leave blank to keep the current key. Enter a new value to replace it.",
 			"statusEnabled": "Provider enabled",
 			"statusHint": "Disabled providers are skipped for routing and playground."
+		},
+		"feedback": {
+			"copyName": "{name} (copy)",
+			"nameRequired": "Enter a provider name.",
+			"keyRequired": "Enter an API key for the new provider.",
+			"listFailed": "Unable to load providers",
+			"readList": "Read providers again",
+			"saveFailed": "Provider save was not confirmed",
+			"deleteFailed": "Provider deletion was not confirmed",
+			"statusFailed": "Provider status change was not confirmed",
+			"copyFailed": "Unable to read the provider key",
+			"clipboardFailed": "Unable to write to the clipboard. Check browser permissions and try again.",
+			"catalogFailed": "Unable to load templates",
+			"readCatalog": "Read templates again",
+			"importFailed": "Provider import was not confirmed",
+			"importResult": "Created {count} providers",
+			"importComplete": "Review the imported providers and set their API keys before enabling them.",
+			"deleteTitle": "Delete provider?",
+			"deleteDescription": "Delete {name} from the gateway.",
+			"deleteHint": "Model routes must be removed or reassigned before this provider can be deleted.",
+			"importRowFailed": "This template could not be imported. Check its configuration and storage availability before selecting it again."
 		}
 	},
 	"models": {

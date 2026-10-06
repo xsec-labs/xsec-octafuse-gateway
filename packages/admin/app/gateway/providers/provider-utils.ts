@@ -19,7 +19,7 @@ import { EMPTY_PROTOCOL_FORM } from './types';
 
 /** 完整 capability → 卡片紧凑标签（OpenAI images.* → images；audio.transcriptions → audio）。 */
 export function capabilityDisplayBadges(
-	capabilities: readonly ProviderEndpointCapability[]
+	capabilities: readonly ProviderEndpointCapability[],
 ): ProviderCapabilityBadge[] {
 	const badges: ProviderCapabilityBadge[] = [];
 	const set = new Set(capabilities);
@@ -49,7 +49,7 @@ function protocolFormFromConfig(cfg: ProtocolEndpointsConfig | undefined): Proto
 
 /** Provider 行 → 弹窗表单（endpoints + status；api_key 留空表示不改）。 */
 export function providerToFormData(
-	provider: GatewayProvider
+	provider: GatewayProvider,
 ): Omit<ProviderFormData, 'id' | 'name' | 'description'> {
 	const map = parseProviderEndpoints(provider);
 	return {
@@ -63,13 +63,14 @@ export function providerToFormData(
 
 function configFromProtocolForm(
 	protocol: 'openai' | 'anthropic' | 'gemini',
-	form: ProtocolEndpointForm
+	form: ProtocolEndpointForm,
 ): ProtocolEndpointsConfig | undefined {
 	const base = form.base.trim();
 	const endpoints: NonNullable<ProtocolEndpointsConfig['endpoints']> = {};
 	if (protocol === 'openai') {
 		if (form.chat.trim()) endpoints.chat = form.chat.trim();
-		if (form.images_generations.trim()) endpoints['images.generations'] = form.images_generations.trim();
+		if (form.images_generations.trim())
+			endpoints['images.generations'] = form.images_generations.trim();
 		if (form.images_edits.trim()) endpoints['images.edits'] = form.images_edits.trim();
 		if (form.audio_transcriptions.trim()) {
 			endpoints['audio.transcriptions'] = form.audio_transcriptions.trim();
@@ -109,28 +110,23 @@ export function getProviderProtocolSummaries(provider: GatewayProvider): Provide
 	const map = parseProviderEndpoints(provider);
 	const rows: ProviderProtocolSummary[] = [];
 
-	const appendProtocol = (
-		key: UpstreamProtocol,
-		label: string
-	) => {
+	const appendProtocol = (key: UpstreamProtocol, label: string) => {
 		const config = map[key];
 		if (!config) return;
 		const capabilities = listConfiguredCapabilities(map, key);
 		if (capabilities.length === 0) return;
 		const endpoints = capabilities.flatMap((capability) => {
-			try {
-				const resolved = resolveUpstreamEndpoint(key, capability, map, {
-					model: '{model}',
-					providerId: provider.id,
-				}).replace(/%7Bmodel%7D/gi, '{model}');
-				return [{
+			const resolved = resolveUpstreamEndpoint(key, capability, map, {
+				model: '{model}',
+				providerId: provider.id,
+			}).replace(/%7Bmodel%7D/gi, '{model}');
+			return [
+				{
 					capability,
 					url: resolved,
-					source: config.endpoints?.[capability] ? 'override' as const : 'base' as const,
-				}];
-			} catch {
-				return [];
-			}
+					source: config.endpoints?.[capability] ? ('override' as const) : ('base' as const),
+				},
+			];
 		});
 		if (endpoints.length === 0) return;
 		rows.push({
@@ -163,7 +159,7 @@ export function suggestDuplicateProviderId(sourceId: string, existingIds: Set<st
 /** 某协议 Advanced 区是否有任意覆盖（用于默认展开）。 */
 export function protocolFormHasOverrides(
 	protocol: 'openai' | 'anthropic' | 'gemini',
-	form: ProtocolEndpointForm
+	form: ProtocolEndpointForm,
 ): boolean {
 	if (protocol === 'openai') {
 		return !!(

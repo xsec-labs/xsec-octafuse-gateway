@@ -396,6 +396,27 @@
 			"apiKeyEditHint": "空欄で現行キーを維持。新しい値を入力すると置換します。",
 			"statusEnabled": "プロバイダーを有効化",
 			"statusHint": "無効なプロバイダーはルーティングと Playground から除外されます。"
+		},
+		"feedback": {
+			"copyName": "{name}（コピー）",
+			"nameRequired": "プロバイダー名を入力してください。",
+			"keyRequired": "新しいプロバイダーの API キーを入力してください。",
+			"listFailed": "プロバイダーを読み込めません",
+			"readList": "プロバイダーを再読み込み",
+			"saveFailed": "保存結果を確認できませんでした",
+			"deleteFailed": "削除結果を確認できませんでした",
+			"statusFailed": "状態変更を確認できませんでした",
+			"copyFailed": "プロバイダーキーを読み込めません",
+			"clipboardFailed": "クリップボードに書き込めません。ブラウザーの権限を確認して再試行してください。",
+			"catalogFailed": "テンプレートを読み込めません",
+			"readCatalog": "テンプレートを再読み込み",
+			"importFailed": "インポート結果を確認できませんでした",
+			"importResult": "{count} 件のプロバイダーを作成しました",
+			"importComplete": "プロバイダーを確認し、有効にする前に API キーを設定してください。",
+			"deleteTitle": "プロバイダーを削除しますか？",
+			"deleteDescription": "ゲートウェイから {name} を削除します。",
+			"deleteHint": "このプロバイダーを参照するモデルルートを先に削除または再割り当てしてください。",
+			"importRowFailed": "このテンプレートをインポートできませんでした。設定とストレージの状態を確認してから、もう一度選択してください。"
 		}
 	},
 	"models": {

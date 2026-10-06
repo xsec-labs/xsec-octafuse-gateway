@@ -1,341 +1,446 @@
 'use client';
-
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { parseShellSuccess, useShellRequest, type ShellFailure } from '@/lib/shell-request';
+import { notifyAdminSessionExpired } from '@/lib/admin-session-events';
 import {
-	deleteProvider,
-	fetchImportCatalog,
-	fetchProviderApiKeyPlaintext,
-	fetchProvidersList,
-	importProviderPresets,
-	saveProvider,
-	toggleProviderStatus,
+	parseProviders,
+	parseImportCatalog,
+	parseImportResult,
+	parseProviderKey,
+	providerWrite,
 } from './provider-api';
 import {
 	getProviderProtocolSummaries,
 	providerToFormData,
 	suggestDuplicateProviderId,
 } from './provider-utils';
-import type { GatewayProvider, ProviderFormData, ProviderImportCatalogRow } from './types';
-import { EMPTY_PROTOCOL_FORM, EMPTY_PROVIDER_FORM } from './types';
+import {
+	EMPTY_PROTOCOL_FORM,
+	EMPTY_PROVIDER_FORM,
+	type GatewayProvider,
+	type ProviderImportCatalogRow,
+	type ProviderImportResult,
+	type ProviderFormData,
+} from './types';
 
+type ListState<T> =
+	| { status: 'loading' }
+	| { status: 'error'; failure: ShellFailure }
+	| { status: 'ready'; rows: T[] };
+type ActionFailure = { title: string; failure: ShellFailure; uncertain: boolean };
 export function useProvidersPageState() {
-	const [providers, setProviders] = useState<GatewayProvider[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [providerSearch, setProviderSearch] = useState('');
-	const [showModal, setShowModal] = useState(false);
-	const [editingProvider, setEditingProvider] = useState<GatewayProvider | null>(null);
-	const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
-	const [formData, setFormData] = useState<ProviderFormData>(EMPTY_PROVIDER_FORM);
-	const [saveError, setSaveError] = useState('');
-	const [isSaving, setIsSaving] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
-	const [copiedId, setCopiedId] = useState<string | null>(null);
-	const [showImportModal, setShowImportModal] = useState(false);
-	const [importCatalogRows, setImportCatalogRows] = useState<ProviderImportCatalogRow[]>([]);
-	const [importCatalogSearch, setImportCatalogSearch] = useState('');
-	const [importCatalogLoading, setImportCatalogLoading] = useState(false);
-	const [importCatalogError, setImportCatalogError] = useState('');
-	const [importSelected, setImportSelected] = useState<Record<string, boolean>>({});
-	const [importSubmitting, setImportSubmitting] = useState(false);
-	const [statusTogglingId, setStatusTogglingId] = useState<string | null>(null);
-
-	const existingProviderIds = useMemo(() => new Set(providers.map((p) => p.id)), [providers]);
+	const t = useTranslations('providers.feedback');
+	const [list, setList] = useState<ListState<GatewayProvider>>({ status: 'loading' }),
+		[providerSearch, setProviderSearch] = useState('');
+	const [showModal, setShowModal] = useState(false),
+		[editingProvider, setEditingProvider] = useState<GatewayProvider | null>(null),
+		[duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
+	const [formData, setFormData] = useState<ProviderFormData>(EMPTY_PROVIDER_FORM),
+		[validation, setValidation] = useState(''),
+		[actionFailure, setActionFailure] = useState<ActionFailure | null>(null);
+	const [showDelete, setShowDelete] = useState(false),
+		[writeKind, setWriteKind] = useState<string | null>(null),
+		writeBusy = useRef(false);
+	const [showImportModal, setShowImportModal] = useState(false),
+		[catalog, setCatalog] = useState<ListState<ProviderImportCatalogRow>>({ status: 'loading' }),
+		[importCatalogSearch, setImportCatalogSearch] = useState(''),
+		[importSelected, setImportSelected] = useState<Record<string, boolean>>({}),
+		[importResult, setImportResult] = useState<ProviderImportResult | null>(null);
+	const [copiedId, setCopiedId] = useState<string | null>(null),
+		[copyingId, setCopyingId] = useState<string | null>(null),
+		[clipboardFailure, setClipboardFailure] = useState(false),
+		copyOwner = useRef(0),
+		copyBusy = useRef(false),
+		copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const returnFocus = useRef<HTMLElement | null>(null),
+		newProviderAction = useRef<HTMLButtonElement | null>(null),
+		statusFocusId = useRef<string | null>(null);
+	const attachNewProviderAction = useCallback((element: HTMLButtonElement | null) => {
+		newProviderAction.current = element;
+	}, []);
+	const { run: readList } = useShellRequest(),
+		{ run: write } = useShellRequest(),
+		{ run: readCatalog, cancel: cancelCatalog } = useShellRequest(),
+		{ run: readKey } = useShellRequest();
+	const authorizedFailure = useCallback((failure: ShellFailure, record: () => void) => {
+		if (failure.status === 401) notifyAdminSessionExpired();
+		else record();
+	}, []);
+	const loadProviders = useCallback(async () => {
+		await readList(
+			'/api/admin/providers',
+			{},
+			parseProviders,
+			(rows) => setList({ status: 'ready', rows }),
+			(failure) => authorizedFailure(failure, () => setList({ status: 'error', failure })),
+		);
+	}, [readList, authorizedFailure]);
+	useEffect(() => {
+		void loadProviders();
+	}, [loadProviders]);
+	const refreshProviders = useCallback(async () => {
+		setList({ status: 'loading' });
+		await loadProviders();
+	}, [loadProviders]);
+	useEffect(
+		() => () => {
+			copyOwner.current++;
+			if (copyTimer.current) clearTimeout(copyTimer.current);
+		},
+		[],
+	);
+	const providers = useMemo(() => (list.status === 'ready' ? list.rows : []), [list]);
 	const filteredProviders = useMemo(() => {
 		const query = providerSearch.trim().toLowerCase();
 		if (!query) return providers;
-		return providers.filter((provider) => {
-			const endpointSearch = getProviderProtocolSummaries(provider)
-				.flatMap((protocol) => [
-					protocol.label,
-					protocol.baseUrl ?? '',
-					...protocol.capabilities,
-					...protocol.endpoints.map((endpoint) => endpoint.url),
-				])
-				.join(' ');
-			return [
+		return providers.filter((provider) =>
+			[
 				provider.name,
 				provider.id,
 				provider.description ?? '',
-				provider.status ?? '',
-				endpointSearch,
+				provider.status,
+				...getProviderProtocolSummaries(provider).flatMap((protocol) => [
+					protocol.label,
+					protocol.baseUrl,
+					...protocol.capabilities,
+					...protocol.endpoints.map((endpoint) => endpoint.url),
+				]),
 			]
 				.join(' ')
 				.toLowerCase()
-				.includes(query);
-		});
-	}, [providerSearch, providers]);
-	const importSelectedCount = useMemo(
-		() => Object.values(importSelected).filter(Boolean).length,
-		[importSelected]
-	);
+				.includes(query),
+		);
+	}, [providers, providerSearch]);
+	const catalogRows = useMemo(() => (catalog.status === 'ready' ? catalog.rows : []), [catalog]);
 	const filteredImportCatalogRows = useMemo(() => {
 		const query = importCatalogSearch.trim().toLowerCase();
-		if (!query) return importCatalogRows;
-		return importCatalogRows.filter((row) => row.name.toLowerCase().includes(query));
-	}, [importCatalogSearch, importCatalogRows]);
-
-	const refreshProviders = useCallback(async () => {
-		try {
-			const rows = await fetchProvidersList();
-			setProviders(rows);
-		} catch (error) {
-			console.error('Fetch providers error:', error);
-		} finally {
-			setIsLoading(false);
-		}
+		return catalogRows.filter((row) => !query || row.name.toLowerCase().includes(query));
+	}, [catalogRows, importCatalogSearch]);
+	const importSelectedCount = Object.values(importSelected).filter(Boolean).length;
+	const captureFocus = useCallback(() => {
+		returnFocus.current =
+			document.activeElement instanceof HTMLElement ? document.activeElement : null;
 	}, []);
-
-	useEffect(() => {
-		void refreshProviders();
-	}, [refreshProviders]);
-
-	const handleCopyApiKey = useCallback(
-		async (provider: GatewayProvider) => {
-			try {
-				const apiKey = await fetchProviderApiKeyPlaintext(provider.id);
-				await navigator.clipboard.writeText(apiKey);
-				setCopiedId(`provider-api-key:${provider.id}`);
-				setTimeout(() => setCopiedId(null), 2000);
-			} catch (error) {
-				console.error('Copy provider API key error:', error);
-				alert(error instanceof Error ? error.message : 'Failed to copy API key');
-			}
-		},
-		[]
-	);
-
-	const handleToggleStatus = useCallback(
-		async (provider: GatewayProvider) => {
-			const nextStatus = provider.status === 'disabled' ? 'active' : 'disabled';
-			setStatusTogglingId(provider.id);
-			try {
-				const result = await toggleProviderStatus(provider.id, nextStatus);
-				if (result.success) {
-					void refreshProviders();
-				} else {
-					alert(result.message);
-				}
-			} catch (error) {
-				console.error('Toggle provider status error:', error);
-				alert('Update failed');
-			} finally {
-				setStatusTogglingId(null);
-			}
-		},
-		[refreshProviders]
-	);
-
-	const handleCreate = useCallback(() => {
-		setEditingProvider(null);
-		setDuplicateSourceId(null);
-		setFormData({
+	function freshForm() {
+		return {
 			...EMPTY_PROVIDER_FORM,
-			id: '',
-			api_key: '',
-			status: 'active',
 			openai: { ...EMPTY_PROTOCOL_FORM },
 			anthropic: { ...EMPTY_PROTOCOL_FORM },
 			gemini: { ...EMPTY_PROTOCOL_FORM },
-		});
-		setShowModal(true);
-		setSaveError('');
-	}, []);
-
-	const handleEdit = useCallback((provider: GatewayProvider) => {
-		setEditingProvider(provider);
+		};
+	}
+	function handleCreate() {
+		captureFocus();
+		setEditingProvider(null);
 		setDuplicateSourceId(null);
+		setFormData(freshForm());
+		setValidation('');
+		setActionFailure(null);
+		setShowModal(true);
+	}
+	const handleEdit = useCallback(
+		(provider: GatewayProvider) => {
+			captureFocus();
+			setEditingProvider(provider);
+			setDuplicateSourceId(null);
+			setFormData({
+				id: provider.id,
+				name: provider.name,
+				...providerToFormData(provider),
+				description: provider.description ?? '',
+			});
+			setValidation('');
+			setActionFailure(null);
+			setShowModal(true);
+		},
+		[captureFocus],
+	);
+	function handleDuplicate(provider: GatewayProvider) {
+		setEditingProvider(null);
+		setDuplicateSourceId(provider.id);
 		setFormData({
-			id: provider.id,
-			name: provider.name,
+			id: suggestDuplicateProviderId(provider.id, new Set(providers.map((p) => p.id))),
+			name: t('copyName', { name: provider.name }),
 			...providerToFormData(provider),
 			description: provider.description ?? '',
 		});
-		setShowModal(true);
-		setSaveError('');
-	}, []);
-
-	const handleDuplicate = useCallback(
+		setValidation('');
+		setActionFailure(null);
+	}
+	function closeProviderModal() {
+		if (writeBusy.current) return;
+		setShowModal(false);
+		setShowDelete(false);
+		setFormData(freshForm());
+		setValidation('');
+		setActionFailure(null);
+	}
+	const perform = useCallback(
+		<T>(
+			kind: string,
+			path: string,
+			init: RequestInit,
+			parse: (body: unknown) => T,
+			success: (value: T) => void,
+			title: string,
+		) => {
+			if (writeBusy.current) return;
+			writeBusy.current = true;
+			setWriteKind(kind);
+			setActionFailure(null);
+			void write(
+				path,
+				init,
+				parse,
+				(value) => {
+					writeBusy.current = false;
+					setWriteKind(null);
+					success(value);
+				},
+				(failure) => {
+					writeBusy.current = false;
+					setWriteKind(null);
+					authorizedFailure(failure, () =>
+						setActionFailure({ title, failure, uncertain: failure.code !== 'HTTP_ERROR' }),
+					);
+				},
+			);
+		},
+		[write, authorizedFailure],
+	);
+	function handleSave() {
+		if (writeBusy.current) return;
+		if (!formData.name.trim()) {
+			setValidation(t('nameRequired'));
+			return;
+		}
+		if (!editingProvider && !formData.api_key.trim()) {
+			setValidation(t('keyRequired'));
+			return;
+		}
+		setValidation('');
+		const request = providerWrite(formData, editingProvider?.id ?? null);
+		perform(
+			'save',
+			request.path,
+			request.init,
+			parseShellSuccess,
+			() => {
+				returnFocus.current = newProviderAction.current;
+				setShowModal(false);
+				setFormData(freshForm());
+				void refreshProviders();
+			},
+			t('saveFailed'),
+		);
+	}
+	function handleDelete() {
+		if (!editingProvider || writeBusy.current) return;
+		perform(
+			'delete',
+			'/api/admin/providers/' + encodeURIComponent(editingProvider.id),
+			{ method: 'DELETE' },
+			parseShellSuccess,
+			() => {
+				returnFocus.current = newProviderAction.current;
+				setShowDelete(false);
+				setShowModal(false);
+				setEditingProvider(null);
+				setFormData(freshForm());
+				void refreshProviders();
+			},
+			t('deleteFailed'),
+		);
+	}
+	const handleToggleStatus = useCallback(
 		(provider: GatewayProvider) => {
-			setEditingProvider(null);
-			setDuplicateSourceId(provider.id);
-			setFormData({
-				id: suggestDuplicateProviderId(provider.id, existingProviderIds),
-				name: `${provider.name} (copy)`,
-				...providerToFormData(provider),
-				api_key: '',
-				status: provider.status === 'disabled' ? 'disabled' : 'active',
-				description: provider.description ?? '',
-			});
-			setShowModal(true);
-			setSaveError('');
-		},
-		[existingProviderIds]
-	);
-
-	const handleDelete = useCallback(
-		async (id: string) => {
-			if (!confirm('Are you sure you want to delete this provider?')) return;
-
-			setIsDeleting(true);
-			try {
-				const result = await deleteProvider(id);
-				if (result.success) {
-					setShowModal(false);
-					setEditingProvider(null);
+			perform(
+				provider.id,
+				'/api/admin/providers/' + encodeURIComponent(provider.id),
+				{
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ status: provider.status === 'disabled' ? 'active' : 'disabled' }),
+				},
+				parseShellSuccess,
+				() => {
+					statusFocusId.current = provider.id;
 					void refreshProviders();
-				} else {
-					alert(result.message);
-				}
-			} catch (error) {
-				console.error('Delete error:', error);
-				alert('Delete failed');
-			} finally {
-				setIsDeleting(false);
-			}
+				},
+				t('statusFailed'),
+			);
 		},
-		[refreshProviders]
+		[perform, refreshProviders, t],
 	);
-
-	const loadImportCatalog = useCallback(async () => {
-		setImportCatalogLoading(true);
-		setImportCatalogError('');
-		try {
-			const rows = await fetchImportCatalog();
-			setImportCatalogRows(rows);
-			setImportSelected({});
-		} catch (error) {
-			console.error('Load provider import catalog error:', error);
-			setImportCatalogError(error instanceof Error ? error.message : 'Failed to load catalog');
-			setImportCatalogRows([]);
-		} finally {
-			setImportCatalogLoading(false);
+	const restoreStatusFocus = useCallback((id: string, element: HTMLElement | null) => {
+		if (statusFocusId.current !== id || !element) return;
+		const control = element.querySelector<HTMLElement>('[role="switch"]');
+		if (control) {
+			statusFocusId.current = null;
+			control.focus();
 		}
 	}, []);
-
-	const openImportModal = useCallback(() => {
+	const loadImportCatalog = useCallback(async () => {
+		setCatalog({ status: 'loading' });
+		await readCatalog(
+			'/api/admin/providers/import/catalog',
+			{},
+			parseImportCatalog,
+			(rows) => setCatalog({ status: 'ready', rows }),
+			(failure) => authorizedFailure(failure, () => setCatalog({ status: 'error', failure })),
+		);
+	}, [readCatalog, authorizedFailure]);
+	function openImportModal() {
+		captureFocus();
 		setShowImportModal(true);
-		setImportCatalogError('');
 		setImportCatalogSearch('');
 		setImportSelected({});
+		setImportResult(null);
+		setActionFailure(null);
 		void loadImportCatalog();
-	}, [loadImportCatalog]);
-
-	const toggleImportPreset = useCallback((id: string) => {
-		setImportSelected((prev) => ({ ...prev, [id]: !prev[id] }));
-	}, []);
-
-	const selectAllImportPresets = useCallback(() => {
-		setImportSelected((prev) => {
-			const next = { ...prev };
-			for (const row of filteredImportCatalogRows) {
-				next[row.id] = true;
-			}
-			return next;
-		});
-	}, [filteredImportCatalogRows]);
-
-	const clearImportPresetSelection = useCallback(() => {
-		setImportSelected({});
-	}, []);
-
-	const runImportSelectedPresets = useCallback(async () => {
+	}
+	function closeImportModal() {
+		if (writeBusy.current) return;
+		cancelCatalog();
+		setShowImportModal(false);
+		setActionFailure(null);
+	}
+	function toggleImportPreset(id: string) {
+		if (writeBusy.current) return;
+		setImportSelected((previous) => ({ ...previous, [id]: !previous[id] }));
+	}
+	function selectAllImportPresets() {
+		if (writeBusy.current) return;
+		setImportSelected((previous) => ({
+			...previous,
+			...Object.fromEntries(filteredImportCatalogRows.map((row) => [row.id, true])),
+		}));
+	}
+	function clearImportPresetSelection() {
+		if (!writeBusy.current) setImportSelected({});
+	}
+	function runImportSelectedPresets() {
 		const ids = Object.entries(importSelected)
-			.filter(([, v]) => v)
-			.map(([k]) => k);
-		if (ids.length === 0) {
-			alert('Select at least one template.');
-			return;
-		}
-		setImportSubmitting(true);
-		try {
-			const result = await importProviderPresets(ids);
-			if (result.success) {
-				const { created, failed } = result.data;
-				const failLines =
-					failed.length > 0
-						? `\nFailed:\n${failed.map((f) => `  ${f.id}: ${f.message}`).join('\n')}`
-						: '';
-				alert(`Import finished.\nCreated: ${created}${failLines}`);
-				setShowImportModal(false);
+			.filter(([, selected]) => selected)
+			.map(([id]) => id);
+		if (!ids.length || catalog.status !== 'ready' || writeBusy.current) return;
+		perform(
+			'import',
+			'/api/admin/providers/import',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids }),
+			},
+			parseImportResult,
+			(result) => {
+				setImportResult(result);
+				setImportSelected({});
 				void refreshProviders();
-			} else {
-				alert(result.message);
-			}
-		} catch (error) {
-			console.error('Import providers error:', error);
-			alert('Import failed');
-		} finally {
-			setImportSubmitting(false);
-		}
-	}, [importSelected, refreshProviders]);
-
-	const handleSave = useCallback(async () => {
-		if (!editingProvider && !formData.api_key.trim()) {
-			setSaveError('API key is required');
-			return;
-		}
-		setSaveError('');
-		setIsSaving(true);
-		try {
-			const result = await saveProvider(formData, editingProvider?.id ?? null);
-			if (result.success) {
-				setShowModal(false);
-				void refreshProviders();
-			} else {
-				setSaveError(result.message);
-			}
-		} catch (error) {
-			console.error('Save error:', error);
-			setSaveError('Save failed, please try again');
-		} finally {
-			setIsSaving(false);
-		}
-	}, [editingProvider, formData, refreshProviders]);
-
-	const closeProviderModal = useCallback(() => {
-		if (isSaving || isDeleting) return;
-		setShowModal(false);
-	}, [isDeleting, isSaving]);
-
+			},
+			t('importFailed'),
+		);
+	}
+	const handleCopyApiKey = useCallback(
+		(provider: GatewayProvider) => {
+			if (copyBusy.current) return;
+			copyBusy.current = true;
+			const owner = ++copyOwner.current;
+			setCopyingId(provider.id);
+			setClipboardFailure(false);
+			setActionFailure(null);
+			setCopiedId(null);
+			if (copyTimer.current) clearTimeout(copyTimer.current);
+			void readKey(
+				'/api/admin/providers/' + encodeURIComponent(provider.id) + '/api-key',
+				{},
+				parseProviderKey,
+				(key) => {
+					if (!navigator.clipboard) {
+						copyBusy.current = false;
+						setCopyingId(null);
+						setClipboardFailure(true);
+						return;
+					}
+					void navigator.clipboard.writeText(key).then(
+						() => {
+							if (copyOwner.current !== owner) return;
+							copyBusy.current = false;
+							setCopyingId(null);
+							setCopiedId('provider-api-key:' + provider.id);
+							copyTimer.current = setTimeout(() => {
+								setCopiedId(null);
+								copyTimer.current = null;
+							}, 2000);
+						},
+						() => {
+							if (copyOwner.current !== owner) return;
+							copyBusy.current = false;
+							setCopyingId(null);
+							setClipboardFailure(true);
+						},
+					);
+				},
+				(failure) => {
+					if (copyOwner.current !== owner) return;
+					copyBusy.current = false;
+					setCopyingId(null);
+					authorizedFailure(failure, () =>
+						setActionFailure({ title: t('copyFailed'), failure, uncertain: false }),
+					);
+				},
+			);
+		},
+		[readKey, authorizedFailure, t],
+	);
 	return {
-		isLoading,
+		list,
 		providers,
+		filteredProviders,
 		providerSearch,
 		setProviderSearch,
-		filteredProviders,
-		copiedId,
-		statusTogglingId,
+		refreshProviders,
 		showModal,
 		editingProvider,
 		duplicateSourceId,
 		formData,
 		setFormData,
-		saveError,
-		isSaving,
-		isDeleting,
-		showImportModal,
-		setShowImportModal,
-		importCatalogRows,
-		importCatalogSearch,
-		setImportCatalogSearch,
-		filteredImportCatalogRows,
-		importCatalogLoading,
-		importCatalogError,
-		importSelected,
-		importSelectedCount,
-		importSubmitting,
+		validation,
+		actionFailure,
+		showDelete,
+		setShowDelete,
+		writeKind,
+		writeBusy: writeKind !== null,
 		handleCreate,
 		handleEdit,
 		handleDuplicate,
-		handleDelete,
 		handleSave,
+		handleDelete,
+		handleToggleStatus,
 		closeProviderModal,
+		copiedId,
+		copyingId,
+		clipboardFailure,
+		handleCopyApiKey,
+		showImportModal,
+		closeImportModal,
+		catalog,
+		catalogRows,
+		filteredImportCatalogRows,
+		importCatalogSearch,
+		setImportCatalogSearch,
+		importSelected,
+		importSelectedCount,
+		importResult,
 		openImportModal,
+		loadImportCatalog,
 		toggleImportPreset,
 		selectAllImportPresets,
 		clearImportPresetSelection,
 		runImportSelectedPresets,
-		handleCopyApiKey,
-		handleToggleStatus,
+		returnFocus,
+		attachNewProviderAction,
+		restoreStatusFocus,
 	};
 }
