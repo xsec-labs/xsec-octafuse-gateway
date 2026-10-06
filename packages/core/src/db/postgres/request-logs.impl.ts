@@ -14,6 +14,16 @@ import type { RequestLogsRepository } from '../../storage/gateway-repository-int
 import { sqlitePlaceholdersToPg } from '../shared/sql-placeholders';
 import { filterAllowedRequestLogStatuses } from '../request-log-status-filter';
 
+/** Admin/API ranges are serialized as UTC `YYYY-MM-DD HH:mm:ss` when they omit an offset. */
+function postgresUtcBoundary(value: string | undefined): string | undefined {
+	if (!value) return value;
+	const trimmed = value.trim();
+	if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)) {
+		return `${trimmed.replace(' ', 'T')}Z`;
+	}
+	return trimmed;
+}
+
 export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient): RequestLogsRepository {
 	const pg = db.raw;
 	return {
@@ -117,11 +127,11 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 			}
 			if (options.startDate) {
 				conditions.push('rl.created_at >= ?');
-				bindValues.push(options.startDate);
+				bindValues.push(postgresUtcBoundary(options.startDate));
 			}
 			if (options.endDate) {
 				conditions.push('rl.created_at <= ?');
-				bindValues.push(options.endDate);
+				bindValues.push(postgresUtcBoundary(options.endDate));
 			}
 
 			const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
