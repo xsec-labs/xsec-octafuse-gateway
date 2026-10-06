@@ -1,5 +1,4 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -7,105 +6,130 @@ import {
 	isAudioTranscriptionModel,
 	isImageGenerationModel,
 	isTextLlmModel,
-	parseModelModalitiesJson,
 } from '@octafuse/core/db/model-modalities';
+import { useShellRequest, type ShellFailure } from '@/lib/shell-request';
+import { notifyAdminSessionExpired } from '@/lib/admin-session-events';
 import {
-	createDefaultAudioPricingDraft,
-	createDefaultAudioTokenPricingDraft,
-	createDefaultImagePerImageDraft,
-	createDefaultImageTokenTierRow,
-	createDefaultNewModelTierRow,
-	draftRowsHaveImageTokenPrices,
-	draftRowsLookLikeImageOnly,
-	profileJsonToAudioDraftState,
-	profileJsonToDraftState,
-	type AudioPricingDraftState,
-	type ImageBillingModeDraft,
-	type ImagePerImageDraft,
-	type ImagePricingDraftState,
-	type PricingTierDraftRow,
-} from '@/lib/pricing-tiers-draft';
-import { getModelVendorLabel, normalizeModelVendorInput } from '@/lib/model-vendor';
-import { useBillingCurrency } from '@/lib/use-billing-currency';
-import { useReplaceListPageQuery } from '@/lib/use-replace-list-query';
-import {
-	deleteModel,
-	fetchImportCatalog,
-	fetchModelDetail,
-	fetchModelsList,
-	importModelPresets,
-	saveModel,
-} from './model-api';
+	getModelVendorLabel,
+	normalizeModelVendorInput,
+} from '@/lib/model-vendor';
+import { parseModels, parseModelCatalog, parseModelImport } from './model-api';
 import {
 	buildMetadataSummary,
-	formatMetadataForEditor,
 	groupModelsByVendor,
 	parseVendorFilterParam,
 } from './model-utils';
 import {
 	ALL_VENDORS_KEY,
 	DEFAULT_KIND_FILTER,
-	EMPTY_AUDIO_MODEL_FORM,
-	EMPTY_IMAGE_MODEL_FORM,
-	EMPTY_MODEL_FORM,
 	parseKindFilterParam,
-	type MetadataPreviewState,
-	type ModelFormData,
-	type ModelFormKind,
 	type ModelKindFilter,
 	type ModelListItem,
 	type PresetCatalogRow,
+	type MetadataPreviewState,
+	type ModelImportResult,
 } from './types';
-
+import {
+	useModelEditModal,
+	type ModelReadState,
+	type ModelActionFailure,
+} from './use-model-edit-modal';
 export function useModelsPageState() {
-	const tCatalog = useTranslations('models.catalog');
-	const searchParams = useSearchParams();
-	const router = useRouter();
-	const pathname = usePathname();
-	const editDeepLinkHandledRef = useRef<string | null>(null);
-	const [models, setModels] = useState<ModelListItem[]>([]);
-	const [selectedVendor, setSelectedVendor] = useState(ALL_VENDORS_KEY);
-	const [selectedKind, setSelectedKind] = useState<ModelKindFilter>(DEFAULT_KIND_FILTER);
-	const [isLoading, setIsLoading] = useState(true);
-	const [showModal, setShowModal] = useState(false);
-	const [editingModel, setEditingModel] = useState<ModelListItem | null>(null);
-	const [formData, setFormData] = useState<ModelFormData>(EMPTY_MODEL_FORM);
-	const [formKind, setFormKind] = useState<ModelFormKind>('llm');
-	const [pricingTierRows, setPricingTierRows] = useState<PricingTierDraftRow[]>([]);
-	const [imageBillingMode, setImageBillingMode] = useState<ImageBillingModeDraft>('token');
-	const [imagePerImageDraft, setImagePerImageDraft] = useState<ImagePerImageDraft>(
-		createDefaultImagePerImageDraft()
+	const t = useTranslations('models.feedback'),
+		tCatalog = useTranslations('models.catalog');
+	const searchParams = useSearchParams(),
+		router = useRouter(),
+		pathname = usePathname(),
+		editHandled = useRef<string | null>(null);
+	const [list, setList] = useState<ModelReadState<ModelListItem[]>>({
+		status: 'loading',
+	});
+	const { run: readList } = useShellRequest(),
+		{ run: readCatalog, cancel: cancelCatalog } = useShellRequest(),
+		{ run: write } = useShellRequest();
+	const [catalog, setCatalog] = useState<
+		ModelReadState<{ currency: string; rows: PresetCatalogRow[] }>
+	>({ status: 'loading' });
+	const [showImportCatalogModal, setShowImportCatalogModal] = useState(false),
+		[importSelected, setImportSelected] = useState<Record<string, boolean>>({}),
+		[importCatalogSearch, setImportCatalogSearch] = useState(''),
+		[importCatalogKind, setImportCatalogKind] =
+			useState<ModelKindFilter>(DEFAULT_KIND_FILTER),
+		[importSubmitting, setImportSubmitting] = useState(false),
+		[importResult, setImportResult] = useState<ModelImportResult | null>(null),
+		[importFailure, setImportFailure] = useState<ModelActionFailure | null>(
+			null
+		),
+		importBusy = useRef(false);
+	const [metadataPreview, setMetadataPreview] =
+		useState<MetadataPreviewState | null>(null);
+	const [modelSearch, setModelSearch] = useState('');
+	const authorizedFailure = useCallback(
+		(failure: ShellFailure, record: () => void) => {
+			if (failure.status === 401) notifyAdminSessionExpired();
+			else record();
+		},
+		[]
 	);
-	const [audioPricingDraft, setAudioPricingDraft] = useState<AudioPricingDraftState>(
-		createDefaultAudioPricingDraft()
+	const loadModels = useCallback(async () => {
+		await readList(
+			'/api/admin/models',
+			{},
+			parseModels,
+			(value) => setList({ status: 'ready', value }),
+			(failure) =>
+				authorizedFailure(failure, () => setList({ status: 'error', failure }))
+		);
+	}, [readList, authorizedFailure]);
+	useEffect(() => {
+		void loadModels();
+	}, [loadModels]);
+	const refreshModels = useCallback(async () => {
+		setList({ status: 'loading' });
+		await loadModels();
+	}, [loadModels]);
+	const successFocus = useRef<HTMLDivElement | null>(null);
+	const attachSuccessFocus = useCallback((element: HTMLDivElement | null) => { successFocus.current = element; }, []);
+	const editor = useModelEditModal({ onChanged: refreshModels, successFocus });
+	const models = useMemo(
+		() => (list.status === 'ready' ? list.value : []),
+		[list]
 	);
-	const [tagInput, setTagInput] = useState('');
-	const [saveError, setSaveError] = useState('');
-	const [isSaving, setIsSaving] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
-	const [showImportCatalogModal, setShowImportCatalogModal] = useState(false);
-	const [importCatalogRows, setImportCatalogRows] = useState<PresetCatalogRow[]>([]);
-	const [importCatalogLoading, setImportCatalogLoading] = useState(false);
-	const [importCatalogError, setImportCatalogError] = useState('');
-	const [importSelected, setImportSelected] = useState<Record<string, boolean>>({});
-	const [importCatalogSearch, setImportCatalogSearch] = useState('');
-	const [importCatalogKind, setImportCatalogKind] = useState<ModelKindFilter>(DEFAULT_KIND_FILTER);
-	const [importSubmitting, setImportSubmitting] = useState(false);
-	const [metadataPreview, setMetadataPreview] = useState<MetadataPreviewState | null>(null);
-	const { currency: billingCurrency } = useBillingCurrency();
-
+	const selectedVendor = parseVendorFilterParam(searchParams.get('vendor')),
+		selectedKind = parseKindFilterParam(searchParams.get('kind'));
+	const replaceFilter = useCallback(
+		(key: string, value: string) => {
+			const params = new URLSearchParams(searchParams.toString());
+			params.set(key, value);
+			router.replace(pathname + '?' + params.toString(), { scroll: false });
+		},
+		[searchParams, router, pathname]
+	);
+	const setSelectedVendor = useCallback(
+		(value: string) => replaceFilter('vendor', value),
+		[replaceFilter]
+	);
+	const setSelectedKind = useCallback(
+		(value: ModelKindFilter) => replaceFilter('kind', value),
+		[replaceFilter]
+	);
+	const importCatalogRows = useMemo(
+		() => (catalog.status === 'ready' ? catalog.value.rows : []),
+		[catalog]
+	);
 	const openMetadataPreview = useCallback((model: ModelListItem) => {
 		const summary = buildMetadataSummary(model.metadata);
-		if (summary.kind === 'empty') return;
-		setMetadataPreview({ model, summary });
+		if (summary.kind !== 'empty') setMetadataPreview({ model, summary });
 	}, []);
-
 	const importSelectedCount = useMemo(
 		() => Object.values(importSelected).filter(Boolean).length,
 		[importSelected]
 	);
 
-	const existingModelIds = useMemo(() => new Set(models.map((m) => m.id)), [models]);
+	const existingModelIds = useMemo(
+		() => new Set(models.map((m) => m.id)),
+		[models]
+	);
 
 	const importableCatalogCount = useMemo(
 		() => importCatalogRows.filter((r) => !existingModelIds.has(r.id)).length,
@@ -139,7 +163,12 @@ export function useModelsPageState() {
 			]
 				.join(' ')
 				.toLowerCase();
-			return id.includes(query) || name.includes(query) || vendor.includes(query) || description.includes(query);
+			return (
+				id.includes(query) ||
+				name.includes(query) ||
+				vendor.includes(query) ||
+				description.includes(query)
+			);
 		});
 	}, [importCatalogSearch, importCatalogKind, importCatalogRows]);
 
@@ -157,8 +186,6 @@ export function useModelsPageState() {
 		() => groupModelsByVendor(kindFilteredModels),
 		[kindFilteredModels]
 	);
-
-	const vendorKeys = useMemo(() => modelsByVendor.map(([key]) => key), [modelsByVendor]);
 
 	const kindCounts = useMemo(() => {
 		let llm = 0;
@@ -180,528 +207,168 @@ export function useModelsPageState() {
 		return entry?.[1] ?? [];
 	}, [modelsByVendor, selectedVendor]);
 
-	useEffect(() => {
-		const vendorParam = searchParams.get('vendor');
-		if (vendorParam !== null) {
-			setSelectedVendor(parseVendorFilterParam(vendorParam));
-		}
-		const kindParam = searchParams.get('kind');
-		if (kindParam !== null) {
-			setSelectedKind(parseKindFilterParam(kindParam));
-		}
-	}, [searchParams]);
-
-	useEffect(() => {
-		if (modelsByVendor.length === 0) return;
-		setSelectedVendor((prev) => {
-			if (prev === ALL_VENDORS_KEY) return ALL_VENDORS_KEY;
-			if (prev && vendorKeys.includes(prev)) return prev;
-			const fromUrl = searchParams.get('vendor');
-			if (fromUrl !== null) {
-				const parsed = parseVendorFilterParam(fromUrl);
-				if (parsed === ALL_VENDORS_KEY) return ALL_VENDORS_KEY;
-				if (vendorKeys.includes(parsed)) return parsed;
-			}
-			return ALL_VENDORS_KEY;
-		});
-	}, [modelsByVendor, vendorKeys, searchParams]);
-
-	useReplaceListPageQuery(() => {
-		const params = new URLSearchParams();
-		if (selectedVendor) params.set('vendor', selectedVendor);
-		params.set('kind', selectedKind);
-		return params;
-	}, [selectedVendor, selectedKind]);
-
-	const refreshModels = useCallback(async () => {
-		try {
-			setIsLoading(true);
-			const rows = await fetchModelsList();
-			setModels(rows);
-		} catch (error) {
-			console.error('Fetch models error:', error);
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		void refreshModels();
-	}, [refreshModels]);
-
-	useEffect(() => {
-		if (!showImportCatalogModal || importCatalogRows.length === 0) return;
-		setImportSelected((prev) => {
-			let changed = false;
-			const next = { ...prev };
-			for (const k of Object.keys(next)) {
-				if (!next[k]) continue;
-				if (existingModelIds.has(k)) {
-					delete next[k];
-					changed = true;
-				}
-			}
-			return changed ? next : prev;
-		});
-	}, [showImportCatalogModal, importCatalogRows, existingModelIds]);
-
+	const filteredModels = useMemo(() => {
+		const q = modelSearch.trim().toLowerCase();
+		return selectedVendorItems.filter(
+			(m) =>
+				!q ||
+				[m.id, m.display_name ?? '', m.description ?? '', ...m.tags]
+					.join(' ')
+					.toLowerCase()
+					.includes(q)
+		);
+	}, [selectedVendorItems, modelSearch]);
 	const loadImportCatalog = useCallback(async () => {
-		setImportCatalogLoading(true);
-		setImportCatalogError('');
-		try {
-			const rows = await fetchImportCatalog();
-			setImportCatalogRows(rows);
-			setImportSelected({});
-		} catch (e) {
-			console.error('Load import catalog error:', e);
-			setImportCatalogError(e instanceof Error ? e.message : 'Failed to load catalog');
-			setImportCatalogRows([]);
-		} finally {
-			setImportCatalogLoading(false);
-		}
-	}, []);
-
+		if (importBusy.current) return;
+		setCatalog({ status: 'loading' });
+		setImportSelected({});
+		await readCatalog(
+			'/api/admin/models/import/catalog',
+			{},
+			parseModelCatalog,
+			(value) => setCatalog({ status: 'ready', value }),
+			(failure) =>
+				authorizedFailure(failure, () =>
+					setCatalog({ status: 'error', failure })
+				)
+		);
+	}, [readCatalog, authorizedFailure]);
 	const openImportCatalogModal = useCallback(() => {
 		setShowImportCatalogModal(true);
-		setImportCatalogError('');
 		setImportCatalogSearch('');
 		setImportCatalogKind(selectedKind);
 		setImportSelected({});
+		setImportResult(null);
+		setImportFailure(null);
 		void loadImportCatalog();
-	}, [loadImportCatalog, selectedKind]);
-
+	}, [selectedKind, loadImportCatalog]);
+	const closeImportCatalogModal = useCallback(() => {
+		if (importBusy.current) return;
+		cancelCatalog();
+		setShowImportCatalogModal(false);
+	}, [cancelCatalog]);
 	const toggleImportPreset = useCallback(
 		(id: string) => {
-			if (existingModelIds.has(id)) return;
+			if (importBusy.current || existingModelIds.has(id)) return;
 			setImportSelected((prev) => ({ ...prev, [id]: !prev[id] }));
 		},
 		[existingModelIds]
 	);
-
 	const selectAllImportPresets = useCallback(() => {
-		setImportSelected((prev) => {
-			const next = { ...prev };
-			for (const row of filteredImportCatalogRows) {
-				if (!existingModelIds.has(row.id)) {
-					next[row.id] = true;
-				}
-			}
-			return next;
-		});
+		if (importBusy.current) return;
+		setImportSelected((prev) => ({
+			...prev,
+			...Object.fromEntries(
+				filteredImportCatalogRows
+					.filter((r) => !existingModelIds.has(r.id))
+					.map((r) => [r.id, true])
+			),
+		}));
 	}, [filteredImportCatalogRows, existingModelIds]);
-
 	const clearImportPresetSelection = useCallback(() => {
-		setImportSelected({});
+		if (!importBusy.current) setImportSelected({});
 	}, []);
-
 	const runImportSelectedPresets = useCallback(async () => {
+		if (
+			importBusy.current ||
+			catalog.status !== 'ready' ||
+			list.status !== 'ready'
+		)
+			return;
 		const ids = importCatalogRows
 			.filter((r) => importSelected[r.id] && !existingModelIds.has(r.id))
 			.map((r) => r.id);
-		if (ids.length === 0) {
-			alert('Select at least one preset that is not already in the gateway.');
-			return;
-		}
-		if (
-			!confirm(
-				`Import ${ids.length} new model(s)? Prices use the catalog’s ${billingCurrency} branch (USD/CNY tiers). Existing model IDs are never overwritten.`
-			)
-		) {
-			return;
-		}
+		if (!ids.length) return;
+		importBusy.current = true;
 		setImportSubmitting(true);
-		try {
-			const result = await importModelPresets(ids);
-			if (result.success) {
-				const { created, failed, billing_currency_used, skipped_existing } = result.data;
-				const skipN = skipped_existing?.length ?? 0;
-				const failLines =
-					failed.length > 0
-						? `\n\nFailed (${failed.length}):\n${failed.map((f) => `${f.id}: ${f.message}`).join('\n')}`
-						: '';
-				const skipLines =
-					skipN > 0
-						? `\nSkipped (already in gateway): ${skipN}${skipN <= 5 ? ` — ${skipped_existing!.join(', ')}` : ''}`
-						: '';
-				alert(
-					`Import finished (billing: ${billing_currency_used}).\nCreated: ${created}${skipLines}${failLines}`
-				);
-				setShowImportCatalogModal(false);
-				await refreshModels();
-			} else {
-				alert(result.message || 'Import failed');
-			}
-		} catch (e) {
-			console.error('Import models error:', e);
-			alert('Import failed');
-		} finally {
-			setImportSubmitting(false);
-		}
-	}, [billingCurrency, existingModelIds, importCatalogRows, importSelected, refreshModels]);
-
-	const applyImagePricingDraft = useCallback((draft: ImagePricingDraftState) => {
-		setImageBillingMode(draft.mode);
-		setPricingTierRows(draft.tiers);
-		setImagePerImageDraft(draft.perImage);
-	}, []);
-
-	const fillFormFromModel = useCallback(
-		(model: ModelListItem) => {
-			const listTags = Array.isArray(model.tags) ? model.tags : [];
-			const outputMods = parseModelModalitiesJson(model.output_modalities) ?? ['text'];
-			const imageModel = isImageGenerationModel({
-				output_modalities: outputMods,
-				pricing_profile: model.pricing_profile,
-			});
-			const audioModel = isAudioTranscriptionModel({
-				pricing_profile: model.pricing_profile,
-			});
-			const kind: ModelFormKind = audioModel ? 'audio' : imageModel ? 'image' : 'llm';
-			setFormKind(kind);
-			setFormData({
-				id: model.id,
-				display_name: model.display_name || '',
-				vendor: normalizeModelVendorInput(model.vendor),
-				context_window: imageModel || audioModel ? '' : model.context_window?.toString() || '',
-				max_tokens: imageModel || audioModel ? '' : model.max_tokens?.toString() || '4096',
-				input_modalities: parseModelModalitiesJson(model.input_modalities) ?? ['text'],
-				output_modalities: outputMods,
-				released_at: model.released_at ?? '',
-				tags: listTags,
-				description: model.description ?? '',
-				metadata: formatMetadataForEditor(model.metadata),
-			});
-			if (audioModel) {
-				setAudioPricingDraft(profileJsonToAudioDraftState(model.pricing_profile));
-				setPricingTierRows([]);
-			} else {
-				applyImagePricingDraft(profileJsonToDraftState(model.pricing_profile));
-			}
-		},
-		[applyImagePricingDraft]
-	);
-
-	const handleImageBillingModeChange = useCallback((mode: ImageBillingModeDraft) => {
-		setImageBillingMode(mode);
-		if (mode === 'per_image') {
-			setPricingTierRows([]);
-			return;
-		}
-		setPricingTierRows((rows) =>
-			draftRowsHaveImageTokenPrices(rows) ? rows : [createDefaultImageTokenTierRow()]
-		);
-	}, []);
-
-	const handleCreate = useCallback(
-		(presetVendorKey?: string, kind: ModelFormKind = 'llm') => {
-			setEditingModel(null);
-			setFormKind(kind);
-			const vendor =
-				presetVendorKey !== undefined ? presetVendorKey : EMPTY_MODEL_FORM.vendor;
-			if (kind === 'image') {
-				setFormData({
-					...EMPTY_IMAGE_MODEL_FORM,
-					vendor,
-				});
-				applyImagePricingDraft({
-					mode: 'token',
-					tiers: [createDefaultImageTokenTierRow()],
-					perImage: createDefaultImagePerImageDraft(),
-				});
-			} else if (kind === 'audio') {
-				setFormData({
-					...EMPTY_AUDIO_MODEL_FORM,
-					vendor,
-				});
-				setAudioPricingDraft(createDefaultAudioPricingDraft());
-				setPricingTierRows([]);
-			} else {
-				setFormData({
-					...EMPTY_MODEL_FORM,
-					vendor,
-				});
-				setPricingTierRows([createDefaultNewModelTierRow()]);
-			}
-			setShowModal(true);
-			setSaveError('');
-		},
-		[applyImagePricingDraft]
-	);
-
-	/** 切换 Kind：同步 modalities / token 字段，并在无对应单价时写入默认档。 */
-	const applyFormKind = useCallback((kind: ModelFormKind) => {
-		setFormKind(kind);
-		if (kind === 'image') {
-			setFormData((prev) => ({
-				...prev,
-				input_modalities: prev.input_modalities.includes('image')
-					? prev.input_modalities
-					: [...prev.input_modalities, 'image'],
-				output_modalities: prev.output_modalities.includes('image')
-					? prev.output_modalities
-					: ['image'],
-				context_window: '',
-				max_tokens: '',
-			}));
-			setImageBillingMode((mode) => {
-				if (mode === 'per_image') {
-					setPricingTierRows([]);
-				} else {
-					setPricingTierRows((rows) =>
-						draftRowsHaveImageTokenPrices(rows) ? rows : [createDefaultImageTokenTierRow()]
-					);
-				}
-				return mode;
-			});
-			return;
-		}
-		if (kind === 'audio') {
-			setFormData((prev) => ({
-				...prev,
-				input_modalities: prev.input_modalities.includes('audio')
-					? prev.input_modalities.filter((m) => m !== 'image')
-					: ['audio'],
-				output_modalities: ['text'],
-				context_window: '',
-				max_tokens: '',
-			}));
-			setAudioPricingDraft((prev) => {
-				if (prev.mode === 'token') {
-					const hasTier = prev.tiers.some(
-						(r) => r.input_price.trim() !== '' || r.output_price.trim() !== ''
-					);
-					return hasTier ? prev : createDefaultAudioTokenPricingDraft();
-				}
-				return prev.price_per_second.trim() !== '' ? prev : createDefaultAudioPricingDraft();
-			});
-			setPricingTierRows([]);
-			return;
-		}
-		setFormData((prev) => {
-			const withoutImage = prev.output_modalities.filter((m) => m !== 'image');
-			const input = prev.input_modalities.includes('text')
-				? prev.input_modalities
-				: ['text', ...prev.input_modalities.filter((m) => m !== 'audio')];
-			return {
-				...prev,
-				input_modalities: input.length > 0 ? input : ['text'],
-				output_modalities: withoutImage.length > 0 ? withoutImage : ['text'],
-				max_tokens: prev.max_tokens.trim() !== '' ? prev.max_tokens : '8192',
-			};
-		});
-		setPricingTierRows((rows) =>
-			rows.length === 0 || draftRowsLookLikeImageOnly(rows)
-				? [createDefaultNewModelTierRow()]
-				: rows
-		);
-	}, []);
-
-	const handleEdit = useCallback(
-		async (model: ModelListItem) => {
-			setEditingModel(model);
-			fillFormFromModel(model);
-			try {
-				const fullModel = await fetchModelDetail(model.id);
-				fillFormFromModel(fullModel);
-			} catch (error) {
-				console.error('Fetch model details error:', error);
-			}
-			setShowModal(true);
-			setSaveError('');
-		},
-		[fillFormFromModel]
-	);
-
-	/** Routes 等入口可通过 `?edit=<model_id>` 直接打开编辑弹窗。 */
-	useEffect(() => {
-		if (isLoading) return;
-		const editId = searchParams.get('edit')?.trim() ?? '';
-		if (!editId) {
-			editDeepLinkHandledRef.current = null;
-			return;
-		}
-		if (editDeepLinkHandledRef.current === editId) return;
-
-		const clearEditParam = () => {
-			const params = new URLSearchParams(searchParams.toString());
-			if (!params.has('edit')) return;
-			params.delete('edit');
-			const qs = params.toString();
-			router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-		};
-
-		const model = models.find((m) => m.id === editId);
-		editDeepLinkHandledRef.current = editId;
-		if (!model) {
-			console.warn(`Model deep-link edit id not found: ${editId}`);
-			clearEditParam();
-			return;
-		}
-
-		setSelectedKind(
-			isImageGenerationModel(model) ? 'image' : isAudioTranscriptionModel(model) ? 'audio' : 'llm'
-		);
-		const vendor = normalizeModelVendorInput(model.vendor);
-		if (vendor) setSelectedVendor(vendor);
-		void handleEdit(model);
-		clearEditParam();
-	}, [handleEdit, isLoading, models, pathname, router, searchParams]);
-
-	const handleDelete = useCallback(
-		async (id: string) => {
-			if (
-				!confirm(
-					'Are you sure you want to delete this model? This will also delete all associated routes.'
-				)
-			) {
-				return;
-			}
-
-			setIsDeleting(true);
-			try {
-				const result = await deleteModel(id);
-				if (result.success) {
-					setShowModal(false);
-					setEditingModel(null);
-					void refreshModels();
-				} else {
-					alert(result.message || 'Delete failed');
-				}
-			} catch (error) {
-				console.error('Delete error:', error);
-				alert('Delete failed');
-			} finally {
-				setIsDeleting(false);
-			}
-		},
-		[refreshModels]
-	);
-
-	const handleAddTag = useCallback(() => {
-		const t = tagInput.trim();
-		if (t && !formData.tags.includes(t)) {
-			setFormData({ ...formData, tags: [...formData.tags, t] });
-			setTagInput('');
-		}
-	}, [formData, tagInput]);
-
-	const handleRemoveTag = useCallback((tag: string) => {
-		setFormData((prev) => ({ ...prev, tags: prev.tags.filter((x) => x !== tag) }));
-	}, []);
-
-	const toggleFormModality = useCallback(
-		(kind: 'input_modalities' | 'output_modalities', modality: string) => {
-			setFormData((prev) => {
-				const current = prev[kind];
-				const next = current.includes(modality)
-					? current.filter((m) => m !== modality)
-					: [...current, modality];
-				const nextList = next.length > 0 ? next : [modality];
-				if (kind === 'output_modalities' && nextList.includes('image')) {
-					setImageBillingMode((mode) => {
-						if (mode === 'per_image') {
-							setPricingTierRows([]);
-						} else {
-							setPricingTierRows((rows) =>
-								draftRowsHaveImageTokenPrices(rows)
-									? rows
-									: [createDefaultImageTokenTierRow()]
-							);
-						}
-						return mode;
-					});
-					return {
-						...prev,
-						[kind]: nextList,
-						context_window: '',
-						max_tokens: '',
-					};
-				}
-				if (
-					kind === 'output_modalities' &&
-					!nextList.includes('image') &&
-					prev.output_modalities.includes('image')
-				) {
-					setPricingTierRows((rows) =>
-						draftRowsLookLikeImageOnly(rows) ? [createDefaultNewModelTierRow()] : rows
-					);
-					return {
-						...prev,
-						[kind]: nextList,
-						max_tokens: prev.max_tokens.trim() !== '' ? prev.max_tokens : '8192',
-					};
-				}
-				return { ...prev, [kind]: nextList };
-			});
-		},
-		[]
-	);
-
-	const handleSave = useCallback(async () => {
-		setSaveError('');
-		setIsSaving(true);
-		try {
-			const isImage =
-				formKind === 'image' ||
-				isImageGenerationModel({ output_modalities: formData.output_modalities });
-			const isAudio = formKind === 'audio';
-			const imageDraft =
-				isImage && !isAudio
-					? {
-							mode: imageBillingMode,
-							tiers: pricingTierRows,
-							perImage: imagePerImageDraft,
-						}
-					: null;
-			const audioDraft = isAudio ? audioPricingDraft : null;
-			const result = await saveModel(
-				formData,
-				pricingTierRows,
-				editingModel?.id ?? null,
-				imageDraft,
-				audioDraft
-			);
-			if (result.success) {
-				setShowModal(false);
+		setImportResult(null);
+		setImportFailure(null);
+		await write(
+			'/api/admin/models/import',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids }),
+			},
+			parseModelImport,
+			(result) => {
+				importBusy.current = false;
+				setImportSubmitting(false);
+				setImportResult(result);
+				setImportSelected({});
 				void refreshModels();
-			} else {
-				setSaveError(result.message);
+			},
+			(failure) => {
+				importBusy.current = false;
+				setImportSubmitting(false);
+				authorizedFailure(failure, () =>
+					setImportFailure({
+						title: t('importFailed'),
+						failure,
+						uncertain: failure.code !== 'HTTP_ERROR',
+					})
+				);
 			}
-		} catch (error) {
-			console.error('Save error:', error);
-			setSaveError('Save failed, please try again');
-		} finally {
-			setIsSaving(false);
-		}
+		);
 	}, [
-		audioPricingDraft,
-		editingModel?.id,
-		formData,
-		formKind,
-		imageBillingMode,
-		imagePerImageDraft,
-		pricingTierRows,
+		catalog.status,
+		list.status,
+		importCatalogRows,
+		importSelected,
+		existingModelIds,
+		write,
 		refreshModels,
+		authorizedFailure,
+		t,
 	]);
-
-	const closeModal = useCallback(() => {
-		if (isSaving || isDeleting) return;
-		setShowModal(false);
-	}, [isDeleting, isSaving]);
-
-	const clearFilters = useCallback(() => {
-		setSelectedVendor(ALL_VENDORS_KEY);
-	}, []);
-
-	const isAllVendors = selectedVendor === ALL_VENDORS_KEY;
-	const activeVendorKey = isAllVendors ? (vendorKeys[0] ?? 'other') : selectedVendor || vendorKeys[0] || 'other';
-	const activeVendorTitle = isAllVendors ? tCatalog('allVendors') : getModelVendorLabel(activeVendorKey);
-	const hasVendorFilter = !isAllVendors;
-	const hasActiveFilter = hasVendorFilter;
-
+	const { openEditById } = editor;
+	useEffect(() => {
+		if (list.status !== 'ready') return;
+		const id = searchParams.get('edit')?.trim();
+		if (!id) {
+			editHandled.current = null;
+			return;
+		}
+		if (editHandled.current === id) return;
+		editHandled.current = id;
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete('edit');
+		const model = models.find((m) => m.id === id);
+		if (model) {
+			params.set(
+				'kind',
+				isImageGenerationModel(model)
+					? 'image'
+					: isAudioTranscriptionModel(model)
+					? 'audio'
+					: 'llm'
+			);
+			params.set('vendor', normalizeModelVendorInput(model.vendor));
+		}
+		void openEditById(id);
+		router.replace(pathname + (params.size ? '?' + params.toString() : ''), {
+			scroll: false,
+		});
+	}, [list.status, searchParams, models, openEditById, router, pathname]);
+	const isAllVendors = selectedVendor === ALL_VENDORS_KEY,
+		activeVendorKey = isAllVendors ? 'other' : selectedVendor,
+		activeVendorTitle = isAllVendors
+			? tCatalog('allVendors')
+			: getModelVendorLabel(activeVendorKey),
+		hasActiveFilter = !isAllVendors;
+	const clearFilters = useCallback(
+		() => setSelectedVendor(ALL_VENDORS_KEY),
+		[setSelectedVendor]
+	);
 	return {
-		isLoading,
+		...editor,
+		attachSuccessFocus,
+		list,
+		refreshModels,
 		models,
+		modelSearch,
+		setModelSearch,
+		filteredModels,
 		selectedVendor,
 		setSelectedVendor,
 		selectedKind,
@@ -712,30 +379,11 @@ export function useModelsPageState() {
 		isAllVendors,
 		activeVendorKey,
 		activeVendorTitle,
-		hasVendorFilter,
 		hasActiveFilter,
 		clearFilters,
-		billingCurrency,
-		showModal,
-		editingModel,
-		formData,
-		setFormData,
-		formKind,
-		pricingTierRows,
-		setPricingTierRows,
-		imageBillingMode,
-		setImageBillingMode: handleImageBillingModeChange,
-		imagePerImageDraft,
-		setImagePerImageDraft,
-		audioPricingDraft,
-		setAudioPricingDraft,
-		tagInput,
-		setTagInput,
-		saveError,
-		isSaving,
-		isDeleting,
+		catalog,
 		showImportCatalogModal,
-		setShowImportCatalogModal,
+		closeImportCatalogModal,
 		importCatalogRows,
 		importCatalogSearch,
 		setImportCatalogSearch,
@@ -743,12 +391,12 @@ export function useModelsPageState() {
 		setImportCatalogKind,
 		importCatalogKindCounts,
 		filteredImportCatalogRows,
-		importCatalogLoading,
-		importCatalogError,
 		importSelected,
 		importSelectedCount,
 		importableCatalogCount,
 		importSubmitting,
+		importResult,
+		importFailure,
 		existingModelIds,
 		metadataPreview,
 		setMetadataPreview,
@@ -759,14 +407,5 @@ export function useModelsPageState() {
 		selectAllImportPresets,
 		clearImportPresetSelection,
 		runImportSelectedPresets,
-		handleCreate,
-		applyFormKind,
-		handleEdit,
-		handleDelete,
-		handleAddTag,
-		handleRemoveTag,
-		toggleFormModality,
-		handleSave,
-		closeModal,
 	};
 }

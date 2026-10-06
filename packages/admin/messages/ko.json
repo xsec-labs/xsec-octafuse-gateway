@@ -558,6 +558,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "Metadata JSON 보기",
 			"kindAudio": "오디오"
+		},
+		"feedback": {
+			"listFailed": "모델을 불러올 수 없습니다",
+			"readList": "모델 읽기",
+			"detailFailed": "모델 상세 정보를 불러올 수 없습니다",
+			"saveFailed": "모델을 저장할 수 없습니다",
+			"deleteFailed": "모델을 삭제할 수 없습니다",
+			"currencyFailed": "결제 통화를 불러올 수 없습니다",
+			"readCurrency": "결제 통화 읽기",
+			"catalogFailed": "모델 카탈로그를 불러올 수 없습니다",
+			"importFailed": "모델을 가져올 수 없습니다",
+			"idRequired": "모델 ID를 입력하세요",
+			"tokenLimits": "토큰 한도는 양의 정수여야 합니다",
+			"search": "모델, ID 또는 태그 검색",
+			"deleteTitle": "모델 삭제",
+			"deleteDescription": "{id}을(를) 삭제할까요?",
+			"deleteHint": "연결된 경로와 태그도 삭제됩니다.",
+			"importTitle": "모델 가져오기",
+			"importDescription": "{currency} 카탈로그를 사용하여 모델 {count}개를 가져올까요?",
+			"importHint": "기존 모델 ID의 데이터는 유지됩니다.",
+			"importResult": "추가 {created} · 기존 {skipped} · 실패 {failed} · {currency}",
+			"failedTemplates": "가져오기에 실패한 템플릿",
+			"pricingPreview": "{id} 가격 미리보기",
+			"clipboardFailed": "가격 JSON을 복사할 수 없습니다",
+			"importHelp": "가져오기 안내",
+			"importSummary": "가져올 모델을 선택하세요. 기존 모델은 유지되며 가격은 {currency} 카탈로그를 사용합니다."
 		}
 	},
 	"routes": {

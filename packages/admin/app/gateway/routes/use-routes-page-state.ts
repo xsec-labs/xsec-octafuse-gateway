@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
 	isAudioTranscriptionModel,
@@ -123,7 +123,9 @@ export function useRoutesPageState() {
 		}
 	}, []);
 
-	const modelEdit = useModelEditModal({ onChanged: refreshRoutesPage });
+	const modelSuccessFocus = useRef<HTMLHeadingElement | null>(null);
+	const attachModelSuccessFocus = useCallback((element: HTMLHeadingElement | null) => { modelSuccessFocus.current = element; }, []);
+	const modelEdit = useModelEditModal({ onChanged: refreshRoutesPage, successFocus: modelSuccessFocus });
 
 	useEffect(() => {
 		void refreshRoutesPage();
@@ -647,5 +649,6 @@ export function useRoutesPageState() {
 		closeStrategyDialog,
 		refreshRoutesPage,
 		modelEdit,
+		attachModelSuccessFocus,
 	};
 }

@@ -18,7 +18,7 @@ import { RouteWorkspaceHeader } from './components/route-workspace-header';
 function RoutesContent() {
 	const t = useTranslations('routes');
 	const tCommon = useTranslations('common');
-	const state = useRoutesPageState();
+	const { attachModelSuccessFocus: modelSuccessFocusRef, ...state } = useRoutesPageState();
 
 	if (state.isLoading) {
 		return (
@@ -31,7 +31,13 @@ function RoutesContent() {
 	return (
 		<div className="min-w-0 overflow-x-hidden bg-gray-100/90 p-4 pb-6 sm:p-6 lg:p-8">
 			<div className="mb-5 sm:mb-6">
-				<h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('title')}</h1>
+				<h1
+					ref={modelSuccessFocusRef}
+					tabIndex={-1}
+					className="text-2xl font-bold text-gray-900 sm:text-3xl"
+				>
+					{t('title')}
+				</h1>
 				<p className="mt-1 text-sm text-gray-500">{t('subtitle')}</p>
 			</div>
 
@@ -73,7 +79,9 @@ function RoutesContent() {
 						<div className="bg-slate-100/70 p-4 sm:p-6">
 							{state.routesByModel.length === 0 ? (
 								<div className="rounded-xl border border-dashed border-gray-300 bg-white/80 py-16 text-center text-gray-500 shadow-sm">
-									<p className="text-sm font-medium text-gray-600">{t('empty')}</p>
+									<p className="text-sm font-medium text-gray-600">
+										{t('empty')}
+									</p>
 									{state.hasActiveFilters ? (
 										<p className="mt-1 text-xs text-gray-500">
 											{t('emptyFilteredPrefix')}{' '}
@@ -145,12 +153,17 @@ function RoutesContent() {
 				onClose={state.closeRouteModal}
 				onFormChange={state.setFormData}
 				onSave={state.handleSave}
-				onDelete={() => state.editingRoute && void state.handleDelete(state.editingRoute.id)}
-				onDuplicate={() => state.editingRoute && state.handleDuplicate(state.editingRoute)}
+				onDelete={() =>
+					state.editingRoute && void state.handleDelete(state.editingRoute.id)
+				}
+				onDuplicate={() =>
+					state.editingRoute && state.handleDuplicate(state.editingRoute)
+				}
 			/>
 
 			<ModelModal
 				open={state.modelEdit.showModal}
+				feedback={state.modelEdit}
 				editingModel={state.modelEdit.editingModel}
 				formData={state.modelEdit.formData}
 				formKind={state.modelEdit.formKind}

@@ -1,7 +1,22 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import {
+	Input,
+	Textarea,
+	ControlButton,
+	RadioGroup,
+	Select,
+	Table,
+	TableHead,
+	TableBody,
+	TableRow,
+	TableHeader,
+	TableCell,
+	ErrorState,
+} from '@xsec/ui-react';
+import '@/app/gateway/models/models.css';
 
 import type {
 	ImageBillingModeDraft,
@@ -18,6 +33,7 @@ import {
 
 export type PricingTiersEditorProps = {
 	rows: PricingTierDraftRow[];
+	disabled?: boolean;
 	onChange: (rows: PricingTierDraftRow[]) => void;
 	/** 至少保留行数；低于则禁用删除（默认 0，可删光） */
 	minRows?: number;
@@ -50,27 +66,26 @@ function updateRow(
 /** 原仅末档（开放上界）时拆档，给上一档一个可编辑的默认上界 */
 const DEFAULT_PROMOTED_FINITE_UPTO = '1000000';
 
-const linkActionClass =
-	'text-sm font-medium text-blue-600 underline-offset-2 hover:text-blue-800 hover:underline bg-transparent p-0 border-0 cursor-pointer';
-
 function PriceCell(props: {
 	value: string;
 	placeholder: string;
 	ariaLabel: string;
+	disabled?: boolean;
 	onChange: (value: string) => void;
 }) {
 	return (
-		<td className="px-1 py-1.5">
-			<input
+		<TableCell className="px-1 py-1.5">
+			<Input
 				type="text"
 				inputMode="decimal"
+				disabled={props.disabled}
 				value={props.value}
 				onChange={(e) => props.onChange(e.target.value)}
-				className="w-full min-w-[4rem] rounded border border-gray-200 px-1.5 py-1 font-mono text-[11px] tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+				className="font-mono"
 				placeholder={props.placeholder}
 				aria-label={props.ariaLabel}
 			/>
-		</td>
+		</TableCell>
 	);
 }
 
@@ -86,8 +101,22 @@ export function PricingTiersEditor({
 	onImageBillingModeChange,
 	perImageDraft,
 	onPerImageDraftChange,
+	disabled = false,
 }: PricingTiersEditorProps) {
 	const t = useTranslations('pricing.tiersEditor');
+	const feedback = useTranslations('models.feedback'),
+		fieldId = useId();
+	const [copyStatus, setCopyStatus] = useState<
+			'idle' | 'copying' | 'copied' | 'error'
+		>('idle'),
+		copyOwner = useRef(0),
+		copyBusy = useRef(false);
+	useEffect(
+		() => () => {
+			copyOwner.current++;
+		},
+		[]
+	);
 	const tImage = useTranslations('pricing.readOnlyImage');
 	const tBilling = useTranslations('pricing.imageBilling');
 	const tPricing = useTranslations('pricing');
@@ -109,30 +138,52 @@ export function PricingTiersEditor({
 			? { mode: imageBillingMode, perImage: perImageDraft }
 			: undefined;
 	const jsonPreview = formatPricingProfilePreview(rows, imageDraftForPreview);
+	useEffect(() => {
+		copyOwner.current++;
+		copyBusy.current = false;
+		setCopyStatus('idle');
+	}, [jsonPreview]);
+	async function copyPreview() {
+		if (copyBusy.current) return;
+		copyBusy.current = true;
+		const owner = ++copyOwner.current;
+		setCopyStatus('copying');
+		try {
+			await navigator.clipboard.writeText(jsonPreview);
+			if (copyOwner.current === owner) setCopyStatus('copied');
+		} catch {
+			if (copyOwner.current === owner) setCopyStatus('error');
+		} finally {
+			if (copyOwner.current === owner) copyBusy.current = false;
+		}
+	}
 	const hasToolbarLeft = Boolean(toolbarStart) || Boolean(title);
 	const isImage = variant === 'image';
 	const isPerImage = isImage && imageBillingMode === 'per_image';
 	const colSpan = isImage && !isPerImage ? 7 : isPerImage ? 1 : 6;
 	/** Image 列名与 Route 只读区共用 `pricing.readOnlyImage`，避免两套文案分叉 */
-	const imageColHeaders = isImage && !isPerImage
-		? ([
-				tImage('textInput'),
-				tImage('cachedText'),
-				tImage('imageInput'),
-				tImage('cachedImageInput'),
-				tImage('imageOutput'),
-			] as const)
-		: null;
+	const imageColHeaders =
+		isImage && !isPerImage
+			? ([
+					tImage('textInput'),
+					tImage('cachedText'),
+					tImage('imageInput'),
+					tImage('cachedImageInput'),
+					tImage('imageOutput'),
+			  ] as const)
+			: null;
 
 	const addTier = () => {
-		const base = rows.length > 0 ? rows[rows.length - 1]! : createEmptyTierRow();
+		if (disabled) return;
+		const base =
+			rows.length > 0 ? rows[rows.length - 1]! : createEmptyTierRow();
 		const promoted =
 			rows.length > 0
 				? rows.map((r, i) =>
 						i === rows.length - 1 && r.upto.trim() === ''
 							? { ...r, upto: DEFAULT_PROMOTED_FINITE_UPTO }
 							: r
-					)
+				  )
 				: [];
 		const newLast = {
 			...createEmptyTierRow(),
@@ -149,330 +200,413 @@ export function PricingTiersEditor({
 	};
 
 	const removeTier = (id: string) => {
-		if (!canRemove) {
+		if (disabled || !canRemove) {
 			return;
 		}
 		const next = rows.filter((r) => r.id !== id);
 		onChange(ensureLastRowOpenUptoDraft(next));
 	};
 
-	const perImage = perImageDraft ?? { default: '', inputDefault: '', uncertainResultPolicy: 'requested' as const };
+	const perImage = perImageDraft ?? {
+		default: '',
+		inputDefault: '',
+		uncertainResultPolicy: 'requested' as const,
+	};
 
 	return (
-		<div className="space-y-3">
+		<div className="model-pricing-editor space-y-3">
 			<div
-				className={`mb-1 flex min-h-[1.25rem] flex-wrap items-center gap-x-3 gap-y-2 ${hasToolbarLeft ? 'justify-between' : 'justify-end'}`}
+				className={`mb-1 flex min-h-[1.25rem] flex-wrap items-center gap-x-3 gap-y-2 ${
+					hasToolbarLeft ? 'justify-between' : 'justify-end'
+				}`}
 			>
 				{hasToolbarLeft ? (
 					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 text-left">
 						{toolbarStart}
-						{title ? <span className="text-sm font-medium text-gray-700">{title}</span> : null}
+						{title ? (
+							<span className="text-sm font-medium model-text">{title}</span>
+						) : null}
 					</div>
 				) : null}
 				<div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
 					{!isPerImage ? (
-						<button type="button" onClick={addTier} className={linkActionClass}>
+						<ControlButton
+							disabled={disabled}
+							type="button"
+							onClick={addTier}
+							variant="ghost"
+							size="sm"
+						>
 							{t('add')}
-						</button>
+						</ControlButton>
 					) : null}
-					<button
+					<ControlButton
 						type="button"
 						onClick={() => setJsonPreviewOpen((v) => !v)}
 						aria-expanded={jsonPreviewOpen}
-						className={linkActionClass}
+						variant="ghost"
+						size="sm"
 					>
 						{jsonPreviewOpen ? tCommon('hide') : t('preview')}
-					</button>
+					</ControlButton>
 				</div>
 			</div>
 			{isImage && onImageBillingModeChange ? (
-				<div className="space-y-1.5">
-					<p className="text-[11px] font-medium text-gray-600">{tBilling('modeLabel')}</p>
-					<div
-						className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5"
-						role="group"
-						aria-label={tBilling('modeLabel')}
-					>
-						{(
-							[
-								{ id: 'token' as const, label: tBilling('modeToken') },
-								{ id: 'per_image' as const, label: tBilling('modePerImage') },
-							] as const
-						).map((opt) => {
-							const active = imageBillingMode === opt.id;
-							return (
-								<button
-									key={opt.id}
-									type="button"
-									onClick={() => {
-										if (imageBillingMode !== opt.id) {
-											onImageBillingModeChange(opt.id);
-										}
-									}}
-									className={
-										active
-											? 'rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
-											: 'rounded px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900'
-									}
-								>
-									{opt.label}
-								</button>
-							);
-						})}
-					</div>
-				</div>
+				<RadioGroup
+					aria-label={tBilling('modeLabel')}
+					value={imageBillingMode}
+					options={[
+						{ value: 'token', label: tBilling('modeToken'), disabled },
+						{ value: 'per_image', label: tBilling('modePerImage'), disabled },
+					]}
+					onValueChange={(value) => {
+						if (value === 'token' || value === 'per_image')
+							onImageBillingModeChange(value);
+					}}
+				/>
 			) : null}
 			{isImage && !isPerImage ? (
-				<p className="text-[11px] text-gray-500 leading-relaxed">{t('imageHint')}</p>
+				<p className="text-[11px] model-muted leading-relaxed">
+					{t('imageHint')}
+				</p>
 			) : null}
 			{isPerImage && onPerImageDraftChange ? (
-				<div className="overflow-hidden rounded-md border border-gray-200 bg-white">
+				<div className="overflow-hidden rounded-md border model-border model-surface">
 					<div className="grid gap-3 p-3 sm:grid-cols-2">
 						<div>
-							<label className="mb-1 block text-[11px] font-medium text-gray-600">
+							<label htmlFor={fieldId + '-output'} className="xui-label">
 								{tBilling('outputDefault')}
 							</label>
-							<input
+							<Input
 								type="text"
 								inputMode="decimal"
+								id={fieldId + '-output'}
+								disabled={disabled}
 								value={perImage.default}
 								onChange={(e) =>
-									onPerImageDraftChange({ ...perImage, default: e.target.value })
+									onPerImageDraftChange({
+										...perImage,
+										default: e.target.value,
+									})
 								}
-								className="w-full rounded border border-gray-200 px-2 py-1.5 font-mono text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+								className="font-mono"
 								placeholder={perImagePlaceholder}
 							/>
 						</div>
 						<div>
-							<label className="mb-1 block text-[11px] font-medium text-gray-600">
+							<label htmlFor={fieldId + '-input'} className="xui-label">
 								{tBilling('inputDefaultOptional')}
 							</label>
-							<input
+							<Input
 								type="text"
 								inputMode="decimal"
+								id={fieldId + '-input'}
+								disabled={disabled}
 								value={perImage.inputDefault}
 								onChange={(e) =>
-									onPerImageDraftChange({ ...perImage, inputDefault: e.target.value })
+									onPerImageDraftChange({
+										...perImage,
+										inputDefault: e.target.value,
+									})
 								}
-								className="w-full rounded border border-gray-200 px-2 py-1.5 font-mono text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+								className="font-mono"
 								placeholder={tBilling('inputDefaultEmpty')}
 							/>
 						</div>
 						<div className="sm:col-span-2">
-							<label className="mb-1 block text-[11px] font-medium text-gray-600">
+							<label htmlFor={fieldId + '-policy'} className="xui-label">
 								{tBilling('uncertainPolicy')}
 							</label>
-							<select
-								value={perImage.uncertainResultPolicy || 'requested'}
-								onChange={(e) =>
-									onPerImageDraftChange({
-										...perImage,
-										uncertainResultPolicy: e.target.value as 'requested' | 'zero',
-									})
-								}
-								className="w-full rounded border border-gray-200 bg-white px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
-							>
-								<option value="requested">{tBilling('policyRequested')}</option>
-								<option value="zero">{tBilling('policyZero')}</option>
-							</select>
+							<Select
+								id={fieldId + '-policy'}
+								value={perImage.uncertainResultPolicy}
+								disabled={disabled}
+								options={[
+									{ value: 'requested', label: tBilling('policyRequested') },
+									{ value: 'zero', label: tBilling('policyZero') },
+								]}
+								onValueChange={(value) => {
+									if (value === 'requested' || value === 'zero')
+										onPerImageDraftChange({
+											...perImage,
+											uncertainResultPolicy: value,
+										});
+								}}
+							/>
 						</div>
 					</div>
-					<p className="border-t border-gray-100 bg-gray-50/90 px-2 py-1.5 text-[11px] leading-snug text-gray-500">
+					<p className="border-t model-border model-subtle px-2 py-1.5 text-[11px] leading-snug model-muted">
 						{unitFooter}
 					</p>
 				</div>
 			) : (
-				<div className="overflow-hidden rounded-md border border-gray-200 bg-white">
+				<div className="overflow-hidden rounded-md border model-border model-surface">
 					<div className="overflow-x-auto">
-						<table className="min-w-full divide-y divide-gray-200 text-left text-xs">
-							<thead
+						<Table className="min-w-full divide-y model-divide text-left text-xs">
+							<TableHead
 								className={
 									isImage
-										? 'bg-gray-50 text-[11px] font-medium text-gray-500'
-										: 'bg-gray-50 text-[10px] font-semibold uppercase tracking-wide text-gray-500'
+										? 'model-subtle text-[11px] font-medium model-muted'
+										: 'model-subtle text-[10px] font-semibold uppercase tracking-wide model-muted'
 								}
 							>
-								<tr>
-									<th className="whitespace-nowrap px-2 py-2">{t('upto')}</th>
+								<TableRow>
+									<TableHeader className="whitespace-nowrap px-2 py-2">
+										{t('upto')}
+									</TableHeader>
 									{imageColHeaders ? (
 										imageColHeaders.map((label) => (
-											<th key={label} className="whitespace-nowrap px-2 py-2">
+											<TableHeader
+												key={label}
+												className="whitespace-nowrap px-2 py-2"
+											>
 												{label}
-											</th>
+											</TableHeader>
 										))
 									) : (
 										<>
-											<th className="whitespace-nowrap px-2 py-2">{t('input')}</th>
-											<th className="whitespace-nowrap px-2 py-2">{t('output')}</th>
-											<th className="whitespace-nowrap px-2 py-2">{t('cacheRead')}</th>
-											<th className="whitespace-nowrap px-2 py-2">{t('cacheWrite')}</th>
+											<TableHeader className="whitespace-nowrap px-2 py-2">
+												{t('input')}
+											</TableHeader>
+											<TableHeader className="whitespace-nowrap px-2 py-2">
+												{t('output')}
+											</TableHeader>
+											<TableHeader className="whitespace-nowrap px-2 py-2">
+												{t('cacheRead')}
+											</TableHeader>
+											<TableHeader className="whitespace-nowrap px-2 py-2">
+												{t('cacheWrite')}
+											</TableHeader>
 										</>
 									)}
-									<th className="w-10 px-1 py-2 text-center"> </th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-gray-100">
+									<TableHeader className="w-10 px-1 py-2 text-center">
+										{' '}
+									</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody className="divide-y model-divide">
 								{rows.length === 0 ? (
-									<tr>
-										<td colSpan={colSpan} className="px-3 py-4 text-center text-gray-500">
+									<TableRow>
+										<TableCell
+											colSpan={colSpan}
+											className="px-3 py-4 text-center model-muted"
+										>
 											{t('noTiers')}
-										</td>
-									</tr>
+										</TableCell>
+									</TableRow>
 								) : (
 									rows.map((r, rowIndex) => {
 										const isLast = rowIndex === rows.length - 1;
 										return (
-											<tr key={r.id} className="align-top">
-												<td className="px-1 py-1.5">
+											<TableRow key={r.id} className="align-top">
+												<TableCell className="px-1 py-1.5">
 													{isLast ? (
 														<div
-															className="flex min-h-[1.75rem] min-w-[4.5rem] items-center rounded border border-dashed border-gray-200 bg-gray-50 px-1.5 font-mono text-[11px] text-gray-600 tabular-nums"
+															className="flex min-h-[1.75rem] min-w-[4.5rem] items-center rounded border border-dashed model-border model-subtle px-1.5 font-mono text-[11px] model-muted tabular-nums"
 															title={t('lastTierOpenEnded')}
-															aria-label={`upto open bound for tier ${r.id}`}
+															aria-label={t('lastTierOpenEnded')}
 														>
 															{tCommon('infinity')}
 														</div>
 													) : (
-														<input
+														<Input
 															type="text"
 															inputMode="numeric"
 															value={r.upto}
 															onChange={(e) =>
-																onChange(updateRow(rows, r.id, { upto: e.target.value }))
+																onChange(
+																	updateRow(rows, r.id, {
+																		upto: e.target.value,
+																	})
+																)
 															}
-															className="w-full min-w-[4.5rem] rounded border border-gray-200 px-1.5 py-1 font-mono text-[11px] tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+															className="font-mono"
 															placeholder="0"
-															aria-label={`upto for tier ${r.id}`}
+															disabled={disabled}
+															aria-label={t('upto') + ' ' + (rowIndex + 1)}
 														/>
 													)}
-												</td>
+												</TableCell>
 												{isImage ? (
 													<>
 														<PriceCell
+															disabled={disabled}
 															value={r.input_price}
 															placeholder={perMPlaceholder}
-															ariaLabel={`text input price ${r.id}`}
-															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { input_price: v }))
+															ariaLabel={
+																tImage('textInput') + ' ' + (rowIndex + 1)
 															}
-														/>
-														<PriceCell
-															value={r.cache_read_price}
-															placeholder={tPricing('emptyCachePlaceholder')}
-															ariaLabel={`cached text price ${r.id}`}
-															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { cache_read_price: v }))
-															}
-														/>
-														<PriceCell
-															value={r.image_input_price}
-															placeholder={perMPlaceholder}
-															ariaLabel={`image input price ${r.id}`}
-															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { image_input_price: v }))
-															}
-														/>
-														<PriceCell
-															value={r.image_input_cache_price}
-															placeholder={tPricing('emptyCachePlaceholder')}
-															ariaLabel={`cached image input price ${r.id}`}
 															onChange={(v) =>
 																onChange(
-																	updateRow(rows, r.id, { image_input_cache_price: v })
+																	updateRow(rows, r.id, { input_price: v })
 																)
 															}
 														/>
 														<PriceCell
+															disabled={disabled}
+															value={r.cache_read_price}
+															placeholder={tPricing('emptyCachePlaceholder')}
+															ariaLabel={
+																tImage('cachedText') + ' ' + (rowIndex + 1)
+															}
+															onChange={(v) =>
+																onChange(
+																	updateRow(rows, r.id, { cache_read_price: v })
+																)
+															}
+														/>
+														<PriceCell
+															disabled={disabled}
+															value={r.image_input_price}
+															placeholder={perMPlaceholder}
+															ariaLabel={
+																tImage('imageInput') + ' ' + (rowIndex + 1)
+															}
+															onChange={(v) =>
+																onChange(
+																	updateRow(rows, r.id, {
+																		image_input_price: v,
+																	})
+																)
+															}
+														/>
+														<PriceCell
+															disabled={disabled}
+															value={r.image_input_cache_price}
+															placeholder={tPricing('emptyCachePlaceholder')}
+															ariaLabel={
+																tImage('cachedImageInput') +
+																' ' +
+																(rowIndex + 1)
+															}
+															onChange={(v) =>
+																onChange(
+																	updateRow(rows, r.id, {
+																		image_input_cache_price: v,
+																	})
+																)
+															}
+														/>
+														<PriceCell
+															disabled={disabled}
 															value={r.image_output_price}
 															placeholder={perMPlaceholder}
-															ariaLabel={`image output price ${r.id}`}
+															ariaLabel={
+																tImage('imageOutput') + ' ' + (rowIndex + 1)
+															}
 															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { image_output_price: v }))
+																onChange(
+																	updateRow(rows, r.id, {
+																		image_output_price: v,
+																	})
+																)
 															}
 														/>
 													</>
 												) : (
 													<>
 														<PriceCell
+															disabled={disabled}
 															value={r.input_price}
 															placeholder={perMPlaceholder}
-															ariaLabel={`input price ${r.id}`}
+															ariaLabel={t('input') + ' ' + (rowIndex + 1)}
 															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { input_price: v }))
+																onChange(
+																	updateRow(rows, r.id, { input_price: v })
+																)
 															}
 														/>
 														<PriceCell
+															disabled={disabled}
 															value={r.output_price}
 															placeholder={perMPlaceholder}
-															ariaLabel={`output price ${r.id}`}
+															ariaLabel={t('output') + ' ' + (rowIndex + 1)}
 															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { output_price: v }))
+																onChange(
+																	updateRow(rows, r.id, { output_price: v })
+																)
 															}
 														/>
 														<PriceCell
+															disabled={disabled}
 															value={r.cache_read_price}
 															placeholder={tPricing('emptyCachePlaceholder')}
-															ariaLabel={`cache read ${r.id}`}
+															ariaLabel={t('cacheRead') + ' ' + (rowIndex + 1)}
 															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { cache_read_price: v }))
+																onChange(
+																	updateRow(rows, r.id, { cache_read_price: v })
+																)
 															}
 														/>
 														<PriceCell
+															disabled={disabled}
 															value={r.cache_write_price}
 															placeholder={tPricing('emptyCachePlaceholder')}
-															ariaLabel={`cache write ${r.id}`}
+															ariaLabel={t('cacheWrite') + ' ' + (rowIndex + 1)}
 															onChange={(v) =>
-																onChange(updateRow(rows, r.id, { cache_write_price: v }))
+																onChange(
+																	updateRow(rows, r.id, {
+																		cache_write_price: v,
+																	})
+																)
 															}
 														/>
 													</>
 												)}
-												<td className="px-0 py-1.5 text-center">
-													<button
+												<TableCell className="px-0 py-1.5 text-center">
+													<ControlButton
 														type="button"
-														disabled={!canRemove}
+														disabled={disabled || !canRemove}
 														onClick={() => removeTier(r.id)}
-														className="rounded px-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
+														variant="danger"
+														size="sm"
+														aria-label={t('removeTier')}
 														title={t('removeTier')}
 													>
 														×
-													</button>
-												</td>
-											</tr>
+													</ControlButton>
+												</TableCell>
+											</TableRow>
 										);
 									})
 								)}
-							</tbody>
-						</table>
+							</TableBody>
+						</Table>
 					</div>
-					<p className="border-t border-gray-100 bg-gray-50/90 px-2 py-1.5 text-[11px] leading-snug text-gray-500">
+					<p className="border-t model-border model-subtle px-2 py-1.5 text-[11px] leading-snug model-muted">
 						{unitFooter}
 					</p>
 				</div>
 			)}
+			{copyStatus === 'error' ? (
+				<ErrorState title={feedback('clipboardFailed')} />
+			) : null}
+			{copyStatus === 'copied' ? (
+				<span role="status">{tCommon('copied')}</span>
+			) : null}
 			{jsonPreviewOpen ? (
 				<div className="space-y-1.5">
 					<div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-						<label className="text-xs font-medium text-gray-600">
-							<code className="rounded bg-gray-100 px-1">{tPricing('jsonPreviewLabel')}</code>
+						<label className="text-xs font-medium model-muted">
+							<code className="rounded model-subtle px-1">
+								{tPricing('jsonPreviewLabel')}
+							</code>
 						</label>
-						<button
+						<ControlButton
 							type="button"
-							onClick={() => {
-								if (navigator.clipboard?.writeText) {
-									void navigator.clipboard.writeText(jsonPreview).catch(() => {});
-								}
-							}}
-							className={linkActionClass}
+							onClick={() => void copyPreview()}
+							disabled={copyStatus === 'copying'}
+							variant="ghost"
+							size="sm"
 						>
-							{tCommon('copy')}
-						</button>
+							{copyStatus === 'copied' ? tCommon('copied') : tCommon('copy')}
+						</ControlButton>
 					</div>
-					<textarea
+					<Textarea
 						readOnly
 						rows={Math.min(14, 4 + rows.length * 3)}
 						value={jsonPreview}
-						className="w-full resize-y rounded-md border border-dashed border-gray-300 bg-gray-50/90 px-2 py-1.5 font-mono text-[11px] leading-relaxed text-gray-800"
+						className="model-json"
 						spellCheck={false}
 						aria-label="pricing_profile JSON preview"
 					/>

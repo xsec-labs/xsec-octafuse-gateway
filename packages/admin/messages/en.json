@@ -558,6 +558,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "View metadata JSON",
 			"kindAudio": "Audio"
+		},
+		"feedback": {
+			"listFailed": "Models could not be loaded",
+			"readList": "Read models",
+			"detailFailed": "Model details could not be loaded",
+			"saveFailed": "Model could not be saved",
+			"deleteFailed": "Model could not be deleted",
+			"currencyFailed": "Billing currency could not be loaded",
+			"readCurrency": "Read billing currency",
+			"catalogFailed": "Model catalog could not be loaded",
+			"importFailed": "Models could not be imported",
+			"idRequired": "Enter a model ID",
+			"tokenLimits": "Token limits must be positive integers",
+			"search": "Search models, IDs or tags",
+			"deleteTitle": "Delete model",
+			"deleteDescription": "Delete {id}?",
+			"deleteHint": "Associated routes and tags will also be deleted.",
+			"importTitle": "Import models",
+			"importDescription": "Import {count} models using the {currency} catalog?",
+			"importHint": "Existing model IDs keep their current data.",
+			"importResult": "Created {created} · Existing {skipped} · Failed {failed} · {currency}",
+			"failedTemplates": "Templates that failed to import",
+			"pricingPreview": "Pricing preview for {id}",
+			"clipboardFailed": "Pricing JSON could not be copied",
+			"importHelp": "Import details",
+			"importSummary": "Select models to import. Existing models are preserved. Prices use the {currency} catalog."
 		}
 	},
 	"routes": {

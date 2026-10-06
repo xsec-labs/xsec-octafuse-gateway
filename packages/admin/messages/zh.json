@@ -558,6 +558,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "查看 Metadata JSON",
 			"kindAudio": "音频"
+		},
+		"feedback": {
+			"listFailed": "无法读取模型",
+			"readList": "读取模型",
+			"detailFailed": "无法读取模型详情",
+			"saveFailed": "无法保存模型",
+			"deleteFailed": "无法删除模型",
+			"currencyFailed": "无法读取计费币种",
+			"readCurrency": "读取计费币种",
+			"catalogFailed": "无法读取模型目录",
+			"importFailed": "无法导入模型",
+			"idRequired": "请输入模型 ID",
+			"tokenLimits": "Token 上限必须为正整数",
+			"search": "搜索模型、ID 或标签",
+			"deleteTitle": "删除模型",
+			"deleteDescription": "确认删除 {id}？",
+			"deleteHint": "关联路由和标签也将一并删除。",
+			"importTitle": "导入模型",
+			"importDescription": "确认使用 {currency} 目录导入 {count} 个模型？",
+			"importHint": "已有模型 ID 保留当前数据。",
+			"importResult": "新增 {created} · 已有 {skipped} · 失败 {failed} · {currency}",
+			"failedTemplates": "导入失败的模板",
+			"pricingPreview": "{id} 的定价预览",
+			"clipboardFailed": "无法复制定价 JSON",
+			"importHelp": "导入说明",
+			"importSummary": "选择要导入的模型。已有模型会保留，价格采用 {currency} 目录。"
 		}
 	},
 	"routes": {

@@ -558,6 +558,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "Metadata JSON を表示",
 			"kindAudio": "音声"
+		},
+		"feedback": {
+			"listFailed": "モデルを読み込めませんでした",
+			"readList": "モデルを読み込む",
+			"detailFailed": "モデル詳細を読み込めませんでした",
+			"saveFailed": "モデルを保存できませんでした",
+			"deleteFailed": "モデルを削除できませんでした",
+			"currencyFailed": "請求通貨を読み込めませんでした",
+			"readCurrency": "請求通貨を読み込む",
+			"catalogFailed": "モデルカタログを読み込めませんでした",
+			"importFailed": "モデルをインポートできませんでした",
+			"idRequired": "モデル ID を入力してください",
+			"tokenLimits": "トークン上限は正の整数にしてください",
+			"search": "モデル、ID、タグを検索",
+			"deleteTitle": "モデルを削除",
+			"deleteDescription": "{id} を削除しますか？",
+			"deleteHint": "関連ルートとタグも削除されます。",
+			"importTitle": "モデルをインポート",
+			"importDescription": "{currency} カタログを使って {count} 件のモデルをインポートしますか？",
+			"importHint": "既存のモデル ID は現在のデータを保持します。",
+			"importResult": "追加 {created} · 既存 {skipped} · 失敗 {failed} · {currency}",
+			"failedTemplates": "インポートに失敗したテンプレート",
+			"pricingPreview": "{id} の料金プレビュー",
+			"clipboardFailed": "料金 JSON をコピーできませんでした",
+			"importHelp": "インポートの詳細",
+			"importSummary": "インポートするモデルを選択します。既存モデルは保持され、価格は {currency} カタログに基づきます。"
 		}
 	},
 	"routes": {

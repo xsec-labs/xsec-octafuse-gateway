@@ -1,28 +1,48 @@
 'use client';
-
-import { TrashIcon } from '@heroicons/react/24/outline';
+import {
+	ControlButton,
+	Dialog,
+	Field,
+	Input,
+	Textarea,
+	Checkbox,
+	RadioGroup,
+	Select,
+	Badge,
+	Spinner,
+	ErrorState,
+} from '@xsec/ui-react';
 import { useTranslations } from 'next-intl';
 import {
 	MODEL_INPUT_MODALITIES,
 	MODEL_OUTPUT_MODALITIES,
 } from '@octafuse/core/db/model-modalities';
-import { ModelModalitiesBadgeFromRaw } from '@/components/model-modalities-badge';
 import { PricingTiersEditor } from '@/components/pricing-tiers-editor';
+import ShellError from '@/components/layout/ShellError';
 import { MODEL_VENDOR_OPTIONS } from '@/lib/model-vendor';
 import {
-	createDefaultAudioPricingDraft,
 	createDefaultAudioTokenPricingDraft,
-	type AudioBillingModeDraft,
 	type AudioPricingDraftState,
 	type ImageBillingModeDraft,
 	type ImagePerImageDraft,
 	type PricingTierDraftRow,
 } from '@/lib/pricing-tiers-draft';
-import { tagBadgeClass } from '../model-utils';
 import type { ModelFormData, ModelFormKind, ModelListItem } from '../types';
-
+import type { useModelEditModal } from '../use-model-edit-modal';
+import '../models.css';
 type Props = {
 	open: boolean;
+	feedback: Pick<
+		ReturnType<typeof useModelEditModal>,
+		| 'editorStatus'
+		| 'actionFailure'
+		| 'currencyState'
+		| 'loadCurrency'
+		| 'returnFocus'
+		| 'showDelete'
+		| 'deleteReturnFocus'
+		| 'setShowDelete'
+	>;
 	editingModel: ModelListItem | null;
 	formData: ModelFormData;
 	/** 当前 Kind（含 audio；由父级 formKind 驱动，避免仅靠 modalities 误判） */
@@ -45,7 +65,10 @@ type Props = {
 	onTagInputChange: (value: string) => void;
 	onAddTag: () => void;
 	onRemoveTag: (tag: string) => void;
-	onToggleModality: (kind: 'input_modalities' | 'output_modalities', modality: string) => void;
+	onToggleModality: (
+		kind: 'input_modalities' | 'output_modalities',
+		modality: string
+	) => void;
 	/** 切换 LLM / Image / Audio Kind（同步 modalities 与默认 pricing） */
 	onKindChange: (kind: ModelFormKind) => void;
 	onSave: () => void;
@@ -80,540 +103,472 @@ export function ModelModal(props: Props) {
 		onKindChange,
 		onSave,
 		onDelete,
+		feedback,
 	} = props;
-
-	const t = useTranslations('models.modal');
-	const tCommon = useTranslations('common');
-	const isImageModel = formKind === 'image';
-	const isAudioModel = formKind === 'audio';
-	const hideTokenLimits = isImageModel || isAudioModel;
-
+	const t = useTranslations('models.modal'),
+		common = useTranslations('common'),
+		f = useTranslations('models.feedback');
+	const busy = isSaving || isDeleting,
+		ready =
+			feedback.editorStatus === 'ready' &&
+			feedback.currencyState.status === 'ready';
+	function text(
+		key:
+			| 'id'
+			| 'display_name'
+			| 'released_at'
+			| 'context_window'
+			| 'max_tokens',
+		label: string,
+		type = 'text'
+	) {
+		return (
+			<Field label={t(label)}>
+				{(field) => (
+					<Input
+						{...field}
+						type={type}
+						value={formData[key]}
+						onChange={(event) =>
+							onFormChange({ ...formData, [key]: event.target.value })
+						}
+						disabled={busy || (key === 'id' && !!editingModel)}
+						required={key === 'id'}
+						min={type === 'number' ? 1 : undefined}
+						step={type === 'number' ? 1 : undefined}
+						autoComplete="off"
+					/>
+				)}
+			</Field>
+		);
+	}
+	function audioNumber(
+		key: 'price_per_second' | 'minimum_seconds',
+		label: string
+	) {
+		if (!audioPricingDraft || !onAudioPricingDraftChange) return null;
+		return (
+			<Field
+				label={t(label)}
+				hint={key === 'price_per_second' ? billingCurrency + '/s' : undefined}
+			>
+				{(field) => (
+					<Input
+						{...field}
+						type="number"
+						step="any"
+						min="0"
+						value={audioPricingDraft[key]}
+						onChange={(event) =>
+							onAudioPricingDraftChange({
+								...audioPricingDraft,
+								[key]: event.target.value,
+							})
+						}
+						disabled={busy}
+					/>
+				)}
+			</Field>
+		);
+	}
 	if (!open) return null;
-
 	return (
-		<div
-			className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget && !isSaving && !isDeleting) {
-					onClose();
-				}
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next && !busy && !feedback.showDelete) onClose();
 			}}
-		>
-			<div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-				<div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white">
-					<h2 className="text-xl font-bold text-gray-900">
-						{editingModel ? t('editTitle') : t('newTitle')}
-					</h2>
-					<button
-						type="button"
-						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-						disabled={isSaving || isDeleting}
-						aria-label={tCommon('close')}
+			preventOutsideDismissal={busy}
+			title={editingModel ? t('editTitle') : t('newTitle')}
+			description={editingModel?.id}
+			className="model-dialog"
+			finalFocus={feedback.returnFocus}
+			footer={
+				<>
+					{editingModel && ready ? (
+						<ControlButton
+							variant="danger"
+							disabled={busy}
+							onClick={() => feedback.setShowDelete(true)}
+						>
+							{t('deleteModel')}
+						</ControlButton>
+					) : null}
+					<span className="model-spacer" />
+					<ControlButton variant="outline" onClick={onClose} disabled={busy}>
+						{common('cancel')}
+					</ControlButton>
+					<ControlButton
+						type="submit"
+						form="model-form"
+						disabled={busy || !ready}
+						loading={isSaving}
 					>
-						x
-					</button>
-				</div>
-
-				<div className="p-6">
-					{saveError && (
-						<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
-							{saveError}
-						</div>
-					)}
-
-					<div className="grid grid-cols-2 gap-4">
-						<div className="col-span-2">
-							<label className="block text-sm font-medium text-gray-700 mb-1.5">
-								{t('kind')}
-							</label>
-							<div
-								className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5"
-								role="group"
-								aria-label={t('kind')}
-							>
-								{(
-									[
-										{ id: 'llm' as const, label: t('kindLlm') },
-										{ id: 'image' as const, label: t('kindImage') },
-										{ id: 'audio' as const, label: t('kindAudio') },
-									] as const
-								).map((opt) => {
-									const active = formKind === opt.id;
-									return (
-										<button
-											key={opt.id}
-											type="button"
-											disabled={isSaving || isDeleting}
-											onClick={() => {
-												if (formKind !== opt.id) onKindChange(opt.id);
-											}}
-											className={
-												active
-													? 'rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
-													: 'rounded px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900'
-											}
-										>
-											{opt.label}
-										</button>
-									);
-								})}
+						{common('save')}
+					</ControlButton>
+				</>
+			}
+		>
+			{feedback.editorStatus === 'loading' ||
+			feedback.currencyState.status === 'loading' ? (
+				<Spinner label={common('loading')} />
+			) : null}
+			{feedback.currencyState.status === 'error' ? (
+				<ShellError
+					title={f('currencyFailed')}
+					failure={feedback.currencyState.failure}
+					action={
+						<ControlButton onClick={() => void feedback.loadCurrency()}>
+							{f('readCurrency')}
+						</ControlButton>
+					}
+				/>
+			) : null}
+			{feedback.actionFailure && !feedback.showDelete ? (
+				<ShellError
+					title={feedback.actionFailure.title}
+					failure={feedback.actionFailure.failure}
+					uncertainWrite={feedback.actionFailure.uncertain}
+				/>
+			) : null}
+			{ready ? (
+				<form
+					id="model-form"
+					className="model-form"
+					onSubmit={(event) => {
+						event.preventDefault();
+						onSave();
+					}}
+					aria-busy={busy}
+				>
+					{saveError ? <ErrorState title={saveError} /> : null}
+					<fieldset disabled={busy}>
+						<div className="model-fields">
+							<div className="model-full">
+								<RadioGroup
+									aria-label={t('kind')}
+									value={formKind}
+									options={(['llm', 'image', 'audio'] as const).map(
+										(value) => ({
+											value,
+											label: t(
+												value === 'llm'
+													? 'kindLlm'
+													: value === 'image'
+													? 'kindImage'
+													: 'kindAudio'
+											),
+											disabled: busy,
+										})
+									)}
+									onValueChange={(value) => {
+										if (
+											value === 'llm' ||
+											value === 'image' ||
+											value === 'audio'
+										)
+											onKindChange(value);
+									}}
+								/>
+								<p className="model-hint">
+									{t(
+										formKind === 'audio'
+											? 'kindHintAudio'
+											: formKind === 'image'
+											? 'kindHintImage'
+											: 'kindHintLlm'
+									)}
+								</p>
 							</div>
-							<p className="mt-1.5 text-[11px] text-gray-500 leading-relaxed">
-								{isAudioModel
-									? t('kindHintAudio')
-									: isImageModel
-										? t('kindHintImage')
-										: t('kindHintLlm')}
-							</p>
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('modelIdRequired')}</label>
-							<input
-								type="text"
-								value={formData.id}
-								onChange={(e) => onFormChange({ ...formData, id: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder={t('modelIdPlaceholder')}
-								required
-								disabled={!!editingModel}
-							/>
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('displayName')}</label>
-							<input
-								type="text"
-								value={formData.display_name}
-								onChange={(e) => onFormChange({ ...formData, display_name: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder={t('displayNamePlaceholder')}
-							/>
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('vendor')}</label>
-							<select
-								value={
-									MODEL_VENDOR_OPTIONS.some((o) => o.key === formData.vendor)
-										? formData.vendor
-										: 'other'
-								}
-								onChange={(e) => onFormChange({ ...formData, vendor: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-							>
-								{MODEL_VENDOR_OPTIONS.map((o) => (
-									<option key={o.key} value={o.key}>
-										{o.label}
-									</option>
-								))}
-							</select>
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('released')}</label>
-							<input
-								type="date"
-								value={formData.released_at}
-								onChange={(e) => onFormChange({ ...formData, released_at: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							/>
-						</div>
-						{!hideTokenLimits ? (
-							<>
-								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
-										{t('contextWindow')}
-									</label>
-									<input
-										type="number"
-										value={formData.context_window}
-										onChange={(e) =>
-											onFormChange({ ...formData, context_window: e.target.value })
-										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-										placeholder={t('contextWindowPlaceholder')}
+							{text('id', 'modelIdRequired')}
+							{text('display_name', 'displayName')}
+							<Field label={t('vendor')}>
+								{(field) => (
+									<Select
+										{...field}
+										value={formData.vendor}
+										options={MODEL_VENDOR_OPTIONS.map((o) => ({
+											value: o.key,
+											label: o.label,
+										}))}
+										disabled={busy}
+										onValueChange={(value) => {
+											if (value !== null)
+												onFormChange({ ...formData, vendor: value });
+										}}
 									/>
-								</div>
-								<div>
-									<label className="block text-sm font-medium text-gray-700 mb-1">
-										{t('maxTokens')}
-									</label>
-									<input
-										type="number"
-										value={formData.max_tokens}
-										onChange={(e) =>
-											onFormChange({ ...formData, max_tokens: e.target.value })
-										}
-										className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-										placeholder={t('maxTokensPlaceholder')}
-									/>
-								</div>
-							</>
-						) : (
-							<div className="col-span-2 rounded-md border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs text-amber-800">
-								{isAudioModel ? t('audioNoTokenLimits') : t('imageNoTokenLimits')}
-							</div>
-						)}
-						<div className="col-span-2 rounded-md border border-gray-200 bg-gray-50/80 px-3 py-2.5">
-							<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-								<div className="min-w-0 flex-1 space-y-2.5">
-									<div className="grid gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
-										<p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-											{t('input')}
-										</p>
-										<div className="flex flex-wrap gap-2">
-											{MODEL_INPUT_MODALITIES.map((m) => (
-												<label
-													key={m}
-													className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
-												>
-													<input
-														type="checkbox"
-														checked={formData.input_modalities.includes(m)}
-														onChange={() => onToggleModality('input_modalities', m)}
-														className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+								)}
+							</Field>
+							{text('released_at', 'released', 'date')}
+							{formKind === 'llm' ? (
+								<>
+									{text('context_window', 'contextWindow', 'number')}
+									{text('max_tokens', 'maxTokens', 'number')}
+								</>
+							) : (
+								<p className="model-full model-hint">
+									{t(
+										formKind === 'audio'
+											? 'audioNoTokenLimits'
+											: 'imageNoTokenLimits'
+									)}
+								</p>
+							)}
+							<div className="model-full model-modalities">
+								{(['input_modalities', 'output_modalities'] as const).map(
+									(kind) => (
+										<section key={kind}>
+											<h3>
+												{t(kind === 'input_modalities' ? 'input' : 'output')}
+											</h3>
+											<div className="model-choices">
+												{(kind === 'input_modalities'
+													? MODEL_INPUT_MODALITIES
+													: MODEL_OUTPUT_MODALITIES
+												).map((m) => (
+													<Checkbox
+														key={m}
+														label={m}
+														checked={formData[kind].includes(m)}
+														disabled={busy}
+														onCheckedChange={() => onToggleModality(kind, m)}
 													/>
-													{m}
-												</label>
-											))}
-										</div>
-									</div>
-									<div className="grid gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-center">
-										<p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-											{t('output')}
-										</p>
-										<div className="flex flex-wrap gap-2">
-											{MODEL_OUTPUT_MODALITIES.map((m) => (
-												<label
-													key={m}
-													className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
-												>
-													<input
-														type="checkbox"
-														checked={formData.output_modalities.includes(m)}
-														onChange={() => onToggleModality('output_modalities', m)}
-														className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-													/>
-													{m}
-												</label>
-											))}
-										</div>
-									</div>
-								</div>
-								<div className="shrink-0 rounded-md border border-gray-200 bg-white px-3 py-2 sm:min-w-32">
-									<p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-										{t('preview')}
-									</p>
-									<div className="mt-1.5">
-										<ModelModalitiesBadgeFromRaw
-											inputRaw={JSON.stringify(formData.input_modalities)}
-											outputRaw={JSON.stringify(formData.output_modalities)}
-											size="sm"
-										/>
-									</div>
-								</div>
+												))}
+											</div>
+										</section>
+									)
+								)}
 							</div>
-						</div>
-						<div className="col-span-2">
-							{isAudioModel && audioPricingDraft && onAudioPricingDraftChange ? (
-								<div className="space-y-3 rounded-md border border-gray-200 bg-white p-3">
-									<p className="text-sm font-medium text-gray-800">{t('audioPricing')}</p>
-									<div className="space-y-1.5">
-										<p className="text-[11px] font-medium text-gray-600">
-											{t('audioBillingMode')}
-										</p>
-										<div
-											className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5"
-											role="group"
+							<section className="model-full model-pricing">
+								{formKind === 'audio' &&
+								audioPricingDraft &&
+								onAudioPricingDraftChange ? (
+									<>
+										<h3>{t('audioPricing')}</h3>
+										<RadioGroup
 											aria-label={t('audioBillingMode')}
-										>
-											{(
-												[
-													{
-														id: 'per_second' as const,
-														label: t('audioBillingModePerSecond'),
-													},
-													{
-														id: 'token' as const,
-														label: t('audioBillingModeToken'),
-													},
-												] as const
-											).map((opt) => {
-												const active = audioPricingDraft.mode === opt.id;
-												return (
-													<button
-														key={opt.id}
-														type="button"
-														onClick={() => {
-															if (audioPricingDraft.mode === opt.id) return;
-															const nextMode: AudioBillingModeDraft = opt.id;
-															if (nextMode === 'per_second') {
-																onAudioPricingDraftChange({
-																	...createDefaultAudioPricingDraft(),
-																	price_per_second:
-																		audioPricingDraft.price_per_second.trim() !== ''
-																			? audioPricingDraft.price_per_second
-																			: createDefaultAudioPricingDraft()
-																					.price_per_second,
-																	minimum_seconds:
-																		audioPricingDraft.minimum_seconds.trim() !== ''
-																			? audioPricingDraft.minimum_seconds
-																			: createDefaultAudioPricingDraft()
-																					.minimum_seconds,
-																});
-																return;
-															}
-															onAudioPricingDraftChange(
-																audioPricingDraft.tiers.length > 0
-																	? {
-																			...audioPricingDraft,
-																			mode: 'token',
-																		}
-																	: createDefaultAudioTokenPricingDraft()
-															);
-														}}
-														className={
-															active
-																? 'rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
-																: 'rounded px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900'
-														}
-													>
-														{opt.label}
-													</button>
-												);
-											})}
+											value={audioPricingDraft.mode}
+											options={[
+												{
+													value: 'per_second',
+													label: t('audioBillingModePerSecond'),
+													disabled: busy,
+												},
+												{
+													value: 'token',
+													label: t('audioBillingModeToken'),
+													disabled: busy,
+												},
+											]}
+											onValueChange={(value) => {
+												if (value === 'per_second')
+													onAudioPricingDraftChange({
+														...audioPricingDraft,
+														mode: value,
+													});
+												else if (value === 'token')
+													onAudioPricingDraftChange(
+														audioPricingDraft.tiers.length
+															? { ...audioPricingDraft, mode: value }
+															: createDefaultAudioTokenPricingDraft()
+													);
+											}}
+										/>
+										<div className="model-fields">
+											{audioPricingDraft.mode === 'token' ? (
+												(['input_price', 'output_price'] as const).map(
+													(key) => (
+														<Field
+															key={key}
+															label={t(
+																key === 'input_price'
+																	? 'audioInputPricePerM'
+																	: 'audioOutputPricePerM'
+															)}
+															hint={billingCurrency + '/1M'}
+														>
+															{(field) => (
+																<Input
+																	{...field}
+																	type="number"
+																	step="any"
+																	min="0"
+																	value={
+																		audioPricingDraft.tiers[0]?.[key] ?? ''
+																	}
+																	disabled={busy}
+																	onChange={(event) => {
+																		const row = audioPricingDraft.tiers[0];
+																		if (row)
+																			onAudioPricingDraftChange({
+																				...audioPricingDraft,
+																				tiers: [
+																					{ ...row, [key]: event.target.value },
+																				],
+																			});
+																	}}
+																/>
+															)}
+														</Field>
+													)
+												)
+											) : (
+												<>
+													{audioNumber(
+														'price_per_second',
+														'audioPricePerSecond'
+													)}
+													{audioNumber(
+														'minimum_seconds',
+														'audioMinimumSeconds'
+													)}
+												</>
+											)}
 										</div>
-									</div>
-									{audioPricingDraft.mode === 'token' ? (
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<div>
-												<label className="mb-1 block text-xs font-medium text-gray-600">
-													{t('audioInputPricePerM')}
-													<span className="ml-1 font-normal text-gray-400">
-														({billingCurrency}/1M)
-													</span>
-												</label>
-												<input
-													type="number"
-													step="any"
-													min="0"
-													value={audioPricingDraft.tiers[0]?.input_price ?? ''}
-													onChange={(e) => {
-														const base =
-															audioPricingDraft.tiers[0] ??
-															createDefaultAudioTokenPricingDraft().tiers[0]!;
-														onAudioPricingDraftChange({
-															...audioPricingDraft,
-															mode: 'token',
-															tiers: [
-																{
-																	...base,
-																	input_price: e.target.value,
-																},
-															],
-														});
-													}}
-													className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-												/>
-											</div>
-											<div>
-												<label className="mb-1 block text-xs font-medium text-gray-600">
-													{t('audioOutputPricePerM')}
-													<span className="ml-1 font-normal text-gray-400">
-														({billingCurrency}/1M)
-													</span>
-												</label>
-												<input
-													type="number"
-													step="any"
-													min="0"
-													value={audioPricingDraft.tiers[0]?.output_price ?? ''}
-													onChange={(e) => {
-														const base =
-															audioPricingDraft.tiers[0] ??
-															createDefaultAudioTokenPricingDraft().tiers[0]!;
-														onAudioPricingDraftChange({
-															...audioPricingDraft,
-															mode: 'token',
-															tiers: [
-																{
-																	...base,
-																	output_price: e.target.value,
-																},
-															],
-														});
-													}}
-													className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-												/>
-											</div>
-										</div>
-									) : (
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<div>
-												<label className="mb-1 block text-xs font-medium text-gray-600">
-													{t('audioPricePerSecond')}
-													<span className="ml-1 font-normal text-gray-400">
-														({billingCurrency}/s)
-													</span>
-												</label>
-												<input
-													type="number"
-													step="any"
-													min="0"
-													value={audioPricingDraft.price_per_second}
-													onChange={(e) =>
-														onAudioPricingDraftChange({
-															...audioPricingDraft,
-															mode: 'per_second',
-															price_per_second: e.target.value,
-														})
+									</>
+								) : (
+									<PricingTiersEditor
+										title={t(
+											formKind === 'image'
+												? 'imageTokenPricing'
+												: 'pricingProfile'
+										)}
+										rows={pricingTierRows}
+										onChange={onPricingTierRowsChange}
+										billingCurrencyCode={billingCurrency}
+										minRows={0}
+										variant={formKind === 'image' ? 'image' : 'llm'}
+										imageBillingMode={imageBillingMode}
+										onImageBillingModeChange={onImageBillingModeChange}
+										perImageDraft={imagePerImageDraft}
+										onPerImageDraftChange={onImagePerImageDraftChange}
+										disabled={busy}
+									/>
+								)}
+							</section>
+							<div className="model-full">
+								<div className="model-tags">
+									{formData.tags.map((tag) => (
+										<Badge key={tag}>
+											{tag}
+											<ControlButton
+												variant="ghost"
+												size="sm"
+												onClick={() => onRemoveTag(tag)}
+												aria-label={t('removeTag', { tag })}
+											>
+												×
+											</ControlButton>
+										</Badge>
+									))}
+								</div>
+								<Field label={t('tags')} hint={t('tagsPlaceholder')}>
+									{(field) => (
+										<div className="model-search">
+											<Input
+												{...field}
+												value={tagInput}
+												onChange={(event) =>
+													onTagInputChange(event.target.value)
+												}
+												onKeyDown={(event) => {
+													if (
+														(event.key === 'Enter' || event.key === ',') &&
+														!event.nativeEvent.isComposing
+													) {
+														event.preventDefault();
+														onAddTag();
 													}
-													className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-												/>
-											</div>
-											<div>
-												<label className="mb-1 block text-xs font-medium text-gray-600">
-													{t('audioMinimumSeconds')}
-												</label>
-												<input
-													type="number"
-													step="any"
-													min="0"
-													value={audioPricingDraft.minimum_seconds}
-													onChange={(e) =>
-														onAudioPricingDraftChange({
-															...audioPricingDraft,
-															mode: 'per_second',
-															minimum_seconds: e.target.value,
-														})
-													}
-													className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-												/>
-											</div>
+												}}
+											/>
+											<ControlButton variant="secondary" onClick={onAddTag}>
+												{common('add')}
+											</ControlButton>
 										</div>
 									)}
-								</div>
-							) : isImageModel ? (
-								<PricingTiersEditor
-									title={t('imageTokenPricing')}
-									rows={pricingTierRows}
-									onChange={onPricingTierRowsChange}
-									billingCurrencyCode={billingCurrency}
-									minRows={0}
-									variant="image"
-									imageBillingMode={imageBillingMode}
-									onImageBillingModeChange={onImageBillingModeChange}
-									perImageDraft={imagePerImageDraft}
-									onPerImageDraftChange={onImagePerImageDraftChange}
-								/>
-							) : (
-								<PricingTiersEditor
-									title={t('pricingProfile')}
-									rows={pricingTierRows}
-									onChange={onPricingTierRowsChange}
-									billingCurrencyCode={billingCurrency}
-									minRows={0}
-								/>
-							)}
-						</div>
-						<div className="col-span-2">
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('tags')}</label>
-							<div className="flex flex-wrap gap-2 mb-2">
-								{formData.tags.map((tag) => (
-									<span
-										key={tag}
-										className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm ${tagBadgeClass(tag)}`}
-									>
-										{tag}
-										<button
-											type="button"
-											onClick={() => onRemoveTag(tag)}
-											className="text-gray-500 hover:text-red-600"
-											aria-label={t('removeTag', { tag })}
-										>
-											×
-										</button>
-									</span>
-								))}
+								</Field>
 							</div>
-							<div className="flex gap-2">
-								<input
-									type="text"
-									value={tagInput}
-									onChange={(e) => onTagInputChange(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault();
-											onAddTag();
-										}
-									}}
-									className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-									placeholder={t('tagsPlaceholder')}
-								/>
-								<button
-									type="button"
-									onClick={onAddTag}
-									className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-								>
-									{tCommon('add')}
-								</button>
+							<div className="model-full">
+								<Field label={t('description')}>
+									{(field) => (
+										<Textarea
+											{...field}
+											rows={3}
+											value={formData.description}
+											onChange={(event) =>
+												onFormChange({
+													...formData,
+													description: event.target.value,
+												})
+											}
+										/>
+									)}
+								</Field>
+							</div>
+							<div className="model-full">
+								<Field label={t('metadataJson')}>
+									{(field) => (
+										<Textarea
+											{...field}
+											rows={6}
+											value={formData.metadata}
+											onChange={(event) =>
+												onFormChange({
+													...formData,
+													metadata: event.target.value,
+												})
+											}
+											className="model-json"
+											spellCheck={false}
+										/>
+									)}
+								</Field>
 							</div>
 						</div>
-						<div className="col-span-2">
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('description')}</label>
-							<textarea
-								rows={3}
-								value={formData.description}
-								onChange={(e) => onFormChange({ ...formData, description: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder={t('descriptionPlaceholder')}
-							/>
-						</div>
-						<div className="col-span-2">
-							<label className="block text-sm font-medium text-gray-700 mb-1">{t('metadataJson')}</label>
-							<textarea
-								rows={6}
-								value={formData.metadata}
-								onChange={(e) => onFormChange({ ...formData, metadata: e.target.value })}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-								placeholder={t('metadataPlaceholder')}
-							/>
-						</div>
-					</div>
-				</div>
-
-				<div className="px-6 py-4 border-t flex flex-wrap items-center justify-between gap-3 sticky bottom-0 bg-gray-50">
-					<div>
-						{editingModel && (
-							<button
-								type="button"
-								onClick={() => onDelete(editingModel.id)}
-								disabled={isSaving || isDeleting}
-								className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								<TrashIcon className="h-4 w-4" />
-								{isDeleting ? tCommon('deleting') : t('deleteModel')}
-							</button>
-						)}
-					</div>
-					<div className="flex gap-3 ml-auto">
-						<button
-							type="button"
-							onClick={onClose}
-							className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-							disabled={isSaving || isDeleting}
+					</fieldset>
+				</form>
+			) : null}
+			<Dialog
+				open={feedback.showDelete}
+				finalFocus={feedback.deleteReturnFocus}
+				onOpenChange={(next) => {
+					if (!busy) feedback.setShowDelete(next);
+				}}
+				title={f('deleteTitle')}
+				description={f('deleteDescription', { id: editingModel?.id ?? '' })}
+				preventOutsideDismissal={busy}
+				footer={
+					<>
+						<ControlButton
+							variant="outline"
+							disabled={busy}
+							onClick={() => feedback.setShowDelete(false)}
 						>
-							{tCommon('cancel')}
-						</button>
-						<button
-							type="button"
-							onClick={onSave}
-							disabled={isSaving || isDeleting}
-							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+							{common('cancel')}
+						</ControlButton>
+						<ControlButton
+							variant="danger"
+							disabled={busy}
+							loading={isDeleting}
+							onClick={() => {
+								if (editingModel) onDelete(editingModel.id);
+							}}
 						>
-							{isSaving ? tCommon('savingDots') : tCommon('save')}
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+							{t('deleteModel')}
+						</ControlButton>
+					</>
+				}
+			>
+				{feedback.actionFailure ? (
+					<ShellError
+						title={feedback.actionFailure.title}
+						failure={feedback.actionFailure.failure}
+						uncertainWrite={feedback.actionFailure.uncertain}
+					/>
+				) : (
+					<p>{f('deleteHint')}</p>
+				)}
+			</Dialog>
+		</Dialog>
 	);
 }
