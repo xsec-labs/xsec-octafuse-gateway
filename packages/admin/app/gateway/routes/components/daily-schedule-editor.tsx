@@ -1,4 +1,5 @@
 'use client';
+import { ControlButton, Field, Input } from '@xsec/ui-react';
 
 import type { RouteScheduleFormSide, RouteScheduleFormWindow } from '../types';
 
@@ -32,73 +33,79 @@ export function DailyScheduleEditor(props: Props) {
 	return (
 		<div className="space-y-2">
 			{windows.length === 0 ? (
-				<p className="text-xs text-gray-500">{emptyLabel}</p>
+				<p className="text-xs route-muted">{emptyLabel}</p>
 			) : (
 				<ul className="space-y-2">
 					{windows.map((w, i) => (
 						<li
 							key={i}
-							className="flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white/80 p-2"
+							className="flex flex-wrap items-end gap-2 rounded-md border route-border route-surface p-2"
 						>
 							<div>
-								<label className="mb-0.5 block text-[10px] font-medium text-gray-500">
-									{startLabel}
-								</label>
-								<input
-									type="text"
-									inputMode="numeric"
-									placeholder="00:00"
-									value={w.start}
-									onChange={(e) => updateRow(i, { start: e.target.value })}
-									className="w-[4.5rem] rounded border border-gray-300 px-1.5 py-1 font-mono text-xs tabular-nums"
-								/>
+								<Field label={<> {startLabel} </>}>
+									{(field) => (
+										<Input
+											{...field}
+											type="text"
+											required
+											inputMode="numeric"
+											placeholder="00:00"
+											value={w.start}
+											onChange={(e) => updateRow(i, { start: e.target.value })}
+										/>
+									)}
+								</Field>
 							</div>
 							<div>
-								<label className="mb-0.5 block text-[10px] font-medium text-gray-500">
-									{endLabel}
-								</label>
-								<input
-									type="text"
-									inputMode="numeric"
-									placeholder="08:00"
-									value={w.end}
-									onChange={(e) => updateRow(i, { end: e.target.value })}
-									className="w-[4.5rem] rounded border border-gray-300 px-1.5 py-1 font-mono text-xs tabular-nums"
-								/>
+								<Field label={<> {endLabel} </>}>
+									{(field) => (
+										<Input
+											{...field}
+											type="text"
+											required
+											inputMode="numeric"
+											placeholder="08:00"
+											value={w.end}
+											onChange={(e) => updateRow(i, { end: e.target.value })}
+										/>
+									)}
+								</Field>
 							</div>
 							<div>
-								<label className="mb-0.5 block text-[10px] font-medium text-gray-500">
-									{factorLabel}
-								</label>
-								<input
-									type="text"
-									inputMode="decimal"
-									placeholder="1"
-									value={w.factor}
-									onChange={(e) => updateRow(i, { factor: e.target.value })}
-									className="w-[4rem] rounded border border-gray-300 px-1.5 py-1 font-mono text-xs tabular-nums"
-								/>
+								<Field label={<> {factorLabel} </>}>
+									{(field) => (
+										<Input
+											{...field}
+											type="text"
+											required
+											inputMode="decimal"
+											placeholder="1"
+											value={w.factor}
+											onChange={(e) => updateRow(i, { factor: e.target.value })}
+										/>
+									)}
+								</Field>
 							</div>
-							<button
+							<ControlButton
+								variant="outline"
+								size="sm"
 								type="button"
 								onClick={() => onChange(windows.filter((_, j) => j !== i))}
-								className="ml-auto rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
 							>
 								{removeLabel}
-							</button>
+							</ControlButton>
 						</li>
 					))}
 				</ul>
 			)}
-			<button
+			<ControlButton
+				variant="outline"
+				size="sm"
 				type="button"
-				onClick={() =>
-					onChange([...windows, { start: '00:00', end: '08:00', factor: '1' }])
-				}
-				className="rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+				onClick={() => onChange([...windows, { start: '00:00', end: '08:00', factor: '1' }])}
 			>
 				{addLabel}
-			</button>
+			</ControlButton>
 		</div>
 	);
 }

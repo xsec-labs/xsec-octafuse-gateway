@@ -845,6 +845,20 @@
 			"inactiveExcluded": "비활성 Route 또는 Provider는 미리보기에서 제외됩니다.",
 			"hintCache": "affinity가 아니면 prompt cache 적중률이 낮아질 수 있습니다.",
 			"hintNoCache": "업스트림에 prompt cache가 없습니다. weighted_random 또는 round_robin을 권장합니다."
+		},
+		"feedback": {
+			"saveFailed": "경로 저장을 확인할 수 없습니다",
+			"deleteFailed": "경로 삭제를 확인할 수 없습니다",
+			"statusFailed": "경로 상태 변경을 확인할 수 없습니다",
+			"strategyFailed": "전략 저장을 확인할 수 없습니다",
+			"copyFailed": "모델 ID를 복사할 수 없습니다",
+			"validationFailed": "경로 입력 내용을 확인하세요",
+			"invalidFields": "모델과 공급자를 선택하고 업스트림 모델 이름, 정수 우선순위 및 가중치(가중치 ≥ 1)를 입력하세요.",
+			"deleteTitle": "경로 삭제",
+			"deleteDescription": "경로 {id}를 삭제할까요?",
+			"deleteHint": "경로 대상이 풀에서 제거됩니다.",
+			"invalidPricing": "유효한 음이 아닌 배율과 겹치지 않는 시간 구간을 입력하세요.",
+			"invalidParams": "사용자 지정 매개변수는 유효한 JSON 객체여야 합니다."
 		}
 	},
 	"playground": {

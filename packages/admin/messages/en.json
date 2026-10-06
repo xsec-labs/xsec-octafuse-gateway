@@ -845,6 +845,20 @@
 			"inactiveExcluded": "Disabled routes or providers are excluded from this preview.",
 			"hintCache": "Non-affinity may reduce prompt cache hit rate.",
 			"hintNoCache": "Upstream has no prompt cache; prefer weighted_random or round_robin."
+		},
+		"feedback": {
+			"saveFailed": "Unable to save the route",
+			"deleteFailed": "Unable to delete the route",
+			"statusFailed": "Unable to change route status",
+			"strategyFailed": "Unable to save the strategy",
+			"copyFailed": "Unable to copy the model ID",
+			"validationFailed": "Review the route fields",
+			"invalidFields": "Select a model and provider, enter an upstream model name, and use whole-number priority and weight (weight ≥ 1).",
+			"deleteTitle": "Delete route",
+			"deleteDescription": "Delete route {id}?",
+			"deleteHint": "The route target will be removed from its pool.",
+			"invalidPricing": "Enter valid non-negative factors and non-overlapping schedule windows.",
+			"invalidParams": "Enter a valid JSON object for custom parameters."
 		}
 	},
 	"playground": {

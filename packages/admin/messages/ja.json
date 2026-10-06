@@ -845,6 +845,20 @@
 			"inactiveExcluded": "無効な Route または Provider はプレビューから除外されます。",
 			"hintCache": "affinity 以外は prompt cache のヒット率が下がる可能性があります。",
 			"hintNoCache": "上流に prompt cache はありません。weighted_random または round_robin を推奨。"
+		},
+		"feedback": {
+			"saveFailed": "ルートの保存を確認できません",
+			"deleteFailed": "ルートの削除を確認できません",
+			"statusFailed": "ルート状態の変更を確認できません",
+			"strategyFailed": "戦略の保存を確認できません",
+			"copyFailed": "モデル ID をコピーできません",
+			"validationFailed": "ルートの入力内容を確認してください",
+			"invalidFields": "モデルとプロバイダーを選択し、上流モデル名と整数の優先度・重み（重み ≥ 1）を入力してください。",
+			"deleteTitle": "ルートを削除",
+			"deleteDescription": "ルート {id} を削除しますか？",
+			"deleteHint": "ルートの対象がプールから削除されます。",
+			"invalidPricing": "有効な非負の係数と重複しない時間帯を入力してください。",
+			"invalidParams": "カスタムパラメーターには有効な JSON オブジェクトを入力してください。"
 		}
 	},
 	"playground": {

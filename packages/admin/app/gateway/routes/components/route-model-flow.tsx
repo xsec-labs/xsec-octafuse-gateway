@@ -1,4 +1,5 @@
 'use client';
+import { ControlButton, Badge } from '@xsec/ui-react';
 
 import {
 	ArrowDownIcon,
@@ -37,11 +38,7 @@ import {
 	resolveEffectiveRouteStrategy,
 	splitRoutesByProtocolAndRouteGroup,
 } from '../route-utils';
-import {
-	FACTOR_CHIP_BASE,
-	type RouteListRow,
-	type RouteProtocolGroupSection,
-} from '../types';
+import { FACTOR_CHIP_BASE, type RouteListRow, type RouteProtocolGroupSection } from '../types';
 
 type Props = {
 	card: RouteModelGroup;
@@ -51,7 +48,10 @@ type Props = {
 	copiedModelId: string | null;
 	togglingId: string | null;
 	onCopyModelId: (modelId: string) => void;
-	onCreate: (modelId: string, preset?: { protocol?: string; operation?: string; group?: string }) => void;
+	onCreate: (
+		modelId: string,
+		preset?: { protocol?: string; operation?: string; group?: string }
+	) => void;
 	onEdit: (route: RouteListRow) => void;
 	onEditModel: (modelId: string) => void;
 	onToggleStatus: (route: RouteListRow) => void;
@@ -110,50 +110,56 @@ function RouteTarget({
 
 	return (
 		<div
-			className={`w-full min-w-0 rounded-lg border shadow-sm transition hover:shadow-md sm:w-64 sm:max-w-full ${
-				enabled
-					? 'border-emerald-300 bg-emerald-50/70 shadow-emerald-100/60 hover:border-emerald-400'
-					: 'border-red-300 bg-red-50/70 shadow-red-100/60 hover:border-red-400'
+			className={`route-target w-full min-w-0 rounded-lg border ${
+				enabled ? 'route-target-active' : 'route-target-inactive'
 			}`}
 		>
 			<div className="flex items-start gap-2 p-2.5">
-				<button
+				<ControlButton
+					variant="ghost"
 					type="button"
 					onClick={() => onToggleStatus(route)}
-					disabled={togglingId === route.id}
-					className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ring-inset transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-wait disabled:opacity-50 ${
-						enabled
-							? 'bg-emerald-600 text-white ring-emerald-600 hover:bg-emerald-700'
-							: 'bg-red-500 text-white ring-red-500 hover:bg-red-600'
-					}`}
+					disabled={togglingId !== null}
+					className="route-toggle"
+					aria-pressed={enabled}
 					title={enabled ? tList('routeEnabled') : tList('routeDisabled')}
 					aria-label={enabled ? tList('routeEnabled') : tList('routeDisabled')}
 				>
 					<PowerIcon className="h-3.5 w-3.5" />
-				</button>
-				<button
+				</ControlButton>
+				<ControlButton
+					variant="ghost"
 					type="button"
 					onClick={() => onEdit(route)}
-					className="min-w-0 flex-1 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+					className="route-target-edit min-w-0 flex-1"
 					title={t('editRoute')}
 				>
 					<div className="flex min-w-0 items-center gap-2">
-						<span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-900">
+						<span className="min-w-0 flex-1 truncate text-[11px] font-semibold route-text">
 							{route.provider_name || provider?.name || route.provider_id}
 						</span>
-						<PencilSquareIcon className="h-3 w-3 shrink-0 text-gray-400" />
+						<PencilSquareIcon className="h-3 w-3 shrink-0 route-muted" />
 					</div>
-					<p className="mt-0.5 truncate font-mono text-[10px] text-gray-500" title={route.provider_model_name}>
+					<p
+						className="mt-0.5 truncate font-mono text-[10px] route-muted"
+						title={route.provider_model_name}
+					>
 						{route.provider_model_name}
 					</p>
-				</button>
+				</ControlButton>
 			</div>
-			<div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t bg-white/55 px-2.5 py-1.5 ${
-				enabled ? 'border-emerald-200' : 'border-red-200'
-			}`}>
+			<div
+				className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t route-surface px-2.5 py-1.5 ${
+					enabled ? 'border-emerald-200' : 'border-red-200'
+				}`}
+			>
 				<div className="flex min-w-0 flex-wrap items-center gap-1">
 					{showUpstreamMapping ? (
-						<span className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${protocolBadgeClass(route.upstream_protocol)}`}>
+						<span
+							className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${protocolBadgeClass(
+								route.upstream_protocol
+							)}`}
+						>
 							<UpstreamProtocolBrandIcon protocol={route.upstream_protocol} />
 							{route.upstream_protocol}.{effectiveUpstreamOperation}
 						</span>
@@ -163,7 +169,7 @@ function RouteTarget({
 					</span>
 					{route.custom_params ? (
 						<span
-							className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200"
+							className="rounded route-subtle px-1.5 py-0.5 text-[10px] font-medium route-muted ring-1 ring-inset ring-gray-200"
 							title={t('customParamsTooltip')}
 						>
 							{t('customParams')}
@@ -212,7 +218,10 @@ function RouteTarget({
 						</span>
 					) : null}
 					{scheduleHint ? (
-						<span className={`${FACTOR_CHIP_BASE} w-auto bg-sky-50 text-sky-800 ring-sky-200`} title={scheduleHint}>
+						<span
+							className={`${FACTOR_CHIP_BASE} w-auto bg-sky-50 text-sky-800 ring-sky-200`}
+							title={scheduleHint}
+						>
 							{t('scheduled')}
 						</span>
 					) : null}
@@ -227,7 +236,7 @@ function FlowConnector({ onAdd }: { onAdd: () => void }) {
 
 	return (
 		<>
-			<div className="relative hidden h-5 xl:block">
+			<div className="relative hidden h-5 route-flow-wide">
 				<span className="absolute inset-x-0 top-1/2 h-px bg-blue-300" aria-hidden />
 				<ArrowLongRightIcon
 					className="absolute -right-px top-1/2 h-5 w-5 -translate-y-1/2 text-blue-500"
@@ -236,54 +245,50 @@ function FlowConnector({ onAdd }: { onAdd: () => void }) {
 				<span className="absolute bottom-[calc(50%+0.45rem)] left-0 right-0 truncate text-center text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
 					{t('providerStep')}
 				</span>
-				<button
+				<ControlButton
+					variant="ghost"
 					type="button"
 					onClick={onAdd}
-					className="absolute left-1/2 top-[calc(50%+0.7rem)] inline-flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 ring-1 ring-inset ring-blue-200 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+					className="route-add-inline absolute left-1/2 top-[calc(50%+0.7rem)] inline-flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-md route-surface px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 ring-1 ring-inset ring-blue-200 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 				>
 					<PlusIcon className="h-3 w-3" />
 					{t('addProvider')}
-				</button>
+				</ControlButton>
 			</div>
-			<div className="flex flex-col items-center gap-1 py-1 xl:hidden">
+			<div className="flex flex-col items-center gap-1 py-1 route-flow-narrow">
 				<span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
 					{t('providerStep')}
 				</span>
 				<ArrowDownIcon className="h-4 w-4 text-blue-400" aria-hidden />
-				<button
+				<ControlButton
+					variant="ghost"
 					type="button"
 					onClick={onAdd}
-					className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-blue-600 ring-1 ring-inset ring-blue-200 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+					className="inline-flex items-center gap-1 rounded-md route-surface px-2 py-1 text-[11px] font-semibold text-blue-600 ring-1 ring-inset ring-blue-200 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 				>
 					<PlusIcon className="h-3.5 w-3.5" />
 					{t('addProvider')}
-				</button>
+				</ControlButton>
 			</div>
 		</>
 	);
 }
 
-function RoutingMatchConnector({
-	modelId,
-	routeGroup,
-}: {
-	modelId: string;
-	routeGroup: string;
-}) {
+function RoutingMatchConnector({ modelId, routeGroup }: { modelId: string; routeGroup: string }) {
 	const t = useTranslations('routes.flow');
 	const requestedModelId = routeGroup === 'default' ? modelId : `${modelId}:${routeGroup}`;
 
 	return (
 		<>
 			<div
-				className="relative hidden h-5 min-w-0 xl:block"
+				className="relative hidden h-5 min-w-0 route-flow-wide"
 				aria-label={t('routeMatchAria', { group: routeGroup, model: requestedModelId })}
 			>
+				<span className="absolute inset-x-0 top-1/2 h-px bg-blue-300" aria-hidden />
 				<span
-					className="absolute inset-x-0 top-1/2 h-px bg-blue-300"
-					aria-hidden
-				/>
-				<span className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+					title={routeGroup}
+					className="absolute left-1/2 top-1/2 z-10 max-w-full -translate-x-1/2 -translate-y-1/2 truncate rounded-full route-subtle px-2 py-0.5 text-[10px] font-semibold route-muted ring-1 ring-inset ring-slate-200"
+				>
 					{t('routeGroup')} · {routeGroup}
 				</span>
 				<ArrowLongRightIcon
@@ -298,10 +303,10 @@ function RoutingMatchConnector({
 				</p>
 			</div>
 			<div
-				className="flex min-w-0 flex-col items-center gap-1 py-0.5 xl:hidden"
+				className="flex min-w-0 flex-col items-center gap-1 py-0.5 route-flow-narrow"
 				aria-label={t('routeMatchAria', { group: routeGroup, model: requestedModelId })}
 			>
-				<span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+				<span className="max-w-full break-all rounded-full route-subtle px-2 py-0.5 text-center text-[10px] font-semibold route-muted ring-1 ring-inset ring-slate-200">
 					{t('routeGroup')} · {routeGroup}
 				</span>
 				<span
@@ -316,11 +321,7 @@ function RoutingMatchConnector({
 	);
 }
 
-function requestSurfacePath(
-	protocol: string,
-	operation: string,
-	modelId: string
-): string {
+function requestSurfacePath(protocol: string, operation: string, modelId: string): string {
 	if (protocol === 'openai') {
 		const paths: Record<string, string> = {
 			chat: '/v1/chat/completions',
@@ -329,7 +330,7 @@ function requestSurfacePath(
 			'images.edits': '/v1/images/edits',
 			'audio.transcriptions': '/v1/audio/transcriptions',
 		};
-		return operation === '*' ? '/v1/*' : (paths[operation] ?? `/v1/${operation}`);
+		return operation === '*' ? '/v1/*' : paths[operation] ?? `/v1/${operation}`;
 	}
 	if (protocol === 'anthropic') {
 		return operation === '*' ? '/v1/*' : '/v1/messages';
@@ -354,15 +355,13 @@ function groupSectionsByRequestSurface(
 	const groups = new Map<string, RequestSurfaceGroup>();
 	for (const section of sections) {
 		const key = `${section.protocol}\u0000${section.requestOperation}`;
-		const group =
-			groups.get(key) ??
-			{
-				key,
-				protocol: section.protocol,
-				protocolLabel: section.protocolLabel,
-				requestOperation: section.requestOperation,
-				sections: [],
-			};
+		const group = groups.get(key) ?? {
+			key,
+			protocol: section.protocol,
+			protocolLabel: section.protocolLabel,
+			requestOperation: section.requestOperation,
+			sections: [],
+		};
 		group.sections.push(section);
 		groups.set(key, group);
 	}
@@ -377,20 +376,18 @@ function RequestSurfaceNode({
 	modelId: string;
 }) {
 	const t = useTranslations('routes.flow');
-	const surfacePath = requestSurfacePath(
-		surface.protocol,
-		surface.requestOperation,
-		modelId
-	);
+	const surfacePath = requestSurfacePath(surface.protocol, surface.requestOperation, modelId);
 
 	return (
-		<div className="w-full min-w-0 rounded-lg border border-blue-200 bg-blue-50/75 px-3 py-2.5 shadow-sm">
+		<div className="route-request-node">
 			<div className="flex items-center justify-between gap-2">
 				<span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
 					{t('requestNode')}
 				</span>
 				<span
-					className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded ring-1 ring-inset ${protocolBadgeClass(surface.protocol)}`}
+					className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded ring-1 ring-inset ${protocolBadgeClass(
+						surface.protocol
+					)}`}
 					title={surface.protocolLabel}
 					aria-label={surface.protocolLabel}
 				>
@@ -399,7 +396,7 @@ function RequestSurfaceNode({
 			</div>
 			<div className="mt-1.5 min-w-0">
 				<span
-					className="block min-w-0 truncate font-mono text-[11px] font-semibold text-gray-800"
+					className="block min-w-0 truncate font-mono text-[11px] font-semibold route-text"
 					title={surfacePath}
 				>
 					{surfacePath}
@@ -446,39 +443,43 @@ function FlowBranch({
 		globalStrategy: globalRouteStrategy,
 	});
 	const strategySourceLabel = t(`strategySource.${strategy.source}`);
-	const priorityLayers = [...section.routes.reduce((map, route) => {
-		const layer = map.get(route.priority) ?? [];
-		layer.push(route);
-		map.set(route.priority, layer);
-		return map;
-	}, new Map<number, RouteListRow[]>())]
+	const priorityLayers = [
+		...section.routes.reduce((map, route) => {
+			const layer = map.get(route.priority) ?? [];
+			layer.push(route);
+			map.set(route.priority, layer);
+			return map;
+		}, new Map<number, RouteListRow[]>()),
+	]
 		.sort(([a], [b]) => b - a)
-		.map(([priority, routes]) =>
-			[priority, [...routes].sort(compareRoutesWithinPriorityLayer)] as const
+		.map(
+			([priority, routes]) =>
+				[priority, [...routes].sort(compareRoutesWithinPriorityLayer)] as const
 		);
 	const railClass =
 		branchIndex === 0
 			? 'top-1/2 bottom-0'
 			: branchIndex === branchCount - 1
-				? 'top-0 bottom-1/2'
-				: 'inset-y-0';
+			? 'top-0 bottom-1/2'
+			: 'inset-y-0';
 
 	return (
-		<div className="relative py-3 xl:pl-4">
+		<div className="route-branch relative py-3">
 			{branchCount > 1 ? (
 				<span
-					className={`absolute left-0 hidden w-px bg-blue-300 xl:block ${railClass}`}
+					className={`absolute left-0 hidden w-px bg-blue-300 route-flow-wide ${railClass}`}
 					aria-hidden
 				/>
 			) : null}
 			<span
-				className="absolute left-0 top-1/2 hidden h-px w-4 bg-blue-300 xl:block"
+				className="absolute left-0 top-1/2 hidden h-px w-4 bg-blue-300 route-flow-wide"
 				aria-hidden
 			/>
-			<div className="grid min-w-0 gap-y-2 xl:grid-cols-[minmax(150px,240px)_minmax(160px,200px)_112px_minmax(360px,1fr)] xl:items-center">
+			<div className="route-branch-grid grid min-w-0 gap-y-2">
 				<RoutingMatchConnector modelId={card.model_id} routeGroup={section.group} />
 
-				<button
+				<ControlButton
+					variant="ghost"
 					type="button"
 					onClick={() =>
 						onOpenStrategyDialog(
@@ -492,7 +493,7 @@ function FlowBranch({
 							section.requestOperation
 						)
 					}
-					className="min-w-0 rounded-lg border border-indigo-200 bg-indigo-50/75 px-3 py-2.5 text-left shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+					className="route-policy-node"
 					title={`${t('effectiveStrategy')}: ${strategy.strategy} · ${strategySourceLabel}`}
 				>
 					<span className="flex items-center justify-between gap-2">
@@ -501,28 +502,30 @@ function FlowBranch({
 						</span>
 						<PencilSquareIcon className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
 					</span>
-					<span className="mt-1.5 block truncate text-xs font-semibold text-gray-800">
+					<span className="mt-1.5 block truncate text-xs font-semibold route-text">
 						{strategy.inherited ? `${t('inheritShort')} → ${strategy.strategy}` : strategy.strategy}
 					</span>
 					<span className="mt-0.5 block truncate text-[10px] text-indigo-500">
 						{strategySourceLabel}
 					</span>
-				</button>
+				</ControlButton>
 
 				<FlowConnector
-					onAdd={() => onCreate(card.model_id, {
-						protocol: section.protocol,
-						operation: section.requestOperation,
-						group: section.group,
-					})}
+					onAdd={() =>
+						onCreate(card.model_id, {
+							protocol: section.protocol,
+							operation: section.requestOperation,
+							group: section.group,
+						})
+					}
 				/>
 
-				<div className="w-full min-w-0 rounded-lg border border-slate-200 bg-white/55 p-2 shadow-sm xl:w-fit xl:max-w-full xl:justify-self-start">
+				<div className="w-full min-w-0 rounded-lg border route-border route-surface p-2 shadow-sm ">
 					<div className="space-y-1.5">
 						{priorityLayers.map(([priority, routes], layerIndex) => (
 							<div key={priority}>
 								{layerIndex > 0 ? (
-									<div className="flex items-center gap-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+									<div className="flex items-center gap-1.5 py-0.5 text-[10px] font-medium route-muted">
 										<ArrowDownIcon className="h-3 w-3" />
 										<span>{t('fallback')}</span>
 									</div>
@@ -531,7 +534,7 @@ function FlowBranch({
 									<span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-bold text-white">
 										P{priority}
 									</span>
-									<span className="text-[10px] font-medium text-gray-500">
+									<span className="text-[10px] font-medium route-muted">
 										{layerIndex === 0 ? t('firstAttempt') : t('fallbackLayer')}
 									</span>
 								</div>
@@ -582,15 +585,15 @@ function FlowSection({
 	onOpenStrategyDialog: Props['onOpenStrategyDialog'];
 }) {
 	return (
-		<div className="bg-slate-50/70 px-3 sm:px-4">
-			<div className="xl:grid xl:grid-cols-[minmax(160px,210px)_minmax(0,1fr)]">
-				<div className="relative flex min-w-0 flex-col justify-center py-3 xl:pr-4">
+		<div className="route-subtle px-3 sm:px-4">
+			<div className="route-surface-grid">
+				<div className="relative flex min-w-0 flex-col justify-center py-3 route-request-column">
 					<RequestSurfaceNode surface={surface} modelId={card.model_id} />
 					<span
-						className="absolute right-0 top-1/2 hidden h-px w-4 bg-blue-300 xl:block"
+						className="absolute right-0 top-1/2 hidden h-px w-4 bg-blue-300 route-flow-wide"
 						aria-hidden
 					/>
-					<div className="flex justify-center pt-1 xl:hidden" aria-hidden>
+					<div className="flex justify-center pt-1 route-flow-narrow" aria-hidden>
 						<ArrowDownIcon className="h-4 w-4 text-blue-400" />
 					</div>
 				</div>
@@ -643,93 +646,117 @@ export function RouteModelFlow(props: Props) {
 	const stats = isAudio
 		? t('audioModelHint')
 		: isImage
-			? t('imageModelHint')
-			: t('contextLine', { context, max: maxOutput });
+		? t('imageModelHint')
+		: t('contextLine', { context, max: maxOutput });
 	const tags = parseModelTagsList(meta);
 	const sections = splitRoutesByProtocolAndRouteGroup(card.groupRoutes);
 	const surfaceGroups = groupSectionsByRequestSurface(sections);
 
 	return (
-		<article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-			<header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2.5 sm:px-5">
+		<article className="route-topology overflow-hidden rounded-xl border route-border route-surface">
+			<header className="flex flex-wrap items-center justify-between gap-3 border-b route-border route-surface px-4 py-2.5 sm:px-5">
 				<div className="min-w-0 flex-1">
 					<div className="flex min-w-0 flex-wrap items-center gap-2">
-						<button
+						<ControlButton
+							variant="ghost"
 							type="button"
 							onClick={() => onEditModel(card.model_id)}
-							className="truncate text-left text-sm font-semibold text-gray-900 underline-offset-2 hover:text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+							className="route-model-name"
 						>
 							{card.title}
-						</button>
+						</ControlButton>
 						<div className="flex shrink-0 items-center gap-0.5">
-							<button
+							<ControlButton
+								variant="ghost"
 								type="button"
 								onClick={() => void onCopyModelId(card.model_id)}
-								className={`rounded-md p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${copiedModelId === card.model_id ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}
-								title={copiedModelId === card.model_id ? t('copiedModelId') : t('copyModelId', { id: card.model_id })}
+								className={`rounded-md p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+									copiedModelId === card.model_id
+										? 'bg-emerald-50 text-emerald-600'
+										: 'route-muted hover:bg-gray-100 hover:text-gray-700'
+								}`}
+								title={
+									copiedModelId === card.model_id
+										? t('copiedModelId')
+										: t('copyModelId', { id: card.model_id })
+								}
 							>
 								<ClipboardDocumentIcon className="h-4 w-4" />
-							</button>
-							<button
+							</ControlButton>
+							<ControlButton
+								variant="ghost"
 								type="button"
 								onClick={() => onEditModel(card.model_id)}
-								className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+								className="rounded-md p-1 route-muted hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 								title={t('editModel', { title: card.title })}
 							>
 								<PencilSquareIcon className="h-4 w-4" />
-							</button>
+							</ControlButton>
 						</div>
 					</div>
 					<div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-						<span className="font-mono text-[11px] text-gray-500">{card.model_id}</span>
+						<span className="route-model-id font-mono text-[11px] route-muted">
+							{card.model_id}
+						</span>
 						<span className="text-gray-300">·</span>
-						<span className="text-[11px] text-gray-500">{stats}</span>
-						{tags.length ? tags.slice(0, 4).map((tag) => (
-							<span key={tag} className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tagBadgeClass(tag)}`}>
-								{tag}
-							</span>
-						)) : <span className="text-[10px] text-gray-400">{tModelsCard('noTags')}</span>}
+						<span className="text-[11px] route-muted">{stats}</span>
+						{tags.length ? (
+							tags.slice(0, 4).map((tag) => (
+								<span
+									key={tag}
+									className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tagBadgeClass(tag)}`}
+								>
+									{tag}
+								</span>
+							))
+						) : (
+							<span className="text-[10px] route-muted">{tModelsCard('noTags')}</span>
+						)}
 					</div>
 				</div>
-				<div className="flex shrink-0 items-center gap-2">
-					<span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${card.activeCount > 0 ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
+				<div className="route-card-actions flex min-w-0 max-w-full flex-wrap items-center gap-2">
+					<Badge tone={card.activeCount > 0 ? 'success' : 'danger'}>
 						{t('activeTotalRoutes', { active: card.activeCount, total: card.groupRoutes.length })}
-					</span>
-					<button
+					</Badge>
+					<ControlButton
+						variant="ghost"
 						type="button"
 						onClick={() => onCreate(card.model_id)}
 						className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 hover:bg-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 					>
 						<PlusIcon className="h-3.5 w-3.5" />
 						{tFlow('addRoute')}
-					</button>
+					</ControlButton>
 				</div>
 			</header>
 
-			<div className="divide-y divide-slate-200/80 bg-slate-100/60 px-3 sm:px-4">
-				{surfaceGroups.length ? surfaceGroups.map((surface) => (
-					<FlowSection
-						key={surface.key}
-						surface={surface}
-						card={card}
-						meta={meta}
-						providerMeta={providerMeta}
-						globalRouteStrategy={globalRouteStrategy}
-						togglingId={togglingId}
-						onCreate={onCreate}
-						onEdit={onEdit}
-						onToggleStatus={onToggleStatus}
-						onOpenStrategyDialog={onOpenStrategyDialog}
-					/>
-				)) : (
-					<button
+			<div className="divide-y divide-slate-200/80 route-subtle px-3 sm:px-4">
+				{surfaceGroups.length ? (
+					surfaceGroups.map((surface) => (
+						<FlowSection
+							key={surface.key}
+							surface={surface}
+							card={card}
+							meta={meta}
+							providerMeta={providerMeta}
+							globalRouteStrategy={globalRouteStrategy}
+							togglingId={togglingId}
+							onCreate={onCreate}
+							onEdit={onEdit}
+							onToggleStatus={onToggleStatus}
+							onOpenStrategyDialog={onOpenStrategyDialog}
+						/>
+					))
+				) : (
+					<ControlButton
+						variant="ghost"
 						type="button"
 						onClick={() => onCreate(card.model_id)}
-						className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white/80 px-4 py-8 text-sm font-medium text-gray-500 hover:border-blue-300 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+						className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed route-border route-surface px-4 py-8 text-sm font-medium route-muted hover:border-blue-300 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 					>
 						<PlusIcon className="h-5 w-5" />
 						{t('clickToAdd')}
-					</button>
+					</ControlButton>
 				)}
 			</div>
 		</article>

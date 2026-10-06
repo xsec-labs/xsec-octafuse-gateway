@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
 	isAudioTranscriptionModel,
 	isImageGenerationModel,
@@ -12,30 +12,24 @@ import { isImageRouteModel } from '@/lib/image-generations';
 import { getCatalogImagePricingDisplay, getCatalogPricingTierRows } from '@/lib/pricing-ui';
 import { normalizeModelVendorInput } from '@/lib/model-vendor';
 import { normalizeRouteGroup } from '@/lib/route-group-ui';
-import { useBillingCurrency } from '@/lib/use-billing-currency';
-import { useReplaceListPageQuery } from '@/lib/use-replace-list-query';
+import { useTranslations } from 'next-intl';
+import {
+	useShellRequest,
+	parseShellSuccess,
+	shellFailure,
+	type ShellFailure,
+} from '@/lib/shell-request';
+import { notifyAdminSessionExpired } from '@/lib/admin-session-events';
 import {
 	UPSTREAM_PROTOCOLS,
 	providerSupportsUpstreamProtocol,
 	type UpstreamProtocol,
 } from '@/lib/upstream-protocol';
 import type { GatewayModel, GatewayProvider } from '@/lib/types';
-import {
-	DEFAULT_KIND_FILTER,
-	parseKindFilterParam,
-	type ModelKindFilter,
-} from '../models/types';
+import { parseKindFilterParam, type ModelKindFilter } from '../models/types';
 import { useModelEditModal } from '../models/use-model-edit-modal';
+import { fetchRoutesPageData, routeWrite, jsonWrite } from './route-api';
 import {
-	deleteRoute,
-	fetchRoutesPageData,
-	patchModelRoutePolicy,
-	patchRoutePoolStrategy,
-	saveRoute,
-	toggleRouteStatus,
-} from './route-api';
-import {
-	buildActiveFilterSummary,
 	buildFormDataFromRoute,
 	buildRouteCardVendorGroups,
 	buildRoutePolicyPatch,
@@ -56,7 +50,31 @@ import {
 } from './types';
 
 export function useRoutesPageState() {
-	const searchParams = useSearchParams();
+	const t = useTranslations('routes.feedback'),
+		common = useTranslations('common'),
+		filters = useTranslations('filter');
+	const searchParams = useSearchParams(),
+		router = useRouter(),
+		pathname = usePathname();
+	const readOwner = useRef<AbortController | null>(null),
+		mounted = useRef(true),
+		writeBusy = useRef(false);
+	const { run: write } = useShellRequest();
+	const [readFailure, setReadFailure] = useState<ShellFailure | null>(null);
+	const [actionFailure, setActionFailure] = useState<{
+		title: string;
+		failure: ShellFailure;
+		uncertain: boolean;
+	} | null>(null);
+	const [showDelete, setShowDelete] = useState(false);
+	const returnFocus = useRef<HTMLElement | null>(null),
+		strategyReturnFocus = useRef<HTMLElement | null>(null),
+		deleteReturnFocus = useRef<HTMLElement | null>(null);
+	const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const authorizedFailure = useCallback((failure: ShellFailure, record: () => void) => {
+		if (failure.status === 401) notifyAdminSessionExpired();
+		else record();
+	}, []);
 	const [routes, setRoutes] = useState<RouteListRow[]>([]);
 	const [models, setModels] = useState<GatewayModel[]>([]);
 	const [providers, setProviders] = useState<GatewayProvider[]>([]);
@@ -66,11 +84,42 @@ export function useRoutesPageState() {
 	const [editingRoute, setEditingRoute] = useState<RouteListRow | null>(null);
 	const [duplicateSourceRouteId, setDuplicateSourceRouteId] = useState<string | null>(null);
 	const [formData, setFormData] = useState<RouteFormData>(EMPTY_ROUTE_FORM);
-	const [filterVendor, setFilterVendor] = useState('');
-	const [filterProviderId, setFilterProviderId] = useState('');
-	const [filterRouteGroup, setFilterRouteGroup] = useState('');
-	const [filterStatus, setFilterStatus] = useState('');
-	const [filterKind, setFilterKind] = useState<ModelKindFilter>(DEFAULT_KIND_FILTER);
+	const filterVendor = searchParams.get('vendor')
+		? normalizeModelVendorInput(searchParams.get('vendor'))
+		: '';
+	const filterProviderId = searchParams.get('provider_id') ?? '',
+		filterRouteGroup = searchParams.get('route_group') ?? '';
+	const filterStatus = searchParams.get('status') ?? '',
+		filterKind = parseKindFilterParam(searchParams.get('kind'));
+	const replaceFilter = useCallback(
+		(key: string, value: string) => {
+			const params = new URLSearchParams(searchParams.toString());
+			if (value) params.set(key, value);
+			else params.delete(key);
+			router.replace(pathname + (params.size ? '?' + params.toString() : ''), { scroll: false });
+		},
+		[searchParams, router, pathname]
+	);
+	const setFilterVendor = useCallback(
+		(value: string) => replaceFilter('vendor', value),
+		[replaceFilter]
+	);
+	const setFilterProviderId = useCallback(
+		(value: string) => replaceFilter('provider_id', value),
+		[replaceFilter]
+	);
+	const setFilterRouteGroup = useCallback(
+		(value: string) => replaceFilter('route_group', value),
+		[replaceFilter]
+	);
+	const setFilterStatus = useCallback(
+		(value: string) => replaceFilter('status', value),
+		[replaceFilter]
+	);
+	const setFilterKind = useCallback(
+		(value: ModelKindFilter) => replaceFilter('kind', value),
+		[replaceFilter]
+	);
 	const [saveError, setSaveError] = useState('');
 	const [isSaving, setIsSaving] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -83,49 +132,52 @@ export function useRoutesPageState() {
 	});
 	const [strategySaving, setStrategySaving] = useState(false);
 	const [strategyError, setStrategyError] = useState('');
-	const { currency: billingCurrency } = useBillingCurrency();
+	const [billingCurrency, setBillingCurrency] = useState('USD');
 	const businessTimezone = useBusinessTimezone();
 
-	useEffect(() => {
-		const vendor = searchParams.get('vendor');
-		const providerId = searchParams.get('provider_id');
-		const status = searchParams.get('status');
-		const routeGroup = searchParams.get('route_group');
-		const kind = searchParams.get('kind');
-		setFilterVendor(vendor ? normalizeModelVendorInput(vendor) : '');
-		setFilterProviderId(providerId ?? '');
-		setFilterStatus(status ?? '');
-		setFilterRouteGroup(routeGroup ?? '');
-		setFilterKind(parseKindFilterParam(kind));
-	}, [searchParams]);
-
-	useReplaceListPageQuery(() => {
-		const params = new URLSearchParams();
-		if (filterVendor) params.set('vendor', filterVendor);
-		if (filterProviderId) params.set('provider_id', filterProviderId);
-		if (filterRouteGroup) params.set('route_group', filterRouteGroup);
-		if (filterStatus) params.set('status', filterStatus);
-		params.set('kind', filterKind);
-		return params;
-	}, [filterVendor, filterProviderId, filterRouteGroup, filterStatus, filterKind]);
-
 	const refreshRoutesPage = useCallback(async () => {
+		readOwner.current?.abort();
+		const owner = new AbortController();
+		readOwner.current = owner;
+		setIsLoading(true);
+		setReadFailure(null);
 		try {
-			const data = await fetchRoutesPageData();
+			const data = await fetchRoutesPageData(owner);
+			if (!mounted.current || readOwner.current !== owner) return;
 			setRoutes(data.routes);
 			setModels(data.models);
 			setProviders(data.providers);
 			setGlobalRouteStrategy(data.globalRouteStrategy);
+			setBillingCurrency(data.billingCurrency);
 		} catch (error) {
-			console.error('Fetch data error:', error);
+			if (!mounted.current || readOwner.current !== owner) return;
+			const failure = shellFailure(error);
+			authorizedFailure(failure, () => setReadFailure(failure));
 		} finally {
-			setIsLoading(false);
+			if (mounted.current && readOwner.current === owner) {
+				setIsLoading(false);
+				readOwner.current = null;
+			}
 		}
+	}, [authorizedFailure]);
+	useEffect(() => {
+		mounted.current = true;
+		return () => {
+			mounted.current = false;
+			readOwner.current?.abort();
+			readOwner.current = null;
+			if (copyTimer.current) clearTimeout(copyTimer.current);
+		};
 	}, []);
 
 	const modelSuccessFocus = useRef<HTMLHeadingElement | null>(null);
-	const attachModelSuccessFocus = useCallback((element: HTMLHeadingElement | null) => { modelSuccessFocus.current = element; }, []);
-	const modelEdit = useModelEditModal({ onChanged: refreshRoutesPage, successFocus: modelSuccessFocus });
+	const attachModelSuccessFocus = useCallback((element: HTMLHeadingElement | null) => {
+		modelSuccessFocus.current = element;
+	}, []);
+	const modelEdit = useModelEditModal({
+		onChanged: refreshRoutesPage,
+		successFocus: modelSuccessFocus,
+	});
 
 	useEffect(() => {
 		void refreshRoutesPage();
@@ -252,14 +304,26 @@ export function useRoutesPageState() {
 
 	const activeFilterSummary = useMemo(
 		() =>
-			buildActiveFilterSummary({
-				filterStatus,
-				filterRouteGroup,
-				filterVendor,
-				filterProviderId,
-				providers,
-			}),
-		[filterStatus, filterRouteGroup, filterVendor, filterProviderId, providers]
+			[
+				filterStatus ? (filterStatus === 'active' ? common('active') : common('inactive')) : '',
+				filterRouteGroup ? filters('routeGroup') + ': ' + filterRouteGroup : '',
+				filterVendor
+					? vendorFilterOptions.find((vendor) => vendor.key === filterVendor)?.label ?? filterVendor
+					: '',
+				filterProviderId
+					? providers.find((provider) => provider.id === filterProviderId)?.name ?? filterProviderId
+					: '',
+			].filter(Boolean),
+		[
+			filterStatus,
+			filterRouteGroup,
+			filterVendor,
+			filterProviderId,
+			providers,
+			vendorFilterOptions,
+			common,
+			filters,
+		]
 	);
 
 	const selectedProvider = useMemo(
@@ -344,14 +408,24 @@ export function useRoutesPageState() {
 	}, [showModal, lockOpenaiProtocol, formData.model_id]);
 
 	const clearAllFilters = useCallback(() => {
-		setFilterVendor('');
-		setFilterProviderId('');
-		setFilterRouteGroup('');
-		setFilterStatus('');
+		const params = new URLSearchParams(searchParams.toString());
+		for (const key of ['vendor', 'provider_id', 'route_group', 'status']) params.delete(key);
+		router.replace(pathname + (params.size ? '?' + params.toString() : ''), { scroll: false });
+	}, [searchParams, pathname, router]);
+	const captureFocus = useCallback(() => {
+		returnFocus.current =
+			document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		setActionFailure(null);
+		setShowDelete(false);
 	}, []);
 
 	const handleCreate = useCallback(
-		(presetModelId?: string, preset?: { protocol?: string; operation?: string; group?: string }) => {
+		(
+			presetModelId?: string,
+			preset?: { protocol?: string; operation?: string; group?: string }
+		) => {
+			if (writeBusy.current) return;
+			captureFocus();
 			setEditingRoute(null);
 			setDuplicateSourceRouteId(null);
 			const initial = createInitialRouteForm(models, presetModelId);
@@ -372,22 +446,26 @@ export function useRoutesPageState() {
 			setShowModal(true);
 			setSaveError('');
 		},
-		[models]
+		[models, captureFocus]
 	);
 
 	const handleEdit = useCallback(
 		(route: RouteListRow) => {
+			if (writeBusy.current) return;
+			captureFocus();
 			setEditingRoute(route);
 			setDuplicateSourceRouteId(null);
 			setFormData(buildFormDataFromRoute(route, models));
 			setShowModal(true);
 			setSaveError('');
 		},
-		[models]
+		[models, captureFocus]
 	);
 
 	const handleDuplicate = useCallback(
 		(route: RouteListRow) => {
+			if (writeBusy.current) return;
+			setActionFailure(null);
 			setEditingRoute(null);
 			setDuplicateSourceRouteId(route.id);
 			setFormData(buildFormDataFromRoute(route, models));
@@ -397,81 +475,129 @@ export function useRoutesPageState() {
 		[models]
 	);
 
+	const recordAction = useCallback(
+		(title: string, failure: ShellFailure) =>
+			authorizedFailure(failure, () =>
+				setActionFailure({ title, failure, uncertain: failure.code !== 'HTTP_ERROR' })
+			),
+		[authorizedFailure]
+	);
 	const handleDelete = useCallback(
 		async (id: string) => {
-			if (!confirm('Are you sure you want to delete this route?')) return;
-
+			if (writeBusy.current) return;
+			writeBusy.current = true;
 			setIsDeleting(true);
+			setActionFailure(null);
+			let committed = false;
 			try {
-				const result = await deleteRoute(id);
-				if (result.success) {
+				await write(
+					'/api/admin/routes/' + encodeURIComponent(id),
+					{ method: 'DELETE' },
+					parseShellSuccess,
+					() => {
+						committed = true;
+						setShowDelete(false);
+						setShowModal(false);
+						setEditingRoute(null);
+						setDuplicateSourceRouteId(null);
+					},
+					(failure) => recordAction(t('deleteFailed'), failure)
+				);
+				if (mounted.current && committed) await refreshRoutesPage();
+			} finally {
+				writeBusy.current = false;
+				if (mounted.current) setIsDeleting(false);
+			}
+		},
+		[write, recordAction, t, refreshRoutesPage]
+	);
+	const handleToggleStatus = useCallback(
+		async (route: RouteListRow) => {
+			if (writeBusy.current) return;
+			writeBusy.current = true;
+			setTogglingId(route.id);
+			setActionFailure(null);
+			const status = route.status === 'active' ? 'inactive' : 'active';
+			try {
+				await write(
+					'/api/admin/routes/' + encodeURIComponent(route.id),
+					jsonWrite('PATCH', { status }),
+					parseShellSuccess,
+					() =>
+						setRoutes((previous) =>
+							previous.map((row) => (row.id === route.id ? { ...row, status } : row))
+						),
+					(failure) => recordAction(t('statusFailed'), failure)
+				);
+			} finally {
+				writeBusy.current = false;
+				if (mounted.current) setTogglingId(null);
+			}
+		},
+		[write, recordAction, t]
+	);
+	const copyModelId = useCallback(
+		async (modelId: string) => {
+			try {
+				await navigator.clipboard.writeText(modelId);
+				if (!mounted.current) return;
+				if (copyTimer.current) clearTimeout(copyTimer.current);
+				setCopiedModelId(modelId);
+				copyTimer.current = setTimeout(() => {
+					setCopiedModelId(null);
+					copyTimer.current = null;
+				}, 2000);
+			} catch (error) {
+				if (mounted.current)
+					setActionFailure({
+						title: t('copyFailed'),
+						failure: shellFailure(error),
+						uncertain: false,
+					});
+			}
+		},
+		[t]
+	);
+	const handleSave = useCallback(async () => {
+		if (writeBusy.current) return;
+		setSaveError('');
+		setActionFailure(null);
+		let request: ReturnType<typeof routeWrite>;
+		try {
+			request = routeWrite(formData, editingRoute);
+		} catch (error) {
+			setSaveError(
+				error instanceof Error && error.message === 'INVALID_ROUTE_FIELDS'
+					? t('invalidFields')
+					: (error instanceof Error && error.message.includes('custom_params')) ||
+					  error instanceof SyntaxError
+					? t('invalidParams')
+					: t('invalidPricing')
+			);
+			return;
+		}
+		writeBusy.current = true;
+		setIsSaving(true);
+		let committed = false;
+		try {
+			await write(
+				request.path,
+				request.init,
+				parseShellSuccess,
+				() => {
+					committed = true;
 					setShowModal(false);
 					setEditingRoute(null);
 					setDuplicateSourceRouteId(null);
-					await refreshRoutesPage();
-				} else {
-					alert(result.message);
-				}
-			} catch (error) {
-				console.error('Delete error:', error);
-				alert('Delete failed');
-			} finally {
-				setIsDeleting(false);
-			}
-		},
-		[refreshRoutesPage]
-	);
-
-	const handleToggleStatus = useCallback(async (route: RouteListRow) => {
-		const newStatus = route.status === 'active' ? 'inactive' : 'active';
-		setTogglingId(route.id);
-		try {
-			const result = await toggleRouteStatus(route.id, newStatus);
-			if (result.success) {
-				setRoutes((prev) =>
-					prev.map((r) => (r.id === route.id ? { ...r, status: newStatus } : r))
-				);
-			} else {
-				alert(result.message);
-			}
-		} catch (error) {
-			console.error('Toggle status error:', error);
-			alert('Update failed, please try again');
+				},
+				(failure) => recordAction(t('saveFailed'), failure)
+			);
+			if (committed && mounted.current) await refreshRoutesPage();
 		} finally {
-			setTogglingId(null);
+			writeBusy.current = false;
+			if (mounted.current) setIsSaving(false);
 		}
-	}, []);
-
-	const copyModelId = useCallback(async (modelId: string) => {
-		try {
-			await navigator.clipboard.writeText(modelId);
-			setCopiedModelId(modelId);
-			setTimeout(() => setCopiedModelId((current) => (current === modelId ? null : current)), 2000);
-		} catch (error) {
-			console.error('Copy model id failed:', error);
-		}
-	}, []);
-
-	const handleSave = useCallback(async () => {
-		setSaveError('');
-		setIsSaving(true);
-		try {
-			const result = await saveRoute(formData, editingRoute);
-			if (result.success) {
-				setShowModal(false);
-				setEditingRoute(null);
-				setDuplicateSourceRouteId(null);
-				await refreshRoutesPage();
-			} else {
-				setSaveError(result.message);
-			}
-		} catch (error) {
-			console.error('Save error:', error);
-			setSaveError(error instanceof Error ? error.message : 'Save failed, please try again');
-		} finally {
-			setIsSaving(false);
-		}
-	}, [editingRoute, formData, refreshRoutesPage]);
+	}, [formData, editingRoute, t, common, write, recordAction, refreshRoutesPage]);
 
 	const handleOpenStrategyDialog = useCallback(
 		(
@@ -484,6 +610,10 @@ export function useRoutesPageState() {
 			poolStrategy?: string | null,
 			requestOperation?: string
 		) => {
+			if (writeBusy.current) return;
+			strategyReturnFocus.current =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			setActionFailure(null);
 			const raw = modelMeta.get(modelId)?.route_policy ?? null;
 			const inherited = resolveEffectiveRouteStrategy({
 				routePolicyRaw: raw,
@@ -497,8 +627,8 @@ export function useRoutesPageState() {
 					poolId
 						? route.route_pool_id === poolId
 						: route.model_id === modelId &&
-							route.upstream_protocol === protocol &&
-							normalizeRouteGroup(route.route_group) === normalizeRouteGroup(group)
+						  route.upstream_protocol === protocol &&
+						  normalizeRouteGroup(route.route_group) === normalizeRouteGroup(group)
 				)
 				.map((route) => ({
 					id: route.id,
@@ -509,8 +639,7 @@ export function useRoutesPageState() {
 					priority: route.priority,
 					weight: route.weight ?? 1,
 					active:
-						route.status === 'active' &&
-						providerMeta.get(route.provider_id)?.status !== 'disabled',
+						route.status === 'active' && providerMeta.get(route.provider_id)?.status !== 'disabled',
 				}));
 			setStrategyForm(
 				poolId
@@ -536,49 +665,73 @@ export function useRoutesPageState() {
 	);
 
 	const handleSaveStrategy = useCallback(async () => {
-		if (!strategyDialog) return;
+		if (!strategyDialog || writeBusy.current) return;
+		writeBusy.current = true;
 		setStrategySaving(true);
 		setStrategyError('');
+		setActionFailure(null);
+		let committed = false;
 		try {
-			const result = strategyDialog.poolId
-				? await patchRoutePoolStrategy(
-						strategyDialog.poolId,
-						strategyForm.protocolStrategy || null
-					)
-				: await patchModelRoutePolicy(
-						strategyDialog.modelId,
-						buildRoutePolicyPatch(
+			const path = strategyDialog.poolId
+				? '/api/admin/routes/pools/' + encodeURIComponent(strategyDialog.poolId)
+				: '/api/admin/models/' + encodeURIComponent(strategyDialog.modelId);
+			const payload = strategyDialog.poolId
+				? { strategy: strategyForm.protocolStrategy || null }
+				: {
+						route_policy: buildRoutePolicyPatch(
 							modelMeta.get(strategyDialog.modelId)?.route_policy ?? null,
 							strategyDialog.protocol,
 							strategyDialog.group,
 							strategyForm
-						)
-					);
-			if (!result.success) {
-				setStrategyError(result.message);
-				return;
-			}
-			setStrategyDialog(null);
-			await refreshRoutesPage();
-		} catch (error) {
-			setStrategyError(error instanceof Error ? error.message : 'Save failed, please try again');
+						),
+				  };
+			await write(
+				path,
+				jsonWrite('PATCH', payload),
+				parseShellSuccess,
+				() => {
+					committed = true;
+					setStrategyDialog(null);
+				},
+				(failure) => recordAction(t('strategyFailed'), failure)
+			);
+			if (committed && mounted.current) await refreshRoutesPage();
 		} finally {
-			setStrategySaving(false);
+			writeBusy.current = false;
+			if (mounted.current) setStrategySaving(false);
 		}
-	}, [modelMeta, refreshRoutesPage, strategyDialog, strategyForm]);
-
+	}, [modelMeta, refreshRoutesPage, strategyDialog, strategyForm, write, t, recordAction]);
 	const closeRouteModal = useCallback(() => {
-		if (isSaving || isDeleting) return;
-		setShowModal(false);
-	}, [isDeleting, isSaving]);
-
+		if (!writeBusy.current && !showDelete) setShowModal(false);
+	}, [showDelete]);
 	const closeStrategyDialog = useCallback(() => {
-		if (strategySaving) return;
-		setStrategyDialog(null);
-	}, [strategySaving]);
+		if (!writeBusy.current) setStrategyDialog(null);
+	}, []);
+	const openDelete = useCallback(() => {
+		if (writeBusy.current) return;
+		deleteReturnFocus.current =
+			document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		setActionFailure(null);
+		setShowDelete(true);
+	}, []);
+	const closeDelete = useCallback(() => {
+		if (!writeBusy.current) {
+			setShowDelete(false);
+			setActionFailure(null);
+		}
+	}, []);
 
 	return {
 		isLoading,
+		readFailure,
+		actionFailure,
+		showDelete,
+		openDelete,
+		closeDelete,
+		returnFocus,
+		strategyReturnFocus,
+		deleteReturnFocus,
+		busy: isSaving || isDeleting || strategySaving || togglingId !== null,
 		routes,
 		models,
 		providers,

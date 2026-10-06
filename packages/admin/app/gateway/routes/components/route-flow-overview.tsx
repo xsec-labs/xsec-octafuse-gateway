@@ -22,15 +22,15 @@ export function RouteFlowOverview() {
 	return (
 		<section className="mb-5 sm:mb-6" aria-labelledby="route-flow-overview-title">
 			<div className="mb-3">
-				<h2 id="route-flow-overview-title" className="text-sm font-semibold text-gray-900">
+				<h2 id="route-flow-overview-title" className="text-sm font-semibold route-text">
 					{t('overviewTitle')}
 				</h2>
-				<p className="mt-0.5 text-xs text-gray-500">{t('overviewHint')}</p>
+				<p className="mt-0.5 text-xs route-muted">{t('overviewHint')}</p>
 			</div>
 			<div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center">
 				{STEPS.map(({ key, icon: Icon }, index) => (
 					<div key={key} className="contents">
-						<div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-gray-200/80 bg-white/80 px-3 py-2 shadow-sm">
+						<div className="flex min-w-0 items-center gap-2.5 rounded-lg border route-border route-surface px-3 py-2 shadow-sm">
 							<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-100">
 								<Icon className="h-4 w-4" />
 							</span>
@@ -38,7 +38,7 @@ export function RouteFlowOverview() {
 								<p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
 									{t('step', { number: index + 1 })}
 								</p>
-								<p className="truncate text-xs font-semibold text-gray-800">{t(`${key}Step`)}</p>
+								<p className="truncate text-xs font-semibold route-text">{t(`${key}Step`)}</p>
 							</div>
 						</div>
 						{index < STEPS.length - 1 ? (

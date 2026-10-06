@@ -845,6 +845,20 @@
 			"inactiveExcluded": "停用的 Route 或 Provider 已从预览中排除。",
 			"hintCache": "非 affinity 可能降低 prompt cache 命中率。",
 			"hintNoCache": "上游无 prompt cache；建议 weighted_random 或 round_robin。"
+		},
+		"feedback": {
+			"saveFailed": "路由保存未确认",
+			"deleteFailed": "路由删除未确认",
+			"statusFailed": "路由状态修改未确认",
+			"strategyFailed": "策略保存未确认",
+			"copyFailed": "无法复制模型 ID",
+			"validationFailed": "请检查路由字段",
+			"invalidFields": "请选择模型和供应商，填写上游模型名称，并使用整数优先级与权重（权重 ≥ 1）。",
+			"deleteTitle": "删除路由",
+			"deleteDescription": "删除路由 {id}？",
+			"deleteHint": "该路由目标将从路由池中移除。",
+			"invalidPricing": "请输入有效的非负倍率和互不重叠的时段。",
+			"invalidParams": "自定义参数必须是有效的 JSON 对象。"
 		}
 	},
 	"playground": {

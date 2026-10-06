@@ -1,0 +1,269 @@
+.route-page {
+	max-width: 1680px;
+	margin: auto;
+	padding: 32px;
+	color: var(--xui-text);
+	min-width: 0;
+}
+.route-text {
+	color: var(--xui-text);
+}
+.route-muted {
+	color: var(--xui-muted);
+}
+.route-surface {
+	background: var(--xui-surface);
+}
+.route-subtle {
+	background: var(--xui-subtle);
+}
+.route-border {
+	border-color: var(--xui-border);
+}
+.route-workspace,
+.route-editor fieldset,
+.route-policy fieldset {
+	border: 0;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+.route-filters {
+	padding: 20px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	background: var(--xui-surface);
+	margin-bottom: 24px;
+}
+.route-filter-heading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+	font-size: 13px;
+}
+.route-filter-heading h2 {
+	font-weight: 600;
+	margin: 0;
+}
+.route-filter-heading > span {
+	color: var(--xui-muted);
+	flex: 1;
+}
+.route-filter-grid {
+	display: grid;
+	grid-template-columns: minmax(300px, 1.7fr) repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+.route-filter-grid .xui-radio-group {
+	display: flex;
+	flex-wrap: wrap;
+}
+.route-filter-grid .xui-radio-choice {
+	flex: 1;
+	align-items: center;
+	white-space: nowrap;
+}
+.route-filter-grid .xui-select-trigger {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.route-list {
+	display: grid;
+	gap: 28px;
+}
+.route-topology {
+	container: route-topology / inline-size;
+	min-width: 0;
+}
+.route-topology header {
+	background: var(--xui-surface);
+}
+.route-topology .xui-button {
+	min-height: 44px;
+	white-space: normal;
+}
+.route-topology .route-model-name {
+	color: var(--xui-text);
+	font-size: 15px;
+	font-weight: 600;
+	padding: 0;
+	max-width: 100%;
+	text-align: left;
+	overflow-wrap: anywhere;
+}
+.route-model-id {
+	overflow-wrap: anywhere;
+}
+.route-target {
+	background: var(--xui-surface);
+	border-color: var(--xui-border);
+	max-width: 100%;
+}
+.route-target-active {
+	border-left: 3px solid var(--xui-success);
+}
+.route-target-inactive {
+	border-left: 3px solid var(--xui-danger);
+}
+.route-target .route-toggle {
+	padding: 8px;
+	flex-shrink: 0;
+	color: var(--xui-muted);
+}
+.route-target .route-toggle[aria-pressed='true'] {
+	color: var(--xui-success);
+}
+.route-target .route-target-edit {
+	display: block;
+	padding: 0;
+	text-align: left;
+}
+.route-request-node,
+.route-policy-node {
+	width: 100%;
+	min-width: 0;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-control);
+	background: var(--xui-surface);
+	padding: 12px;
+}
+.route-topology .route-policy-node {
+	display: block;
+	text-align: left;
+}
+.route-topology .route-flow-wide {
+	display: none;
+}
+.route-dialog {
+	width: min(1080px, calc(100vw - 32px));
+	max-height: calc(100dvh - 32px);
+	display: flex;
+	flex-direction: column;
+}
+.route-policy {
+	width: min(760px, calc(100vw - 32px));
+}
+.route-dialog .xui-dialog-content {
+	min-height: 0;
+	overflow: auto;
+}
+.route-dialog .xui-dialog-header,
+.route-dialog .xui-dialog-footer {
+	flex-shrink: 0;
+}
+.route-dialog .xui-dialog-footer {
+	flex-wrap: wrap;
+}
+.route-dialog .xui-input,
+.route-dialog .xui-select-trigger,
+.route-dialog .xui-button {
+	min-height: 44px;
+}
+.route-dialog .xui-select-trigger {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.route-dialog .xui-error {
+	margin-bottom: 16px;
+}
+.route-spacer {
+	flex: 1;
+}
+.route-price-panel {
+	padding: 16px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	background: var(--xui-surface);
+	min-width: 0;
+}
+.route-price-charged {
+	border-top: 3px solid var(--xui-primary);
+}
+.route-price-metered {
+	border-top: 3px solid var(--xui-success);
+}
+.route-policy .route-policy-choice {
+	display: block;
+	white-space: normal;
+	background: var(--xui-surface);
+	border-color: var(--xui-border);
+}
+.route-policy .route-policy-choice[data-selected='true'] {
+	border-color: var(--xui-primary);
+	background: var(--xui-subtle);
+}
+.route-policy .xui-button[aria-pressed='true'] {
+	border-color: var(--xui-primary);
+}
+.route-page > .xui-error {
+	margin-bottom: 20px;
+}
+@container route-topology (min-width: 920px) {
+	.route-surface-grid {
+		display: grid;
+		grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+	}
+	.route-branch-grid {
+		grid-template-columns: minmax(100px, 150px) minmax(140px, 180px) 72px minmax(220px, 1fr);
+		align-items: center;
+	}
+	.route-branch {
+		padding-left: 16px;
+	}
+	.route-request-column {
+		padding-right: 16px;
+	}
+	.route-topology .route-flow-wide {
+		display: block;
+	}
+	.route-topology .route-flow-narrow {
+		display: none;
+	}
+	.route-topology .route-add-inline {
+		min-height: 36px;
+		padding: 4px;
+		font-size: 10px;
+	}
+}
+@media (max-width: 1200px) {
+	.route-filter-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.route-filter-grid > :first-child {
+		grid-column: 1/-1;
+	}
+	.route-page {
+		padding: 24px;
+	}
+}
+@media (max-width: 700px) {
+	.route-page {
+		padding: 20px 16px;
+	}
+	.route-filters {
+		padding: 16px;
+	}
+	.route-filter-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.route-dialog .xui-dialog-header,
+	.route-dialog .xui-dialog-content,
+	.route-dialog .xui-dialog-footer {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+	.route-dialog .xui-dialog-footer > .xui-button {
+		flex: 1;
+	}
+	.route-spacer {
+		display: none;
+	}
+	.route-price-panel {
+		padding: 12px;
+	}
+	.route-topology .xui-badge {
+		white-space: normal;
+	}
+}

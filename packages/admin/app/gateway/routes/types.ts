@@ -36,9 +36,9 @@ export type RouteFormData = {
 	upstream_protocol: UpstreamProtocol;
 	upstream_operation: string;
 	adapter: string;
-	priority: number;
-	/** Same-priority weight; default 1 */
-	weight: number;
+	priority: number | string;
+	/** Draft text is validated before serialization. */
+	weight: number | string;
 	custom_params_json: string;
 	route_group: string;
 	charged_factor: string;
@@ -90,6 +90,7 @@ export type RoutesPageData = {
 	models: GatewayModel[];
 	providers: GatewayProvider[];
 	globalRouteStrategy: string | null;
+	billingCurrency: string;
 };
 
 export const EMPTY_ROUTE_FORM: RouteFormData = {
@@ -117,7 +118,8 @@ export const PROTOCOL_DISPLAY_LABEL: Record<string, string> = {
 	gemini: 'Gemini',
 };
 
-export const ROUTE_GROUP_CARD_BADGE_CLASS = 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200';
+export const ROUTE_GROUP_CARD_BADGE_CLASS =
+	'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200';
 
 export const FACTOR_CHIP_BASE =
 	'inline-flex min-w-[3rem] w-auto shrink-0 justify-end whitespace-nowrap rounded-md px-1.5 py-0 text-[10px] font-semibold font-mono tabular-nums leading-4 ring-1 ring-inset';
