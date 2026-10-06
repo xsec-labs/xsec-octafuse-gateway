@@ -17,7 +17,7 @@ import { summarizeMetadata } from '@/lib/summarize-metadata';
 import { useBillingCurrency } from '@/lib/use-billing-currency';
 import { useGatewayDateTime } from '@/lib/use-gateway-datetime';
 import type { GatewayApiKey } from '@/lib/types';
-import { CopyControl } from './key-copy-control';
+import { CopyControl } from '@/components/GatewayCopyControl';
 
 /** Stable list props keep draft typing inside the editor. */
 export const KeyTable = memo(function KeyTable({

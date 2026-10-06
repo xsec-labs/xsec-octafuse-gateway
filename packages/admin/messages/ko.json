@@ -1137,6 +1137,23 @@
 			"detail": "사용자 상세: {name}",
 			"metadataFor": "{name} 메타데이터",
 			"pagination": "사용자 목록 페이지"
+		},
+		"detailFeedback": {
+			"userFailed": "사용자를 읽을 수 없습니다",
+			"keysFailed": "API 키를 읽을 수 없습니다",
+			"logsFailed": "요청 로그를 읽을 수 없습니다",
+			"auditsFailed": "사용자 감사 로그를 읽을 수 없습니다",
+			"dateInvalid": "예산 초기화 시간은 유효한 날짜여야 합니다.",
+			"readRequired": "현재 상태를 확인하고 계속하기",
+			"readRequiredHint": "다시 변경하기 전에 현재 사용자와 관련 기록을 읽어 주세요.",
+			"copyKey": "API 키 복사: {name}",
+			"copyNewKey": "새 API 키 복사",
+			"metadataFor": "{name}의 메타데이터",
+			"deleteKey": "API 키 삭제: {name}",
+			"standard": "표준 비용",
+			"charged": "청구 비용",
+			"metered": "측정 비용",
+			"currencyFailed": "청구 통화를 불러올 수 없습니다"
 		}
 	},
 	"keysPage": {

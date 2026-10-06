@@ -21,7 +21,7 @@ import ShellError from '@/components/layout/ShellError';
 import { formatGatewayDateTime } from '@/lib/datetime';
 import { formatGatewayMoneyCode } from '@/lib/format-gateway-currency';
 import { KeyTable } from './key-table';
-import { CopyControl } from './key-copy-control';
+import { CopyControl } from '@/components/GatewayCopyControl';
 import { useBillingCurrency } from '@/lib/use-billing-currency';
 import { useGatewayDateTime } from '@/lib/use-gateway-datetime';
 import { useKeysPageState, type KeyCreationMode } from './use-keys-page-state';

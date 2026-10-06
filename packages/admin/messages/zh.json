@@ -1137,6 +1137,23 @@
 			"detail": "用户详情：{name}",
 			"metadataFor": "{name}的元数据",
 			"pagination": "用户列表分页"
+		},
+		"detailFeedback": {
+			"userFailed": "无法读取用户",
+			"keysFailed": "无法读取 API 密钥",
+			"logsFailed": "无法读取请求日志",
+			"auditsFailed": "无法读取用户审计日志",
+			"dateInvalid": "预算重置时间必须是有效日期。",
+			"readRequired": "读取当前状态后继续",
+			"readRequiredHint": "继续修改前，请读取当前用户及受影响记录。",
+			"copyKey": "复制 API 密钥：{name}",
+			"copyNewKey": "复制新 API 密钥",
+			"metadataFor": "{name} 的元数据",
+			"deleteKey": "删除 API 密钥：{name}",
+			"standard": "标准费用",
+			"charged": "计费费用",
+			"metered": "计量费用",
+			"currencyFailed": "无法读取计费币种"
 		}
 	},
 	"keysPage": {

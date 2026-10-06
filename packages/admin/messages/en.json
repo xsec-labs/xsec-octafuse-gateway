@@ -1137,6 +1137,23 @@
 			"detail": "User detail: {name}",
 			"metadataFor": "Metadata for {name}",
 			"pagination": "User list pages"
+		},
+		"detailFeedback": {
+			"userFailed": "Unable to read user",
+			"keysFailed": "Unable to read API keys",
+			"logsFailed": "Unable to read request logs",
+			"auditsFailed": "Unable to read user audit logs",
+			"dateInvalid": "Budget reset time must be a valid date.",
+			"readRequired": "Read current state to continue",
+			"readRequiredHint": "Read the current user and affected records before making another change.",
+			"copyKey": "Copy API key: {name}",
+			"copyNewKey": "Copy new API key",
+			"metadataFor": "Metadata for {name}",
+			"deleteKey": "Delete API key: {name}",
+			"standard": "Standard",
+			"charged": "Charged",
+			"metered": "Metered",
+			"currencyFailed": "Could not read billing currency"
 		}
 	},
 	"keysPage": {

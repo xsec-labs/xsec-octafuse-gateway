@@ -1137,6 +1137,23 @@
 			"detail": "ユーザー詳細：{name}",
 			"metadataFor": "{name}のメタデータ",
 			"pagination": "ユーザー一覧のページ"
+		},
+		"detailFeedback": {
+			"userFailed": "ユーザーを読み込めません",
+			"keysFailed": "API キーを読み込めません",
+			"logsFailed": "リクエストログを読み込めません",
+			"auditsFailed": "ユーザー監査ログを読み込めません",
+			"dateInvalid": "予算リセット日時に有効な日付を入力してください。",
+			"readRequired": "現在の状態を確認して続行",
+			"readRequiredHint": "次の変更を行う前に、現在のユーザーと関連する記録を読み込んでください。",
+			"copyKey": "API キーをコピー: {name}",
+			"copyNewKey": "新しい API キーをコピー",
+			"metadataFor": "{name} のメタデータ",
+			"deleteKey": "API キーを削除: {name}",
+			"standard": "標準料金",
+			"charged": "請求料金",
+			"metered": "計測料金",
+			"currencyFailed": "請求通貨を読み込めませんでした"
 		}
 	},
 	"keysPage": {
