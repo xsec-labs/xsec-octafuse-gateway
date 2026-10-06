@@ -11,6 +11,7 @@ declare namespace Cloudflare {
 		ASSETS: Fetcher;
 		ADMIN_USERNAME: string;
 		ADMIN_PASSWORD: string;
+		ADMIN_COOKIE_SECURE?: string;
 		DATABASE_URL?: string;
 		DATABASE_DRIVER?: string;
 	}

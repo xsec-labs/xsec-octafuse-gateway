@@ -8,7 +8,8 @@
 	},
 	"scripts": {
 		"prebuild": "node -e \"try{require('fs').rmSync('dist',{recursive:true,force:true})}catch(e){}\"",
-		"build": "npm run build:migrate && npm run build:node-index",
+		"build": "npm run build:migrate && npm run build:node-index && npm run build:admin-sessions",
+		"build:admin-sessions": "esbuild src/storage/admin-sessions.ts --bundle --platform=neutral --format=esm --outfile=dist/storage/admin-sessions.js --log-level=warning",
 		"build:migrate": "tsc -p tsconfig.build.migrate.json",
 		"build:node-index": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external --log-level=warning",
 		"test:unit": "tsx --test src/db/image-token-usage.test.ts src/db/audio-token-usage.test.ts src/db/image-per-image-usage.test.ts src/db/pricing-profile.test.ts src/db/pricing-schedule.test.ts src/db/model-modalities.test.ts src/db/model-route-policy.test.ts src/lib/business-timezone.test.ts src/services/budget-transition-service.test.ts src/upstream-protocol-images-url.test.ts src/provider-endpoints.test.ts src/route-topology.test.ts"
@@ -62,6 +63,11 @@
 		"./storage/repositories-d1": "./src/storage/repositories-d1.ts",
 		"./storage/runtime-database-config": "./src/storage/runtime-database-config.ts",
 		"./storage/context": "./src/storage/context.ts",
+		"./storage/admin-sessions": {
+			"types": "./src/storage/admin-sessions.ts",
+			"import": "./dist/storage/admin-sessions.js",
+			"default": "./dist/storage/admin-sessions.js"
+		},
 		"./upstream-protocol": "./src/upstream-protocol.ts",
 		"./provider-endpoints": "./src/provider-endpoints.ts",
 		"./route-topology": "./src/route-topology.ts",

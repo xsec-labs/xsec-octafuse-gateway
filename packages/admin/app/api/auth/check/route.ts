@@ -1,29 +1,11 @@
-/**
- * 供前端判断是否存在 `admin_session` cookie（不验证 token 内容，与 `checkAuth` 策略一致）。
- */
-import { cookies } from 'next/headers';
+import { checkAuth, readSessionToken, resolveAdminAuthContext } from '@/lib/auth';
+import { handleGatewayApiError } from '@/lib/api-error';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get('admin_session');
-
-    if (sessionToken && sessionToken.value) {
-      return Response.json({
-        authenticated: true,
-      });
-    }
-
-    return Response.json({
-      authenticated: false,
-    });
-  } catch (error) {
-    console.error('Auth check error:', error);
-    return Response.json(
-      { authenticated: false },
-      { status: 500 }
-    );
-  }
+export async function GET(request: Request) {
+	try {
+		const authenticated = readSessionToken(request) !== null && await checkAuth(request, await resolveAdminAuthContext());
+		return Response.json({ authenticated }, { headers: { 'Cache-Control': 'no-store' } });
+	} catch (error) { return handleGatewayApiError({ route: 'auth.check', error }); }
 }

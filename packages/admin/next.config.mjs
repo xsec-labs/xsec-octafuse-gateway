@@ -10,6 +10,7 @@ const workspaceRoot = path.join(__dirname, '../..');
 
 /** Admin/OpenNext 的 `node` 条件会解析到过期的 `core/dist`；强制根导入走 src。 */
 const coreSrcIndex = path.join(__dirname, '../core/src/index.ts');
+const coreAdminSessions = path.join(__dirname, '../core/src/storage/admin-sessions.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -25,6 +26,7 @@ const nextConfig = {
 		resolveAlias: {
 			// Turbopack alias 从 Admin 目录解析；使用相对路径避免绝对路径被误判为 server-relative import。
 			'@octafuse/core': '../core/src/index.ts',
+			'@octafuse/core/storage/admin-sessions': '../core/src/storage/admin-sessions.ts',
 		},
 	},
 	webpack: (config) => {
@@ -33,6 +35,7 @@ const nextConfig = {
 			// Exact match (`$`) so `@octafuse/core/lib/...` still uses package exports → src.
 			// Avoids OpenNext/webpack `node` condition resolving a stale `core/dist`.
 			'@octafuse/core$': coreSrcIndex,
+			'@octafuse/core/storage/admin-sessions$': coreAdminSessions,
 		};
 		return config;
 	},

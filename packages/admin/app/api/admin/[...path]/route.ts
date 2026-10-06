@@ -4,7 +4,7 @@
  * - 外部（如 your-account-portal）：直接 `Authorization: Bearer`，须与存储中的 `system_config.MASTER_KEY` 一致。
  */
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { checkAuth } from '@/lib/auth';
+import { checkAuth, readSessionToken, resolveAdminAuthContext } from '@/lib/auth';
 import type { AdminBindings } from '@/lib/admin-env';
 import { getAdminApp } from '@/lib/admin-app';
 import { getCloudflareEnv } from '@/lib/cloudflare';
@@ -97,7 +97,7 @@ async function handle(request: Request): Promise<Response> {
 		}
 
 		let outbound: Request;
-		if (checkAuth(request)) {
+		if (readSessionToken(request) !== null && await checkAuth(request, await resolveAdminAuthContext())) {
 			const h = new Headers(request.headers);
 			h.set('Authorization', `Bearer ${masterKey}`);
 			outbound = new Request(request.url, {
