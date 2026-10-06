@@ -13,6 +13,15 @@ import type { InsertUserAuditLogParams } from '../user-audit-logs-types';
 import { toUserAuditLogDrizzleInsert } from '../user-audit-drizzle-insert';
 import { deriveUserAuditBudgetFromSnapshots } from '../user-audit-log-derived';
 
+/** Admin/API ranges without an offset are serialized as UTC SQL date strings. */
+function postgresUtcBoundary(value: string): string {
+	const trimmed = value.trim();
+	if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)) {
+		return `${trimmed.replace(' ', 'T')}Z`;
+	}
+	return trimmed;
+}
+
 type PgAuditSelectRow = {
 	id: string;
 	userId: string | null;
@@ -127,8 +136,8 @@ export function createPostgresUserAuditLogsRepository(db: PostgresDatabaseClient
 				conditions.push(inArray(pgUserAuditLogsTable.source, options.sources));
 			}
 			if (options.correlationId) conditions.push(eq(pgUserAuditLogsTable.correlationId, options.correlationId));
-			if (options.startDate) conditions.push(sql`${pgUserAuditLogsTable.createdAt} >= ${options.startDate}`);
-			if (options.endDate) conditions.push(sql`${pgUserAuditLogsTable.createdAt} <= ${options.endDate}`);
+			if (options.startDate) conditions.push(sql`${pgUserAuditLogsTable.createdAt} >= ${postgresUtcBoundary(options.startDate)}`);
+			if (options.endDate) conditions.push(sql`${pgUserAuditLogsTable.createdAt} <= ${postgresUtcBoundary(options.endDate)}`);
 			const whereExpr = conditions.length > 0 ? and(...conditions) : undefined;
 
 			let countQ = drizzle
