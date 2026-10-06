@@ -1127,6 +1127,16 @@
 			"updateFailed": "更新失败",
 			"deleteFailed": "删除失败",
 			"createFailed": "创建失败"
+		},
+		"feedback": {
+			"emailRequired": "请填写邮箱。",
+			"externalPair": "外部系统和外部用户 ID 必须同时填写或同时留空。",
+			"budgetInvalid": "预算金额必须是有限数值。",
+			"metadataInvalid": "元数据必须是有效 JSON。",
+			"sortBy": "按{label}排序",
+			"detail": "用户详情：{name}",
+			"metadataFor": "{name}的元数据",
+			"pagination": "用户列表分页"
 		}
 	},
 	"keysPage": {

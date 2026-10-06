@@ -1127,6 +1127,16 @@
 			"updateFailed": "업데이트 실패",
 			"deleteFailed": "삭제 실패",
 			"createFailed": "생성 실패"
+		},
+		"feedback": {
+			"emailRequired": "이메일을 입력하세요.",
+			"externalPair": "외부 시스템과 외부 사용자 ID를 모두 입력하거나 모두 비워 두세요.",
+			"budgetInvalid": "예산 금액은 유한한 숫자여야 합니다.",
+			"metadataInvalid": "메타데이터는 유효한 JSON이어야 합니다.",
+			"sortBy": "{label} 기준 정렬",
+			"detail": "사용자 상세: {name}",
+			"metadataFor": "{name} 메타데이터",
+			"pagination": "사용자 목록 페이지"
 		}
 	},
 	"keysPage": {

@@ -1127,6 +1127,16 @@
 			"updateFailed": "Update failed",
 			"deleteFailed": "Delete failed",
 			"createFailed": "Create failed"
+		},
+		"feedback": {
+			"emailRequired": "Email is required.",
+			"externalPair": "External system and external user ID must both be set or both empty.",
+			"budgetInvalid": "Budget amounts must be finite numbers.",
+			"metadataInvalid": "Metadata must be valid JSON.",
+			"sortBy": "Sort by {label}",
+			"detail": "User detail: {name}",
+			"metadataFor": "Metadata for {name}",
+			"pagination": "User list pages"
 		}
 	},
 	"keysPage": {

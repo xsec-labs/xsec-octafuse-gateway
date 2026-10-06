@@ -1127,6 +1127,16 @@
 			"updateFailed": "更新に失敗しました",
 			"deleteFailed": "削除に失敗しました",
 			"createFailed": "作成に失敗しました"
+		},
+		"feedback": {
+			"emailRequired": "メールアドレスを入力してください。",
+			"externalPair": "外部システムと外部ユーザー ID は両方入力するか、両方空にしてください。",
+			"budgetInvalid": "予算額は有限の数値で指定してください。",
+			"metadataInvalid": "メタデータは有効な JSON で指定してください。",
+			"sortBy": "{label}で並べ替え",
+			"detail": "ユーザー詳細：{name}",
+			"metadataFor": "{name}のメタデータ",
+			"pagination": "ユーザー一覧のページ"
 		}
 	},
 	"keysPage": {
