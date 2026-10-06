@@ -1244,6 +1244,14 @@
 		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "Enter a valid start and end in chronological order.",
+			"invalidJson": "Recorded payload contains invalid JSON. Original text is shown.",
+			"resourceFailed": "Could not read {resource}",
+			"currency": "Billing currency",
+			"unlisted": "{id} (outside the current catalog)",
+			"readFailed": "Could not read request logs"
+		},
 		"title": "Request Logs",
 		"subtitle": "View gateway request history",
 		"filters": {

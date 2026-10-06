@@ -1244,6 +1244,14 @@
 		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "유효한 시작과 종료 시간을 시간순으로 입력하세요.",
+			"invalidJson": "기록된 페이로드의 JSON이 유효하지 않습니다. 원본 텍스트를 표시합니다.",
+			"resourceFailed": "{resource} 항목을 읽을 수 없습니다",
+			"currency": "청구 통화",
+			"unlisted": "{id} (현재 카탈로그에 없음)",
+			"readFailed": "요청 로그를 읽을 수 없습니다"
+		},
 		"title": "요청 로그",
 		"subtitle": "Gateway 요청 기록을 확인합니다",
 		"filters": {

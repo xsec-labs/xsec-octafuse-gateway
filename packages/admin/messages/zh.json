@@ -1244,6 +1244,14 @@
 		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "请填写有效的起止时间，结束时间须晚于或等于开始时间。",
+			"invalidJson": "记录的报文包含无效 JSON，当前显示原始文本。",
+			"resourceFailed": "无法读取{resource}",
+			"currency": "计费币种",
+			"unlisted": "{id}（当前目录中不存在）",
+			"readFailed": "无法读取请求日志"
+		},
 		"title": "请求日志",
 		"subtitle": "查看 Gateway 请求历史",
 		"filters": {
