@@ -1678,5 +1678,22 @@
 		"cost": "成本：{amount}",
 		"providerLabel": "供应商：{id}",
 		"stdMetered": "标准 {std} · 成本 {metered}"
+	},
+	"shell": {
+		"retry": "重新读取",
+		"sessionFailed": "无法检查登录会话",
+		"timezoneFailed": "无法读取业务时区",
+		"localeFailed": "语言更改尚未确认",
+		"logoutFailed": "退出登录尚未确认",
+		"checkSession": "检查会话",
+		"confirmWrite": "请求可能已到达服务器。再次操作前，请读取当前状态。",
+		"navigation": "导航",
+		"openNavigation": "打开导航",
+		"skipContent": "跳至内容",
+		"loginIntro": "登录后管理网关路由与运行配置。",
+		"NETWORK_ERROR": "服务器连接失败。",
+		"REQUEST_TIMEOUT": "响应超过 20 秒时限。",
+		"INVALID_RESPONSE": "服务器响应无效。",
+		"HTTP_ERROR": "服务器拒绝了请求。"
 	}
 }

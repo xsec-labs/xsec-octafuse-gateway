@@ -1678,5 +1678,22 @@
 		"cost": "비용: {amount}",
 		"providerLabel": "Provider: {id}",
 		"stdMetered": "표준 {std} · 계측 {metered}"
+	},
+	"shell": {
+		"retry": "다시 읽기",
+		"sessionFailed": "세션을 확인할 수 없습니다",
+		"timezoneFailed": "업무 시간대를 읽을 수 없습니다",
+		"localeFailed": "언어 변경이 확인되지 않았습니다",
+		"logoutFailed": "로그아웃이 확인되지 않았습니다",
+		"checkSession": "세션 확인",
+		"confirmWrite": "요청이 서버에 도달했을 수 있습니다. 다시 시도하기 전에 현재 상태를 확인하세요.",
+		"navigation": "탐색",
+		"openNavigation": "탐색 열기",
+		"skipContent": "본문으로 이동",
+		"loginIntro": "로그인하여 게이트웨이 라우팅과 운영 설정을 관리하세요.",
+		"NETWORK_ERROR": "서버 연결에 실패했습니다.",
+		"REQUEST_TIMEOUT": "응답이 20초 제한을 초과했습니다.",
+		"INVALID_RESPONSE": "서버 응답이 올바르지 않습니다.",
+		"HTTP_ERROR": "서버가 요청을 거부했습니다."
 	}
 }

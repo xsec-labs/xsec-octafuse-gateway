@@ -15,6 +15,7 @@ COPY packages/core/package.json packages/core/
 COPY packages/tool-engines/package.json packages/tool-engines/
 COPY packages/proxy/package.json packages/proxy/
 COPY packages/admin/package.json packages/admin/
+COPY vendor/xsec-ui ./vendor/xsec-ui
 
 RUN --mount=type=cache,target=/root/.npm \
 	npm ci --omit=dev --ignore-scripts \
@@ -35,6 +36,7 @@ COPY packages/core/package.json packages/core/
 COPY packages/tool-engines/package.json packages/tool-engines/
 COPY packages/proxy/package.json packages/proxy/
 COPY packages/admin/package.json packages/admin/
+COPY vendor/xsec-ui ./vendor/xsec-ui
 
 RUN --mount=type=cache,target=/root/.npm \
 	npm ci --ignore-scripts \

@@ -1678,5 +1678,22 @@
 		"cost": "Cost: {amount}",
 		"providerLabel": "Provider: {id}",
 		"stdMetered": "Standard {std} · Metered {metered}"
+	},
+	"shell": {
+		"retry": "Read again",
+		"sessionFailed": "Unable to check your session",
+		"timezoneFailed": "Unable to read the business timezone",
+		"localeFailed": "Language change was not confirmed",
+		"logoutFailed": "Logout was not confirmed",
+		"checkSession": "Check session",
+		"confirmWrite": "The request may have reached the server. Read the current state before trying again.",
+		"navigation": "Navigation",
+		"openNavigation": "Open navigation",
+		"skipContent": "Skip to content",
+		"loginIntro": "Sign in to manage gateway routing and operations.",
+		"NETWORK_ERROR": "The server connection failed.",
+		"REQUEST_TIMEOUT": "The response exceeded the 20-second limit.",
+		"INVALID_RESPONSE": "The server response is invalid.",
+		"HTTP_ERROR": "The server rejected the request."
 	}
 }

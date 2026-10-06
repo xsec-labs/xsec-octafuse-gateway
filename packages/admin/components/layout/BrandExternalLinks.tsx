@@ -31,16 +31,11 @@ function GithubGlyph({ icon, className }: { icon: SimpleIcon; className?: string
 
 type Variant = 'sidebar' | 'login';
 
-const linkClass: Record<Variant, string> = {
-	sidebar: 'inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors',
-	login: 'inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors',
-};
-
 export default function BrandExternalLinks({ variant }: { variant: Variant }) {
 	const tBrand = useTranslations('brand');
-	const cls = linkClass[variant];
+	const cls = 'octafuse-external-link';
 	return (
-		<div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+		<div className={"octafuse-external-links octafuse-external-links-" + variant}>
 			<a
 				href={OCTAFUSE_GITHUB_REPO_WEB}
 				target="_blank"

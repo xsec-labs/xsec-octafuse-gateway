@@ -1678,5 +1678,22 @@
 		"cost": "コスト：{amount}",
 		"providerLabel": "Provider：{id}",
 		"stdMetered": "標準 {std} · 計量 {metered}"
+	},
+	"shell": {
+		"retry": "再読み込み",
+		"sessionFailed": "セッションを確認できません",
+		"timezoneFailed": "業務タイムゾーンを取得できません",
+		"localeFailed": "言語の変更を確認できません",
+		"logoutFailed": "ログアウトを確認できません",
+		"checkSession": "セッションを確認",
+		"confirmWrite": "リクエストがサーバーに届いている可能性があります。再操作する前に現在の状態を確認してください。",
+		"navigation": "ナビゲーション",
+		"openNavigation": "ナビゲーションを開く",
+		"skipContent": "本文へ移動",
+		"loginIntro": "ログインしてゲートウェイのルーティングと運用設定を管理します。",
+		"NETWORK_ERROR": "サーバーへの接続に失敗しました。",
+		"REQUEST_TIMEOUT": "応答が20秒の制限を超えました。",
+		"INVALID_RESPONSE": "サーバーの応答が無効です。",
+		"HTTP_ERROR": "サーバーがリクエストを拒否しました。"
 	}
 }
