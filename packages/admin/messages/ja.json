@@ -1200,7 +1200,21 @@
 		"copyKey": "Key をコピー",
 		"copyId": "ID をコピー",
 		"copySecret": "Secret をコピー",
-		"confirmDelete": "この API Key を完全に削除しますか？"
+		"confirmDelete": "この API Key を完全に削除しますか？",
+		"feedback": {
+			"sortCreated": "作成日時で並べ替え",
+			"editKey": "キーを編集：{name}",
+			"pagination": "API キーのページ切り替え",
+			"metadataInvalid": "メタデータには有効な JSON を入力してください",
+			"userRequired": "ゲートウェイのユーザー ID が必要です",
+			"externalRequired": "外部システムと外部ユーザー ID の両方が必要です",
+			"emailRequired": "外部 ID にはメールアドレスが必要です",
+			"deleteFailed": "キーの削除に失敗しました",
+			"copyFailed": "コピーに失敗しました。もう一度お試しください。",
+			"budgetBase": "基本予算：{amount}",
+			"deleteWarning": "このキーのゲートウェイアクセスを完全に削除します。ユーザーと予算は保持されます。",
+			"keyId": "キー ID"
+		}
 	},
 	"requestLogs": {
 		"title": "リクエストログ",

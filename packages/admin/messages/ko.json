@@ -1200,7 +1200,21 @@
 		"copyKey": "Key 복사",
 		"copyId": "ID 복사",
 		"copySecret": "Secret 복사",
-		"confirmDelete": "이 API Key를 영구 삭제하시겠습니까?"
+		"confirmDelete": "이 API Key를 영구 삭제하시겠습니까?",
+		"feedback": {
+			"sortCreated": "생성 시간순 정렬",
+			"editKey": "키 편집: {name}",
+			"pagination": "API 키 페이지 이동",
+			"metadataInvalid": "메타데이터는 유효한 JSON이어야 합니다",
+			"userRequired": "게이트웨이 사용자 ID가 필요합니다",
+			"externalRequired": "외부 시스템과 외부 사용자 ID가 모두 필요합니다",
+			"emailRequired": "외부 ID에는 이메일이 필요합니다",
+			"deleteFailed": "키 삭제 실패",
+			"copyFailed": "복사에 실패했습니다. 다시 시도하세요.",
+			"budgetBase": "기본 예산: {amount}",
+			"deleteWarning": "이 키의 게이트웨이 접근 권한을 영구적으로 삭제합니다. 사용자와 예산은 유지됩니다.",
+			"keyId": "키 ID"
+		}
 	},
 	"requestLogs": {
 		"title": "요청 로그",

@@ -1200,7 +1200,21 @@
 		"copyKey": "Copy key",
 		"copyId": "Copy ID",
 		"copySecret": "Copy secret",
-		"confirmDelete": "Permanently delete this API key?"
+		"confirmDelete": "Permanently delete this API key?",
+		"feedback": {
+			"sortCreated": "Sort by creation time",
+			"editKey": "Edit key: {name}",
+			"pagination": "API key pagination",
+			"metadataInvalid": "Metadata must be valid JSON",
+			"userRequired": "A gateway User ID is required",
+			"externalRequired": "External system and external user ID are both required",
+			"emailRequired": "Email is required for external identity",
+			"deleteFailed": "Key deletion failed",
+			"copyFailed": "Copy failed. Please try again.",
+			"budgetBase": "Base: {amount}",
+			"deleteWarning": "This permanently removes gateway access for this key. The user and their budget are retained.",
+			"keyId": "Key ID"
+		}
 	},
 	"requestLogs": {
 		"title": "Request Logs",
