@@ -362,12 +362,29 @@ export async function getOrCreateUser(
 	return created;
 }
 
+function parseStoredMetadata(ownerType: 'user' | 'key', ownerId: string, raw: string | null) {
+	if (raw === null || raw === '') return null;
+	try {
+		return JSON.parse(raw) as Record<string, unknown>;
+	} catch (error) {
+		if (!(error instanceof SyntaxError)) throw error;
+		// JSON.parse messages may quote stored values; retain a safe cause and owner for diagnostics.
+		throw Object.assign(
+			new Error('Stored metadata is not valid JSON', {
+				cause: new SyntaxError('Persisted JSON parsing failed'),
+			}),
+			{ code: 'INVALID_PERSISTED_METADATA', ownerType, ownerId }
+		);
+	}
+}
+
 /**
  * 按 `users.id` 取用户预算视图；若周期到期则懒重置并写库（审计 `api_key_id` 为空）。
  */
 export async function getUserInfo(repos: GatewayRepositories, userId: string) {
 	const row = await repos.users.getById(userId);
 	if (!row) return null;
+	const metadata = parseStoredMetadata('user', row.id, row.metadata);
 	const { didPersist, budget_spent, budget_reset_at, budget_max: nextBudgetMax } =
 		await persistLazyBudgetResetIfNeeded(repos, {
 			budgetRow: row,
@@ -380,14 +397,6 @@ export async function getUserInfo(repos: GatewayRepositories, userId: string) {
 	let effectiveBudgetMax = row.budget_max != null ? roundGatewayMoney(Number(row.budget_max)) : null;
 	if (didPersist) {
 		effectiveBudgetMax = nextBudgetMax;
-	}
-	let metadata: Record<string, unknown> | null = null;
-	if (row.metadata) {
-		try {
-			metadata = JSON.parse(row.metadata) as Record<string, unknown>;
-		} catch {
-			metadata = null;
-		}
 	}
 	return {
 		id: row.id,
@@ -412,6 +421,7 @@ export async function getUserInfo(repos: GatewayRepositories, userId: string) {
 export async function getKeyInfo(repos: GatewayRepositories, id: string) {
 	const row = await repos.apiKeys.getApiKeyWithUserById(id);
 	if (!row) return null;
+	const metadata = parseStoredMetadata('key', row.id, row.metadata);
 	const { didPersist, budget_spent, budget_reset_at, budget_max: nextBudgetMax } =
 		await persistLazyBudgetResetIfNeeded(repos, {
 			budgetRow: row,
@@ -423,14 +433,6 @@ export async function getKeyInfo(repos: GatewayRepositories, id: string) {
 	let effectiveBudgetMax = row.budget_max != null ? roundGatewayMoney(Number(row.budget_max)) : null;
 	if (didPersist) {
 		effectiveBudgetMax = nextBudgetMax;
-	}
-	let metadata: Record<string, unknown> | null = null;
-	if (row.metadata) {
-		try {
-			metadata = JSON.parse(row.metadata) as Record<string, unknown>;
-		} catch {
-			metadata = null;
-		}
 	}
 	return {
 		id: row.id,
