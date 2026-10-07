@@ -1,0 +1,29 @@
+.dashboard-page{max-width:1800px;min-width:0;margin:auto;color:var(--xui-text)}
+.dashboard-page .xui-page-header{margin-bottom:24px}
+.dashboard-panel,.dashboard-range{min-width:0;background:var(--xui-surface);border:1px solid var(--xui-border);border-radius:var(--xui-radius-panel)}
+.dashboard-range{padding:20px;margin-bottom:24px}
+.dashboard-range-actions{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-top:12px}
+.dashboard-presets{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border:1px solid var(--xui-border);border-radius:var(--xui-radius-control)}
+.dashboard-range .xui-field{flex:1 1 200px;min-width:0;max-width:280px}
+.dashboard-page .xui-button{min-height:44px}
+.dashboard-page .xui-error{margin-bottom:24px}
+.dashboard-page [class*='text-gray-']{color:var(--xui-text)}
+.dashboard-page [class*='text-gray-500'],.dashboard-page [class*='text-gray-600']{color:var(--xui-muted)}
+.dashboard-page [class*='text-blue-']{color:var(--xui-primary)}
+.dashboard-page [class*='text-red-']{color:var(--xui-danger)}
+.dashboard-page [class*='text-green-']{color:var(--xui-success)}
+.dashboard-page [class*='border-b']{border-color:var(--xui-border)}
+.dashboard-page a{display:inline-flex;align-items:center;min-height:44px;text-decoration:underline}
+.dashboard-page a:focus-visible{outline:2px solid var(--xui-focus);outline-offset:3px;border-radius:4px}
+.dashboard-distribution-table{min-width:0;align-self:center}
+.dashboard-distribution>.grid{grid-template-columns:minmax(0,1fr);gap:16px}
+.dashboard-trend .h-72{height:380px}
+.dashboard-distribution-table .xui-table-scroll{max-height:224px;overflow:auto}
+.dashboard-distribution-table .xui-table{min-width:440px}
+.dashboard-distribution-table .xui-table-head{position:sticky;top:0;background:var(--xui-subtle);z-index:1}
+.dashboard-distribution-table .xui-table-cell{font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dashboard-distribution-label{max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.dashboard-page .recharts-legend-item-text{color:var(--xui-text)!important}
+.dashboard-page .recharts-tooltip-label{overflow-wrap:anywhere}
+.dashboard-page .recharts-tooltip-wrapper{max-width:100%;z-index:2}
+@media(max-width:600px){.dashboard-page{padding:20px 16px}.dashboard-range{padding:12px}.dashboard-range .xui-field{max-width:none;flex-basis:100%}.dashboard-panel.p-6,.dashboard-panel.p-5{padding:16px}.dashboard-panel>.flex{flex-wrap:wrap;gap:8px}.dashboard-page .recharts-legend-wrapper{font-size:12px}}

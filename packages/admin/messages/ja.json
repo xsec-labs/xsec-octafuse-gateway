@@ -261,6 +261,12 @@
 			"today": "今日",
 			"this_week": "今週",
 			"this_month": "今月"
+		},
+		"feedback": {
+			"readFailed": "ダッシュボードの統計を読み取れません",
+			"currencyFailed": "請求通貨を確認できません",
+			"currencyPending": "請求通貨を確認中…",
+			"invalidRange": "有効な開始日時と終了日時を入力し、終了を開始以降にしてください。"
 		}
 	},
 	"filter": {

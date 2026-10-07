@@ -3,18 +3,22 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import {ControlButton,Table,TableHead,TableBody,TableRow,TableHeader,TableCell,useThemeSettings} from '@xsec/ui-react';
 import { formatCompactTokens } from '@/lib/format-compact-tokens';
 import { formatGatewayMoneyCode } from '@/lib/format-gateway-currency';
 import type { DashboardModelDistributionRow, DashboardTopUserRow } from '@/lib/types';
 
-const CHART_COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#a855f7', '#64748b', '#334155'];
+const CHART_COLORS = {
+ light:['#1d4ed8','#0f766e','#92400e','#7e22ce','#be123c','#166534','#075985','#86198f','#475569','#292524'],
+ dark:['#93c5fd','#5eead4','#fcd34d','#d8b4fe','#fda4af','#86efac','#7dd3fc','#f0abfc','#cbd5e1','#d6d3d1'],
+};
 
 type ViewMode = 'models' | 'users';
 
 export type DashboardModelDistributionChartProps = {
 	modelDistribution: DashboardModelDistributionRow[];
 	topUsers: DashboardTopUserRow[];
-	billingCurrency: string;
+	billingCurrency: string|null;
 };
 
 export function DashboardModelDistributionChart({
@@ -23,6 +27,7 @@ export function DashboardModelDistributionChart({
 	billingCurrency,
 }: DashboardModelDistributionChartProps) {
 	const t = useTranslations('dashboard');
+	const common=useTranslations('common'),settings=useThemeSettings(),colors=CHART_COLORS[settings.colorMode];
 	const [view, setView] = useState<ViewMode>('models');
 
 	const pieData = useMemo(() => {
@@ -41,26 +46,26 @@ export function DashboardModelDistributionChart({
 	const tableRows = view === 'models' ? modelDistribution : topUsers;
 
 	return (
-		<div className="bg-white rounded-lg shadow-md p-6 h-full">
-			<div className="flex items-center justify-between gap-4 mb-4">
+		<section className="dashboard-panel dashboard-distribution p-6 h-full" aria-label={view==='models'?t('modelDistribution'):t('userLeaderboard')}>
+			<div className="flex flex-wrap items-center justify-between gap-4 mb-4">
 				<h2 className="text-lg font-semibold text-gray-900">
 					{view === 'models' ? t('modelDistribution') : t('userLeaderboard')}
 				</h2>
-				<div className="inline-flex rounded-md border border-gray-200 text-sm">
-					<button
+				<div className="dashboard-presets" role="group" aria-label={t('modelDistribution')}>
+					<ControlButton
 						type="button"
 						onClick={() => setView('models')}
-						className={`px-3 py-1.5 rounded-l-md ${view === 'models' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+						variant={view==='models'?'secondary':'ghost'} aria-pressed={view==='models'}
 					>
 						{t('modelDistributionTab')}
-					</button>
-					<button
+					</ControlButton>
+					<ControlButton
 						type="button"
 						onClick={() => setView('users')}
-						className={`px-3 py-1.5 rounded-r-md border-l border-gray-200 ${view === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+						variant={view==='users'?'secondary':'ghost'} aria-pressed={view==='users'}
 					>
 						{t('userLeaderboardTab')}
-					</button>
+					</ControlButton>
 				</div>
 			</div>
 
@@ -68,7 +73,7 @@ export function DashboardModelDistributionChart({
 				<div className="text-sm text-gray-500 py-12 text-center">{t('noChartData')}</div>
 			) : (
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					<div className="h-56">
+					<div className="h-56 dashboard-pie" role="img" aria-label={view==='models'?t('modelDistribution'):t('userLeaderboard')}>
 						<ResponsiveContainer width="100%" height="100%">
 							<PieChart>
 								<Pie
@@ -78,47 +83,46 @@ export function DashboardModelDistributionChart({
 									innerRadius={52}
 									outerRadius={88}
 									paddingAngle={2}
+									isAnimationActive={!settings.reducedMotion} animationDuration={200}
 								>
 									{pieData.map((entry, index) => (
-										<Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+										<Cell key={entry.name} fill={colors[index % colors.length]} />
 									))}
 								</Pie>
-								<Tooltip formatter={(value: number) => formatCompactTokens(value)} />
+								<Tooltip formatter={(value: number) => formatCompactTokens(value)} contentStyle={{background:'var(--xui-surface)',borderColor:'var(--xui-border)',borderRadius:'var(--xui-radius-control)',color:'var(--xui-text)'}} itemStyle={{color:'var(--xui-text)'}} />
 							</PieChart>
 						</ResponsiveContainer>
 					</div>
 
-					<div className="overflow-auto max-h-56">
-						<table className="min-w-full text-sm">
-							<thead>
-								<tr className="text-left text-gray-500 border-b">
-									<th className="py-2 pr-3 font-medium">{view === 'models' ? t('modelColumn') : t('userColumn')}</th>
-									<th className="py-2 pr-3 font-medium">{t('requestsColumn')}</th>
-									<th className="py-2 pr-3 font-medium">{t('tokensColumn')}</th>
-									<th className="py-2 font-medium">{t('chargedColumn')}</th>
-								</tr>
-							</thead>
-							<tbody>
+					<div className="dashboard-distribution-table">
+						<Table aria-label={view==='models'?t('modelDistribution'):t('userLeaderboard')}>
+							<TableHead>
+								<TableRow>
+									<TableHeader>{view === 'models' ? t('modelColumn') : t('userColumn')}</TableHeader>
+									<TableHeader>{t('requestsColumn')}</TableHeader>
+									<TableHeader>{t('tokensColumn')}</TableHeader>
+									<TableHeader>{t('chargedColumn')}</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody>
 								{tableRows.map((row) => {
 									const label = view === 'models'
 										? (row as DashboardModelDistributionRow).model_id
 										: (row as DashboardTopUserRow).user_email;
 									return (
-										<tr key={label} className="border-b border-gray-100">
-											<td className="py-2 pr-3 text-gray-900 truncate max-w-[10rem]" title={label}>{label}</td>
-											<td className="py-2 pr-3 tabular-nums text-gray-700">{row.request_count.toLocaleString()}</td>
-											<td className="py-2 pr-3 tabular-nums text-gray-700">{formatCompactTokens(row.total_tokens)}</td>
-											<td className="py-2 tabular-nums text-gray-700">
-												{formatGatewayMoneyCode(row.charged_cost, billingCurrency, 4)}
-											</td>
-										</tr>
+										<TableRow key={label}>
+											<TableCell className="dashboard-distribution-label" title={label}>{label}</TableCell>
+											<TableCell>{row.request_count.toLocaleString()}</TableCell>
+											<TableCell>{formatCompactTokens(row.total_tokens)}</TableCell>
+											<TableCell>{billingCurrency===null?common('noData'):formatGatewayMoneyCode(row.charged_cost,billingCurrency,4)}</TableCell>
+										</TableRow>
 									);
 								})}
-							</tbody>
-						</table>
+							</TableBody>
+						</Table>
 					</div>
 				</div>
 			)}
-		</div>
+		</section>
 	);
 }

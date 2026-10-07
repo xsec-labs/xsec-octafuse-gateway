@@ -261,6 +261,12 @@
 			"today": "Today",
 			"this_week": "WTD",
 			"this_month": "MTD"
+		},
+		"feedback": {
+			"readFailed": "Unable to read dashboard statistics",
+			"currencyFailed": "Unable to confirm the billing currency",
+			"currencyPending": "Confirming the billing currency…",
+			"invalidRange": "Enter a valid start and end time, with the end at or after the start."
 		}
 	},
 	"filter": {
