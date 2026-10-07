@@ -938,7 +938,16 @@
 		"engineProviderHint": "Active 以外でも、実装済み catalog エントリを検証できます。",
 		"toolsBodyMustBeObject": "リクエストボディは JSON オブジェクトである必要があります。",
 		"toolsNeedProvider": "エンジン Provider を選択してください。",
-		"applyTemplate": "テンプレートを適用"
+		"applyTemplate": "テンプレートを適用",
+		"catalog": {
+			"readFailed": "ルートカタログを読み込めません",
+			"empty": "フィルターに一致するルートがありません",
+			"operation": "上流操作",
+			"pool": "ルーティングプール",
+			"surfaces": "公開エントリー",
+			"legacyPool": "従来のルート",
+			"configuration": "ルート設定"
+		}
 	},
 	"simulator": {
 		"title": "Simulator",

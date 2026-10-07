@@ -3,14 +3,20 @@
 /**
  * Playground：选定单条 model_route，编辑 JSON 请求体，直连上游验证连通性（不计费、不入库）。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, Suspense } from 'react';
+import { useCallback, useMemo, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { flushSync } from 'react-dom';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { ImageGenerationsPreview } from '@/components/image-generations-preview';
 import { RequestTargetUrl } from '@/components/request-target-url';
-import { readApiJson } from '@/lib/api-json';
+import { ControlButton, PageHeader, Spinner } from '@xsec/ui-react';
+import ShellError from '@/components/layout/ShellError';
+import { usePlaygroundCatalog } from './use-playground-catalog';
+import { PlaygroundCatalog, type CatalogFilters } from './playground-catalog';
+import type { PlaygroundCatalog as PlaygroundCatalogData } from './catalog-api';
+import type { RouteListRow } from '../routes/catalog';
+import './catalog.css';
 import { PlaygroundToolsPanel } from './playground-tools-panel';
 import {
 	AUDIO_TRANSCRIPTIONS_BODY_TEMPLATE,
@@ -40,8 +46,8 @@ import {
 	parseLastStreamUsage,
 	tryParseUsageSummary,
 } from '@/lib/playground/usage-parsing';
-import type { AdminModelRow } from '@/lib/services/admin/types';
-import type { ApiResponse, GatewayProvider } from '@/lib/types';
+import { ShellRequestError } from '@/lib/shell-request';
+import type { ApiResponse } from '@/lib/types';
 import {
 	DEFAULT_KIND_FILTER,
 	type ModelKindFilter,
@@ -52,42 +58,13 @@ const inputClass =
 const labelClass = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1';
 
 function resolveRouteModelKind(
-	m: AdminModelRow | undefined
+	m: Parameters<typeof isAudioRouteModel>[0] | undefined
 ): ModelKindFilter {
-	if (!m) return 'llm';
+	if (!m) throw new ShellRequestError('INVALID_RESPONSE');
 	if (isAudioRouteModel(m)) return 'audio';
 	if (isImageRouteModel(m)) return 'image';
 	return 'llm';
 }
-
-function ReadonlyField({ label, children }: { label: string; children: ReactNode }) {
-	return (
-		<div className="min-w-0">
-			<div className="text-xs font-medium text-gray-500">{label}</div>
-			<div className="mt-0.5 text-sm text-gray-900 break-words">{children}</div>
-		</div>
-	);
-}
-
-type RouteListRow = {
-	id: string;
-	model_id: string;
-	provider_id: string;
-	provider_model_name: string;
-	priority: number;
-	status: string;
-	route_group: string;
-	price_override: string | null;
-	custom_params: string | null;
-	upstream_protocol: string;
-	upstream_operation?: string | null;
-	adapter?: string | null;
-	route_pool_id?: string | null;
-	pool_name?: string | null;
-	surfaces?: string | null;
-	model_name: string | null;
-	provider_name: string | null;
-};
 
 const BODY_TEMPLATES: Record<string, string> = {
 	openai: `{
@@ -106,35 +83,8 @@ const BODY_TEMPLATES: Record<string, string> = {
 }`,
 };
 
-function formatRouteLabel(r: RouteListRow): string {
-	const m = r.model_name || r.model_id;
-	const p = r.provider_name || r.provider_id;
-	return `${m} · ${p} · ${r.provider_model_name} · ${r.route_group} · ${r.upstream_protocol}.${r.upstream_operation ?? '*'}`;
-}
-
-/** 下拉项开头：active → 🟢，否则 🔴（不拼 status 文案，避免与 emoji 重复）。 */
-function routeActiveIndicator(status: string): string {
-	return status.trim().toLowerCase() === 'active' ? '🟢' : '🔴';
-}
-
-/** 路由表 JSON 列：可解析则 pretty-print，否则原文。 */
-function formatRouteJsonColumn(raw: string | null | undefined): string {
-	if (raw == null || String(raw).trim() === '') {
-		return '—';
-	}
-	const t = String(raw).trim();
-	try {
-		return JSON.stringify(JSON.parse(t), null, 2);
-	} catch {
-		return t;
-	}
-}
-
 const codeBlockClass =
 	'p-3 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-md font-mono text-gray-900';
-
-/** Route 卡片内 JSON 预览：限制高度避免长内容撑满视口 */
-const routeJsonPreClass = `${codeBlockClass} max-h-56 overflow-y-auto`;
 
 function decodeWireRequestBodyHeader(res: Response): string | null {
 	const raw = res.headers.get('x-playground-request-body');
@@ -151,6 +101,8 @@ function decodeWireRequestBodyHeader(res: Response): string | null {
 	}
 }
 
+const EMPTY_CATALOG: PlaygroundCatalogData = { routes: [], models: [], providers: [] };
+
 function PlaygroundPageInner() {
 	const t = useTranslations('playground');
 	const tBrand = useTranslations('brand');
@@ -164,18 +116,13 @@ function PlaygroundPageInner() {
 	const initialToolId = searchParams.get('tool');
 	const initialProvider = searchParams.get('provider');
 
-	const [routes, setRoutes] = useState<RouteListRow[]>([]);
-	const [modelsById, setModelsById] = useState<Map<string, AdminModelRow>>(new Map());
-	const [providersById, setProvidersById] = useState<Map<string, GatewayProvider>>(new Map());
-	const [loadingRoutes, setLoadingRoutes] = useState(true);
-	const [loadError, setLoadError] = useState<string | null>(null);
-
-	/** 与 Models/Routes 一致：无 All，默认 LLM，按 Kind 拆分模型列表 */
-	const [filterKind, setFilterKind] = useState<ModelKindFilter>(DEFAULT_KIND_FILTER);
-	const [filterModel, setFilterModel] = useState('');
-	const [filterProvider, setFilterProvider] = useState('');
-	const [filterProtocol, setFilterProtocol] = useState('');
-	const [filterGroup, setFilterGroup] = useState('');
+	const { read, refresh } = usePlaygroundCatalog();
+	const catalog = read.status === 'ready' ? read.data : EMPTY_CATALOG;
+	const routes = catalog.routes;
+	const modelsById = useMemo(() => new Map(catalog.models.map(model => [model.id, model])), [catalog]);
+	const providersById = useMemo(() => new Map(catalog.providers.map(provider => [provider.id, provider])), [catalog]);
+	const [filters, setFilters] = useState<CatalogFilters>({ kind: DEFAULT_KIND_FILTER, model: '', provider: '', protocol: '', group: '' });
+	const { kind: filterKind, model: filterModel, provider: filterProvider, protocol: filterProtocol, group: filterGroup } = filters;
 
 	const [selectedId, setSelectedId] = useState('');
 	const [bodyText, setBodyText] = useState(BODY_TEMPLATES.openai);
@@ -288,16 +235,6 @@ function PlaygroundPageInner() {
 		return counts;
 	}, [routes, modelsById]);
 
-	const onFilterKindChange = useCallback(
-		(next: ModelKindFilter) => {
-			if (next === filterKind) return;
-			setFilterKind(next);
-			setFilterModel('');
-			setSelectedId('');
-		},
-		[filterKind]
-	);
-
 	const routesInKind = useMemo(
 		() =>
 			routes.filter(
@@ -314,12 +251,12 @@ function PlaygroundPageInner() {
 	/** Model 下拉：按当前其它筛选项联动（不含 model 自身）。 */
 	const modelOptions = useMemo(() => {
 		const pool = routes.filter((r) => matchesFilters(r, 'model'));
-		const byId = new Map<string, { id: string; label: string }>();
+		const byId = new Map<string, { value: string; label: string }>();
 		for (const r of pool) {
 			if (byId.has(r.model_id)) continue;
 			const name = (r.model_name ?? '').trim();
 			byId.set(r.model_id, {
-				id: r.model_id,
+				value: r.model_id,
 				label: name && name !== r.model_id ? `${name} (${r.model_id})` : r.model_id,
 			});
 		}
@@ -329,12 +266,12 @@ function PlaygroundPageInner() {
 	/** Provider 下拉：按当前其它筛选项联动（不含 provider 自身）。 */
 	const providerOptions = useMemo(() => {
 		const pool = routes.filter((r) => matchesFilters(r, 'provider'));
-		const byId = new Map<string, { id: string; label: string }>();
+		const byId = new Map<string, { value: string; label: string }>();
 		for (const r of pool) {
 			if (byId.has(r.provider_id)) continue;
 			const name = (r.provider_name ?? '').trim();
 			byId.set(r.provider_id, {
-				id: r.provider_id,
+				value: r.provider_id,
 				label: name && name !== r.provider_id ? `${name} (${r.provider_id})` : r.provider_id,
 			});
 		}
@@ -359,97 +296,47 @@ function PlaygroundPageInner() {
 		return [...set].sort((a, b) => a.localeCompare(b));
 	}, [routes, matchesFilters]);
 
-	useEffect(() => {
-		if (filterModel && !modelOptions.some((o) => o.id === filterModel)) {
-			setFilterModel('');
-		}
-	}, [filterModel, modelOptions]);
-
-	useEffect(() => {
-		if (filterProvider && !providerOptions.some((o) => o.id === filterProvider)) {
-			setFilterProvider('');
-		}
-	}, [filterProvider, providerOptions]);
-
-	useEffect(() => {
-		if (filterProtocol && !protocolOptions.includes(filterProtocol)) {
-			setFilterProtocol('');
-		}
-	}, [filterProtocol, protocolOptions]);
-
-	useEffect(() => {
-		if (filterGroup && !groupOptions.includes(filterGroup)) {
-			setFilterGroup('');
-		}
-	}, [filterGroup, groupOptions]);
-
-	useEffect(() => {
-		if (selectedId && !filteredRoutes.some((r) => r.id === selectedId)) {
-			setSelectedId('');
-		}
-	}, [selectedId, filteredRoutes]);
-
-	useEffect(() => {
-		let cancelled = false;
-		(async () => {
-			setLoadingRoutes(true);
-			setLoadError(null);
-			try {
-				const [rRes, mRes, pRes] = await Promise.all([
-					fetch('/api/admin/routes'),
-					fetch('/api/admin/models'),
-					fetch('/api/admin/providers'),
-				]);
-				const data = await readApiJson<RouteListRow[]>(rRes);
-				const modelsData = await readApiJson<AdminModelRow[]>(mRes);
-				const providersData = await readApiJson<GatewayProvider[]>(pRes);
-				if (cancelled) return;
-				if (data.success && Array.isArray(data.data)) {
-					setRoutes(data.data);
-				} else {
-					setLoadError(data.message ?? tCommon('failedToLoadRoutes'));
-				}
-				if (modelsData.success && Array.isArray(modelsData.data)) {
-					setModelsById(new Map(modelsData.data.map((m) => [m.id, m])));
-				}
-				if (providersData.success && Array.isArray(providersData.data)) {
-					setProvidersById(new Map(providersData.data.map((p) => [p.id, p])));
-				}
-			} catch (e) {
-				if (!cancelled) setLoadError(e instanceof Error ? e.message : tCommon('failedToLoadRoutes'));
-			} finally {
-				if (!cancelled) setLoadingRoutes(false);
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, [tCommon]);
-
-	useEffect(() => {
-		const r = routes.find((x) => x.id === selectedId);
-		if (!r) return;
-		const proto = normalizeProtocol(r.upstream_protocol);
-		const m = modelsById.get(r.model_id);
-		const isImage = m ? isImageRouteModel(m) : false;
-		const isAudio = m ? isAudioRouteModel(m) : false;
+	const onSelectRoute = useCallback((id: string) => {
+		setSelectedId(id);
+		setBodyError(null);
 		setImageOperation('generations');
 		setEditFiles([]);
 		setAudioFile(null);
-		setBodyText(
-			isAudio && proto === 'openai'
-				? AUDIO_TRANSCRIPTIONS_BODY_TEMPLATE
-				: isImage && proto === 'openai'
-					? IMAGE_GENERATIONS_BODY_TEMPLATE
-					: (BODY_TEMPLATES[proto] ?? BODY_TEMPLATES.openai)
-		);
-		setBodyError(null);
 		setImagePreviews([]);
 		setResponseMeta(null);
 		setLastSentWireBody(null);
 		setResponseText('');
 		setUsageHint(null);
-	}, [selectedId, routes, modelsById]);
+		const route = routes.find(row => row.id === id);
+		if (!route) return;
+		const proto = normalizeProtocol(route.upstream_protocol), model = modelsById.get(route.model_id);
+		if (!model) throw new ShellRequestError('INVALID_RESPONSE');
+		setBodyText(isAudioRouteModel(model) && proto === 'openai'
+			? AUDIO_TRANSCRIPTIONS_BODY_TEMPLATE
+			: isImageRouteModel(model) && proto === 'openai'
+				? IMAGE_GENERATIONS_BODY_TEMPLATE : BODY_TEMPLATES[proto]);
+	}, [routes, modelsById]);
+
+	const onFilter = useCallback(<K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
+		const next: CatalogFilters = { kind: filterKind, model: '', provider: '', protocol: '', group: '' };
+		next[key] = value;
+		const match = (route: RouteListRow) =>
+			resolveRouteModelKind(modelsById.get(route.model_id)) === next.kind &&
+			(!next.model || route.model_id === next.model) &&
+			(!next.provider || route.provider_id === next.provider) &&
+			(!next.protocol || route.upstream_protocol === next.protocol) &&
+			(!next.group || route.route_group === next.group);
+		for (const name of ['model','provider','protocol','group'] as const) {
+			if (name === key || (key === 'kind' && name === 'model')) continue;
+			next[name] = filters[name];
+			if (next[name] && !routes.some(match)) next[name] = '';
+		}
+		setFilters(next);
+		if (key === 'kind' || (selectedId && !routes.some(route => route.id === selectedId && match(route)))) onSelectRoute('');
+	}, [filters, filterKind, modelsById, onSelectRoute, routes, selectedId]);
+	const clearFilters = useCallback(() => {
+		setFilters({ kind: filterKind, model: '', provider: '', protocol: '', group: '' });
+	}, [filterKind]);
 
 	const onImageOperationChange = (next: ImageOperation) => {
 		setImageOperation(next);
@@ -653,25 +540,13 @@ function PlaygroundPageInner() {
 		}
 	};
 
-	if (loadingRoutes && playgroundMode === 'routes') {
-		return (
-			<div className="flex items-center justify-center h-full min-h-[240px]">
-				<div className="text-gray-600">{tCommon('loading')}</div>
-			</div>
-		);
-	}
-
 	return (
-		<div className="p-8">
+		<div className="playground-page p-8">
 			<div className="mb-6">
-				<h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-				<p className="text-sm text-gray-500 mt-1">
-					{playgroundMode === 'tools'
-						? t('toolsSubtitle', { product: tBrand('product') })
-						: t('subtitle', { product: tBrand('product') })}
-					<span className="text-gray-400"> · </span>
-					{t('usageNote')}
-				</p>
+				<PageHeader title={t('title')} description={<>
+					{playgroundMode === 'tools' ? t('toolsSubtitle', { product: tBrand('product') }) : t('subtitle', { product: tBrand('product') })}
+					<span> · </span>{t('usageNote')}
+				</>} />
 				<div
 					className="mt-4 inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5"
 					role="group"
@@ -709,190 +584,14 @@ function PlaygroundPageInner() {
 						initialProvider={initialProvider}
 					/>
 				</div>
-			) : loadError ? (
-				<div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm max-w-3xl">{loadError}</div>
+			) : read.status === 'loading' ? <Spinner label={tCommon('loading')} /> : read.status === 'failed' ? (
+				<ShellError title={t('catalog.readFailed')} failure={read.failure} action={<ControlButton variant="outline" onClick={() => { onSelectRoute(''); refresh(); }}>{tCommon('reload')}</ControlButton>} />
 			) : (
 				<div className="flex flex-col gap-6">
-					<div className="grid grid-cols-1 xl:grid-cols-2 xl:items-stretch gap-6">
-						<div className="min-w-0 flex flex-col h-full">
-							<div className="bg-white rounded-lg shadow-md p-6 space-y-4 flex flex-col h-full min-h-0">
-							<h2 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-3">{t('routeSection')}</h2>
-							<div>
-								<label className={labelClass}>{t('kind')}</label>
-								<div
-									className="inline-flex w-full sm:w-auto rounded-md border border-gray-200 bg-gray-50 p-0.5"
-									role="group"
-									aria-label={t('kind')}
-								>
-									{(
-										[
-											{ id: 'llm' as const, label: t('kindLlm'), count: kindCounts.llm },
-											{ id: 'image' as const, label: t('kindImage'), count: kindCounts.image },
-											{ id: 'audio' as const, label: t('kindAudio'), count: kindCounts.audio },
-										] as const
-									).map((opt) => {
-										const active = filterKind === opt.id;
-										return (
-											<button
-												key={opt.id}
-												type="button"
-												onClick={() => onFilterKindChange(opt.id)}
-												className={
-													active
-														? 'flex-1 sm:flex-none rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
-														: 'flex-1 sm:flex-none rounded px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900'
-												}
-											>
-												{opt.label}
-												<span className="ml-1.5 text-xs text-gray-400 tabular-nums">{opt.count}</span>
-											</button>
-										);
-									})}
-								</div>
-							</div>
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<div>
-									<label className={labelClass}>{t('modelId')}</label>
-									<select
-										value={filterModel}
-										onChange={(e) => setFilterModel(e.target.value)}
-										className={inputClass}
-									>
-										<option value="">{t('placeholders.allModels')}</option>
-										{modelOptions.map((o) => (
-											<option key={o.id} value={o.id}>
-												{o.label}
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className={labelClass}>{t('provider')}</label>
-									<select
-										value={filterProvider}
-										onChange={(e) => setFilterProvider(e.target.value)}
-										className={inputClass}
-									>
-										<option value="">{t('placeholders.allProviders')}</option>
-										{providerOptions.map((o) => (
-											<option key={o.id} value={o.id}>
-												{o.label}
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className={labelClass}>{t('protocol')}</label>
-									<select
-										value={filterProtocol}
-										onChange={(e) => setFilterProtocol(e.target.value)}
-										className={inputClass}
-									>
-										<option value="">{t('placeholders.allProtocols')}</option>
-										{protocolOptions.map((p) => (
-											<option key={p} value={p}>
-												{p}
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className={labelClass}>{t('routeGroup')}</label>
-									<select
-										value={filterGroup}
-										onChange={(e) => setFilterGroup(e.target.value)}
-										className={inputClass}
-									>
-										<option value="">{t('placeholders.allRouteGroups')}</option>
-										{groupOptions.map((g) => (
-											<option key={g} value={g}>
-												{g}
-											</option>
-										))}
-									</select>
-								</div>
-							</div>
-							<div>
-								<label className={labelClass}>{t('selectRoute')}</label>
-								<select
-									value={selectedId}
-									onChange={(e) => setSelectedId(e.target.value)}
-									className={`${inputClass} font-mono`}
-									size={Math.min(10, Math.max(6, Math.min(filteredRoutes.length, 10) || 6))}
-								>
-									<option value="">{t('selectRouteOption')}</option>
-									{filteredRoutes.map((r) => (
-										<option key={r.id} value={r.id}>
-											{routeActiveIndicator(r.status)} {formatRouteLabel(r)} · {r.id.slice(0, 8)}…
-										</option>
-									))}
-								</select>
-								<p className="mt-2 text-xs text-gray-500">
-									{t('routeCount', {
-										total: routesInKind.length,
-										filtered: filteredRoutes.length,
-									})}
-								</p>
-							</div>
-							</div>
-						</div>
-
-						<div className="min-w-0 flex flex-col h-full">
-							<div className="bg-white rounded-lg shadow-md p-6 space-y-4 flex flex-col h-full min-h-0">
-							<h2 className="text-lg font-semibold text-gray-900 border-b border-gray-100 pb-3 break-words">
-								{selected ? (
-									<>
-										{t('selected')}：<span className="font-mono text-base font-normal">{selected.id}</span>
-									</>
-								) : (
-									t('selectedRoute')
-								)}
-							</h2>
-							{selected ? (
-								<>
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-										<ReadonlyField label={t('modelId')}>{selected.model_id}</ReadonlyField>
-										<ReadonlyField label={t('modelName')}>{selected.model_name ?? '—'}</ReadonlyField>
-										<ReadonlyField label={t('providerId')}>{selected.provider_id}</ReadonlyField>
-										<ReadonlyField label={t('providerName')}>{selected.provider_name ?? '—'}</ReadonlyField>
-										<ReadonlyField label={t('upstreamProtocol')}>{selected.upstream_protocol}</ReadonlyField>
-										<ReadonlyField label="Upstream operation">{selected.upstream_operation ?? '*'}</ReadonlyField>
-										<ReadonlyField label={t('providerModel')}>{selected.provider_model_name}</ReadonlyField>
-										<ReadonlyField label={t('routeGroup')}>{selected.route_group}</ReadonlyField>
-										<ReadonlyField label="Routing pool">{selected.pool_name ?? selected.route_pool_id ?? 'legacy'}</ReadonlyField>
-										<ReadonlyField label="Public surfaces">
-											{formatRouteJsonColumn(selected.surfaces)}
-										</ReadonlyField>
-										<ReadonlyField label={t('priorityStatus')}>
-											{selected.priority} /{' '}
-											<span
-												className={
-													selected.status === 'active'
-														? 'text-green-700 font-medium'
-														: 'text-amber-700 font-medium'
-												}
-											>
-												{selected.status}
-											</span>
-										</ReadonlyField>
-									</div>
-									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-100 min-w-0">
-										<div className="min-w-0 flex flex-col">
-											<div className="block text-xs font-medium text-gray-600 mb-1">custom_params</div>
-											<pre className={routeJsonPreClass}>{formatRouteJsonColumn(selected.custom_params)}</pre>
-										</div>
-										<div className="min-w-0 flex flex-col">
-											<div className="block text-xs font-medium text-gray-600 mb-1">price_override</div>
-											<pre className={routeJsonPreClass}>{formatRouteJsonColumn(selected.price_override)}</pre>
-										</div>
-									</div>
-								</>
-							) : (
-								<p className="text-sm text-gray-500">{t('chooseRouteHint')}</p>
-							)}
-						</div>
-						</div>
-					</div>
+					<PlaygroundCatalog filters={filters} modelOptions={modelOptions}
+						providerOptions={providerOptions} protocolOptions={protocolOptions} groupOptions={groupOptions}
+						kindCounts={kindCounts} routes={filteredRoutes} total={routesInKind.length} selected={selected} disabled={sending}
+						onFilter={onFilter} onSelect={onSelectRoute} onClear={clearFilters} />
 
 					<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 						<div className="min-w-0">

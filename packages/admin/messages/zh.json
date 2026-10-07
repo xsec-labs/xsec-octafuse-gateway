@@ -938,7 +938,16 @@
 		"engineProviderHint": "不限于当前 Active；可测 catalog 中已实现的任意引擎。",
 		"toolsBodyMustBeObject": "请求体必须是 JSON 对象。",
 		"toolsNeedProvider": "请选择引擎 Provider。",
-		"applyTemplate": "套用模板"
+		"applyTemplate": "套用模板",
+		"catalog": {
+			"readFailed": "无法读取路由目录",
+			"empty": "没有符合筛选条件的路由",
+			"operation": "上游操作",
+			"pool": "路由池",
+			"surfaces": "公开入口",
+			"legacyPool": "旧版路由",
+			"configuration": "路由配置"
+		}
 	},
 	"simulator": {
 		"title": "模拟器",

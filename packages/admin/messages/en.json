@@ -938,7 +938,16 @@
 		"engineProviderHint": "Not limited to the Active engine — any implemented catalog entry can be tested.",
 		"toolsBodyMustBeObject": "Request body must be a JSON object.",
 		"toolsNeedProvider": "Select an engine provider.",
-		"applyTemplate": "Apply template"
+		"applyTemplate": "Apply template",
+		"catalog": {
+			"readFailed": "Unable to read the route catalog",
+			"empty": "No routes match these filters",
+			"operation": "Upstream operation",
+			"pool": "Routing pool",
+			"surfaces": "Public surfaces",
+			"legacyPool": "Legacy route",
+			"configuration": "Route configuration"
+		}
 	},
 	"simulator": {
 		"title": "Simulator",
