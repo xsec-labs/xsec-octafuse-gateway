@@ -1425,7 +1425,14 @@
 			"providerQuality": "Provider 品質",
 			"perModelComparison": "モデル別 Provider 比較",
 			"recentErrors": "最近のエラー",
-			"viewAllErrors": "すべてのエラーログを表示"
+			"viewAllErrors": "すべてのエラーログを表示",
+			"feedback": {
+				"readFailed": "信頼性データを読み込めませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています。金額は確認後に表示されます。",
+				"invalidRange": "有効な開始日時と終了日時を入力してください。開始は終了より前にしてください。",
+				"recentErrorsScope": "最近のエラーは全期間の最新記録を表示します。選択した期間は上の2つの信頼性テーブルに適用されます。"
+			}
 		},
 		"columns": {
 			"model": "モデル",

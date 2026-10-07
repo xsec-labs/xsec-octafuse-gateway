@@ -1425,7 +1425,14 @@
 			"providerQuality": "Provider 품질",
 			"perModelComparison": "모델별 Provider 비교",
 			"recentErrors": "최근 오류",
-			"viewAllErrors": "모든 오류 로그 보기"
+			"viewAllErrors": "모든 오류 로그 보기",
+			"feedback": {
+				"readFailed": "신뢰성 데이터를 읽지 못했습니다",
+				"currencyFailed": "청구 통화를 확인하지 못했습니다",
+				"currencyPending": "청구 통화를 확인하고 있습니다. 금액은 확인 후 표시됩니다.",
+				"invalidRange": "유효한 시작 및 종료 시간을 입력하세요. 시작은 종료보다 빨라야 합니다.",
+				"recentErrorsScope": "최근 오류는 전체 기간의 최신 기록을 표시합니다. 선택한 기간은 위의 두 신뢰성 표에 적용됩니다."
+			}
 		},
 		"columns": {
 			"model": "모델",

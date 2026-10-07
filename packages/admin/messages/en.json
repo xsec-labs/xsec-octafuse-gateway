@@ -1425,7 +1425,14 @@
 			"providerQuality": "Provider quality",
 			"perModelComparison": "Per-model provider comparison",
 			"recentErrors": "Recent errors",
-			"viewAllErrors": "View all error logs"
+			"viewAllErrors": "View all error logs",
+			"feedback": {
+				"readFailed": "Reliability data could not be read",
+				"currencyFailed": "Billing currency could not be confirmed",
+				"currencyPending": "Confirming billing currency; amounts are pending.",
+				"invalidRange": "Enter a valid start and end with start before end.",
+				"recentErrorsScope": "Recent errors show the latest records across all time. The selected range applies to the two reliability tables."
+			}
 		},
 		"columns": {
 			"model": "Model",

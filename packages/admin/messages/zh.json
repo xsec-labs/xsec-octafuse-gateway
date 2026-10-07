@@ -1425,7 +1425,14 @@
 			"providerQuality": "供应商质量",
 			"perModelComparison": "按模型对比供应商",
 			"recentErrors": "近期错误",
-			"viewAllErrors": "查看全部错误日志"
+			"viewAllErrors": "查看全部错误日志",
+			"feedback": {
+				"readFailed": "可靠性数据读取失败",
+				"currencyFailed": "无法确认计费币种",
+				"currencyPending": "正在确认计费币种，金额暂未显示。",
+				"invalidRange": "请输入有效起止时间，开始时间应早于结束时间。",
+				"recentErrorsScope": "近期错误展示全部时间中的最新记录；所选范围用于上方两张可靠性表。"
+			}
 		},
 		"columns": {
 			"model": "模型",
