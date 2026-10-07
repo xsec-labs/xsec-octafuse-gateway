@@ -13,7 +13,7 @@ import type {
 	UserAnalyticsRow,
 } from '../../storage/repository-dtos';
 
-/** Admin reliability boundaries without an explicit offset use the API's UTC SQL format. */
+/** Admin analytics boundaries without an explicit offset use the API's UTC SQL format. */
 function postgresUtcBoundary(value: string): string {
 	const trimmed = value.trim();
 	return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)
@@ -54,9 +54,9 @@ export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClien
 				values.push(options.tag);
 				joins.push(`INNER JOIN model_tags mt ON mt.model_id = rl.model_id AND mt.tag = $${values.length}`);
 			}
-			values.push(options.start);
+			values.push(postgresUtcBoundary(options.start));
 			conditions.push(`rl.created_at >= $${values.length}`);
-			values.push(options.end);
+			values.push(postgresUtcBoundary(options.end));
 			conditions.push(`rl.created_at <= $${values.length}`);
 			conditions.push('rl.model_id IS NOT NULL');
 			if (options.providerId) {
@@ -146,9 +146,9 @@ export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClien
 				values.push(options.tag);
 				joins.push(`INNER JOIN model_tags mt ON mt.model_id = rl.model_id AND mt.tag = $${values.length}`);
 			}
-			values.push(options.start);
+			values.push(postgresUtcBoundary(options.start));
 			conditions.push(`rl.created_at >= $${values.length}`);
-			values.push(options.end);
+			values.push(postgresUtcBoundary(options.end));
 			conditions.push(`rl.created_at <= $${values.length}`);
 			conditions.push('rl.provider_id IS NOT NULL');
 			if (options.modelId) {
