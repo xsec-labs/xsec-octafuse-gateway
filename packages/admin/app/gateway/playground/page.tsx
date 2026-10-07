@@ -7,16 +7,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'rea
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { flushSync } from 'react-dom';
-import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
-import { ImageGenerationsPreview } from '@/components/image-generations-preview';
-import { RequestTargetUrl } from '@/components/request-target-url';
-import { ControlButton, Field, Input, PageHeader, Spinner } from '@xsec/ui-react';
+import { ControlButton, PageHeader, Spinner } from '@xsec/ui-react';
 import ShellError from '@/components/layout/ShellError';
 import { usePlaygroundCatalog } from './use-playground-catalog';
 import { PlaygroundCatalog, type CatalogFilters } from './playground-catalog';
 import type { PlaygroundCatalog as PlaygroundCatalogData } from './catalog-api';
 import type { RouteListRow } from '../routes/catalog';
 import './catalog.css';
+import './request-response.css';
+import { PlaygroundRequest, type PlaygroundRequestFailure } from './playground-request';
+import { PlaygroundResponse, type PlaygroundResponseMeta } from './playground-response';
 import { PlaygroundToolsPanel } from './playground-tools-panel';
 import {
 	AUDIO_TRANSCRIPTIONS_BODY_TEMPLATE,
@@ -54,10 +54,6 @@ import {
 	type ModelKindFilter,
 } from '../models/types';
 
-const inputClass =
-	'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
-const labelClass = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1';
-
 function resolveRouteModelKind(
 	m: Parameters<typeof isAudioRouteModel>[0] | undefined
 ): ModelKindFilter {
@@ -83,9 +79,6 @@ const BODY_TEMPLATES: Record<string, string> = {
   "contents": [{ "role": "user", "parts": [{ "text": "Hello" }] }]
 }`,
 };
-
-const codeBlockClass =
-	'p-3 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-md font-mono text-gray-900';
 
 function decodeWireRequestBodyHeader(res: Response): string | null {
 	const raw = res.headers.get('x-playground-request-body');
@@ -127,7 +120,10 @@ function PlaygroundPageInner() {
 
 	const [selectedId, setSelectedId] = useState('');
 	const [bodyText, setBodyText] = useState(BODY_TEMPLATES.openai);
-	const [bodyError, setBodyError] = useState<string | null>(null);
+	const [sendFailure, setSendFailure] = useState<PlaygroundRequestFailure | null>(null);
+	const setBodyError = useCallback((message: string | null, field: PlaygroundRequestFailure['field'] = 'send') => {
+		setSendFailure(message === null ? null : { message, field });
+	}, []);
 	const [geminiAction, setGeminiAction] = useState<'generateContent' | 'streamGenerateContent'>('streamGenerateContent');
 	const [imageOperation, setImageOperation] = useState<ImageOperation>('generations');
 	const [editFiles, setEditFiles] = useState<File[]>([]);
@@ -146,12 +142,7 @@ function PlaygroundPageInner() {
 		setSending(false);
 		setSendNotice(t('sendState.cancelled'));
 	};
-	const [responseMeta, setResponseMeta] = useState<{
-		status: number;
-		latencyMs: string | null;
-		upstreamUrl: string | null;
-		contentType: string | null;
-	} | null>(null);
+	const [responseMeta, setResponseMeta] = useState<PlaygroundResponseMeta | null>(null);
 	const [responseText, setResponseText] = useState('');
 	/** 与最后一次 Send 时的路由协议一致，避免切换下拉后拼接错乱 */
 	const [responseProtocol, setResponseProtocol] = useState<PlaygroundProtocol>('openai');
@@ -213,14 +204,14 @@ function PlaygroundPageInner() {
 		const p = mergedAssistantParts;
 		const reasoningDisplay =
 			p.reasoning ||
-			(sending && hasRaw ? '（接收中…）' : '') ||
+			(sending && hasRaw ? t('responseContent.receiving') : '') ||
 			(!sending && hasRaw && !p.reasoning ? '—' : '');
 		const bodyDisplay =
 			p.body ||
-			(sending && hasRaw ? '（接收中…）' : '') ||
-			(!sending && hasRaw && !p.body ? (!p.reasoning ? '（无法从报文提取正文）' : '—') : '');
+			(sending && hasRaw ? t('responseContent.receiving') : '') ||
+			(!sending && hasRaw && !p.body ? (!p.reasoning ? t('responseContent.unsupported') : '—') : '');
 		return { mergedReasoningDisplay: reasoningDisplay, mergedBodyDisplay: bodyDisplay };
-	}, [mergedAssistantParts, responseText, sending]);
+	}, [mergedAssistantParts, responseText, sending, t]);
 
 	const matchesFilters = useCallback(
 		(
@@ -329,7 +320,7 @@ function PlaygroundPageInner() {
 			? AUDIO_TRANSCRIPTIONS_BODY_TEMPLATE
 			: isImageRouteModel(model) && proto === 'openai'
 				? IMAGE_GENERATIONS_BODY_TEMPLATE : BODY_TEMPLATES[proto]);
-	}, [routes, modelsById]);
+	}, [routes, modelsById, setBodyError]);
 
 	const onFilter = useCallback(<K extends keyof CatalogFilters>(key: K, value: CatalogFilters[K]) => {
 		const next: CatalogFilters = { kind: filterKind, model: '', provider: '', protocol: '', group: '' };
@@ -364,15 +355,16 @@ function PlaygroundPageInner() {
 	};
 
 	const scrollStreamToBottom = useCallback(() => {
-		streamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-		mergedStreamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+		const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+		streamEndRef.current?.scrollIntoView({ behavior });
+		mergedStreamEndRef.current?.scrollIntoView({ behavior });
 	}, []);
 
 	const send = async () => {
 		if (activeSend.current) return;
 		const timeoutSeconds = Number(sendTimeoutSeconds);
 		if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 3600) {
-			setBodyError(t('sendState.invalidTimeout'));
+			setBodyError(t('sendState.invalidTimeout'), 'timeout');
 			return;
 		}
 		if (!selected) {
@@ -391,11 +383,11 @@ function PlaygroundPageInner() {
 		try {
 			bodyObj = JSON.parse(bodyText) as Record<string, unknown>;
 			if (bodyObj === null || typeof bodyObj !== 'object' || Array.isArray(bodyObj)) {
-				setBodyError(tCommon('bodyMustBeJsonObject'));
+				setBodyError(tCommon('bodyMustBeJsonObject'), 'body');
 				return;
 			}
 		} catch {
-			setBodyError(tCommon('invalidJson'));
+			setBodyError(tCommon('invalidJson'), 'body');
 			return;
 		}
 
@@ -611,299 +603,20 @@ function PlaygroundPageInner() {
 						kindCounts={kindCounts} routes={filteredRoutes} total={routesInKind.length} selected={selected} disabled={sending}
 						onFilter={onFilter} onSelect={onSelectRoute} onClear={clearFilters} />
 
-					<div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-						<div className="min-w-0">
-						<div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-							<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-gray-100 pb-3">
-								<h2 className="text-lg font-semibold text-gray-900">{t('requestBody')}</h2>
-								{sending ? <ControlButton variant="outline" onClick={cancelSend}>{tCommon('cancel')}</ControlButton> : null}
-								<button
-									type="button"
-									onClick={() => void send()}
-									disabled={
-										sending ||
-										!selected ||
-										imageSendBlocked ||
-										audioSendBlocked ||
-										(selectedIsAudio && !validateAudioTranscriptionFile(audioFile).ok) ||
-										(selectedIsImage &&
-											!selectedIsAudio &&
-											imageOperation === 'edits' &&
-											!validateEditImageFiles(editFiles).ok)
-									}
-									className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-								>
-									<PaperAirplaneIcon className="h-4 w-4" />
-									{sending ? tCommon('sending') : tCommon('send')}
-								</button>
-							</div>
-							<Field label={t('sendState.timeoutLabel')} hint={t('sendState.timeoutHint')}>
-								{field => <Input {...field} type="number" min={1} max={3600} step={1} disabled={sending} value={sendTimeoutSeconds} onChange={event => setSendTimeoutSeconds(event.target.value)} />}
-							</Field>
-							{sendNotice ? <p role="status">{sendNotice}</p> : null}
-							{imageSendBlocked ? (
-								<div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
-									{t('imageOpenaiOnly')}
-								</div>
-							) : null}
-							{audioSendBlocked ? (
-								<div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
-									{t('audioOpenaiOnly')}
-								</div>
-							) : null}
-							<div className="space-y-1">
-								<RequestTargetUrl
-									label={t('requestTargetUrl')}
-									url={requestTargetUrl}
-									emptyHint={t('requestTargetUrlEmpty')}
-								/>
-								{selected ? (
-									<p className="text-[11px] text-gray-400">{t('requestTargetUrlHint')}</p>
-								) : null}
-							</div>
-							{selectedIsAudio && !audioSendBlocked ? (
-								<div className="space-y-2">
-									<p className="text-xs text-gray-500">{t('audioTranscriptionsHint')}</p>
-									<div>
-										<label className={labelClass}>{t('audioFile')}</label>
-										<input
-											type="file"
-											accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg,.flac"
-											disabled={sending}
-											className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-700`}
-											onChange={(e) => {
-												const f = e.target.files?.[0] ?? null;
-												setAudioFile(f);
-											}}
-										/>
-										<p className="mt-1 text-[11px] text-gray-400">{t('audioFileHint')}</p>
-										{!audioFile ? (
-											<p className="mt-1 text-xs text-amber-700">{t('audioFileRequired')}</p>
-										) : (
-											<p className="mt-1 text-xs text-gray-600">
-												{audioFile.name} ({audioFile.size} bytes)
-											</p>
-										)}
-										{(() => {
-											if (!audioFile) return null;
-											const validated = validateAudioTranscriptionFile(audioFile);
-											if (validated.ok) return null;
-											return <p className="mt-1 text-xs text-red-600">{validated.error}</p>;
-										})()}
-									</div>
-								</div>
-							) : null}
-							{selectedIsImage && !selectedIsAudio && !imageSendBlocked ? (
-								<>
-									<fieldset className="flex flex-wrap items-center gap-4 text-sm border border-gray-200 rounded-md px-3 py-2">
-										<legend className="sr-only">{t('imageOperation')}</legend>
-										<span className="text-gray-600 font-medium">{t('imageOperation')}</span>
-										<label className="inline-flex items-center gap-2 cursor-pointer">
-											<input
-												type="radio"
-												name="playgroundImageOperation"
-												className="text-blue-600 focus:ring-blue-500"
-												checked={imageOperation === 'generations'}
-												onChange={() => onImageOperationChange('generations')}
-												disabled={sending}
-											/>
-											generations
-										</label>
-										<label className="inline-flex items-center gap-2 cursor-pointer">
-											<input
-												type="radio"
-												name="playgroundImageOperation"
-												className="text-blue-600 focus:ring-blue-500"
-												checked={imageOperation === 'edits'}
-												onChange={() => onImageOperationChange('edits')}
-												disabled={sending}
-											/>
-											edits
-										</label>
-									</fieldset>
-									<p className="text-xs text-gray-500">
-										{imageOperation === 'edits' ? t('imageEditsHint') : t('imageGenerationsHint')}
-									</p>
-									{imageOperation === 'edits' ? (
-										<div>
-											<label className={labelClass}>{t('referenceImages')}</label>
-											<input
-												type="file"
-												accept="image/png,image/jpeg,image/webp,image/*"
-												multiple
-												disabled={sending}
-												className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-700`}
-												onChange={(e) => {
-													const list = e.target.files ? Array.from(e.target.files) : [];
-													setEditFiles(list.slice(0, IMAGE_MAX_REFERENCE_COUNT));
-												}}
-											/>
-											<p className="mt-1 text-[11px] text-gray-400">
-												{t('referenceImagesHint', { max: IMAGE_MAX_REFERENCE_COUNT })}
-												{editFiles.length > 0
-													? ` · ${t('referenceImagesSelected', { count: editFiles.length })}`
-													: ''}
-											</p>
-											{editFiles.length === 0 ? (
-												<p className="mt-1 text-xs text-amber-700">{t('referenceImagesRequired')}</p>
-											) : null}
-											{(() => {
-												if (editFiles.length === 0) return null;
-												const validated = validateEditImageFiles(editFiles);
-												if (validated.ok) return null;
-												return <p className="mt-1 text-xs text-red-600">{validated.error}</p>;
-											})()}
-											{editFiles.length > 0 ? (
-												<ul className="mt-1 text-xs text-gray-600 list-disc list-inside">
-													{editFiles.map((f) => (
-														<li key={`${f.name}-${f.size}-${f.lastModified}`}>
-															{f.name} ({f.size} bytes)
-														</li>
-													))}
-												</ul>
-											) : null}
-										</div>
-									) : null}
-								</>
-							) : null}
-							{normalizeProtocol(selected?.upstream_protocol ?? 'openai') === 'gemini' &&
-								!selectedIsImage &&
-								!selectedIsAudio && (
-								<fieldset className="flex flex-wrap items-center gap-4 text-sm border border-gray-200 rounded-md px-3 py-2">
-									<legend className="sr-only">{t('geminiAction')}</legend>
-									<span className="text-gray-600 font-medium">{t('geminiAction')}</span>
-									<label className="inline-flex items-center gap-2 cursor-pointer">
-										<input
-											type="radio"
-											name="geminiAction"
-											className="text-blue-600 focus:ring-blue-500"
-											checked={geminiAction === 'generateContent'}
-											onChange={() => setGeminiAction('generateContent')}
-											disabled={sending}
-										/>
-										generateContent
-									</label>
-									<label className="inline-flex items-center gap-2 cursor-pointer">
-										<input
-											type="radio"
-											name="geminiAction"
-											checked={geminiAction === 'streamGenerateContent'}
-											onChange={() => setGeminiAction('streamGenerateContent')}
-											disabled={sending}
-										/>
-										streamGenerateContent
-									</label>
-								</fieldset>
-							)}
-							<div>
-								<label className={labelClass}>JSON</label>
-								<textarea
-									value={bodyText}
-									onChange={(e) => setBodyText(e.target.value)}
-									disabled={sending}
-									rows={8}
-									className={`${inputClass} font-mono text-sm min-h-[100px]`}
-									spellCheck={false}
-								/>
-							</div>
-							{bodyError && (
-								<div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">{bodyError}</div>
-							)}
-							{lastSentWireBody != null && lastSentWireBody !== '' && (
-								<div className="pt-2 border-t border-gray-100 space-y-2">
-									<div>
-										<div className="text-xs font-medium text-gray-600 mb-1">
-											{t('sentBody')}
-											<span className="font-normal text-gray-500 normal-case tracking-normal">
-												{' '}
-												{t('sentBodyHint')}
-											</span>
-										</div>
-										<pre className={codeBlockClass}>{lastSentWireBody}</pre>
-									</div>
-								</div>
-							)}
-						</div>
-						</div>
-
-						<div className="min-w-0">
-						<div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-							<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-100 pb-3">
-								<h2 className="text-lg font-semibold text-gray-900 shrink-0">{t('response')}</h2>
-								{responseMeta && (
-									<div className="flex flex-wrap items-center justify-end gap-2 text-xs min-w-0">
-										<span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-800">
-											HTTP {responseMeta.status}
-										</span>
-										{responseMeta.latencyMs != null && (
-											<span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-800">
-												{responseMeta.latencyMs} ms
-											</span>
-										)}
-										{responseMeta.contentType && (
-											<span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 font-medium text-gray-700 max-w-full truncate" title={responseMeta.contentType}>
-												{responseMeta.contentType}
-											</span>
-										)}
-									</div>
-								)}
-							</div>
-							{responseMeta || responseText || imagePreviews.length > 0 ? (
-								<>
-									{responseMeta?.upstreamUrl && (
-										<div className="text-xs text-gray-500 break-all">
-											<span className="font-medium text-gray-600">{t('upstream')}</span>
-											{responseMeta.upstreamUrl}
-										</div>
-									)}
-									{usageHint && (
-										<div className="p-3 rounded-md bg-green-50 border border-green-200 text-sm text-green-900">
-											<span className="font-semibold">{t('usageDisplayOnly')}</span>
-											{usageHint}
-										</div>
-									)}
-									{imagePreviews.length > 0 ? (
-										<ImageGenerationsPreview images={imagePreviews} label={t('imagePreview')} />
-									) : null}
-									<div className="space-y-3">
-										{imagePreviews.length === 0 ? (
-										<div>
-											<div className="text-xs font-medium text-gray-600 mb-1">{t('mergedContent')}</div>
-											<div className="rounded-md border border-slate-200 overflow-hidden divide-y divide-slate-200">
-												<div>
-													<div className="text-[11px] font-semibold text-amber-900/85 uppercase tracking-wide px-3 py-1.5 bg-amber-50 border-b border-amber-100">
-														{t('thinking')}
-													</div>
-													<pre className="max-h-[min(220px,32vh)] overflow-auto p-3 bg-amber-50/60 text-sm text-gray-900 font-mono whitespace-pre-wrap break-words">
-														{mergedReasoningDisplay}
-													</pre>
-												</div>
-												<div>
-													<div className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide px-3 py-1.5 bg-slate-50 border-b border-slate-100">
-														{t('body')}
-													</div>
-													<pre className="max-h-[min(280px,38vh)] overflow-auto p-3 bg-slate-50 text-sm text-gray-900 font-mono whitespace-pre-wrap break-words">
-														{mergedBodyDisplay}
-														<span ref={mergedStreamEndRef} className="inline-block w-0 h-0 overflow-hidden" aria-hidden />
-													</pre>
-												</div>
-											</div>
-										</div>
-										) : null}
-										<div>
-											<div className="text-xs font-medium text-gray-600 mb-1">{t('rawPayload')}</div>
-											<pre className="max-h-[min(520px,50vh)] overflow-auto p-4 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-900 font-mono whitespace-pre-wrap break-words">
-												{responseText}
-												<span ref={streamEndRef} className="inline-block w-0 h-0 overflow-hidden" aria-hidden />
-											</pre>
-										</div>
-									</div>
-								</>
-							) : (
-								<p className="text-sm text-gray-500">{t('emptyResponseHint')}</p>
-							)}
-						</div>
-						</div>
+					<div className="playground-exchange">
+						<PlaygroundRequest body={bodyText} onBody={setBodyText} failure={sendFailure} sending={sending}
+							sendDisabled={sending || !selected || imageSendBlocked || audioSendBlocked ||
+								(selectedIsAudio && !validateAudioTranscriptionFile(audioFile).ok) ||
+								(selectedIsImage && !selectedIsAudio && imageOperation === 'edits' && !validateEditImageFiles(editFiles).ok)}
+							onSend={() => void send()} onCancel={cancelSend} timeoutSeconds={sendTimeoutSeconds} onTimeout={setSendTimeoutSeconds}
+							notice={sendNotice} targetUrl={requestTargetUrl} selected={selected !== null} wireBody={lastSentWireBody}
+							isImage={selectedIsImage} isAudio={selectedIsAudio} imageBlocked={imageSendBlocked} audioBlocked={audioSendBlocked}
+							imageOperation={imageOperation} onImageOperation={onImageOperationChange} editFiles={editFiles} onEditFiles={setEditFiles}
+							maxReferences={IMAGE_MAX_REFERENCE_COUNT} editError={(() => { const result=validateEditImageFiles(editFiles); return result.ok ? undefined : result.error; })()}
+							audioFile={audioFile} onAudioFile={setAudioFile} audioError={(() => { const result=validateAudioTranscriptionFile(audioFile); return result.ok ? undefined : result.error; })()}
+							gemini={normalizeProtocol(selected?.upstream_protocol ?? 'openai') === 'gemini'} geminiAction={geminiAction} onGeminiAction={setGeminiAction} />
+						<PlaygroundResponse meta={responseMeta} raw={responseText} usage={usageHint} images={imagePreviews} sending={sending}
+							reasoning={mergedReasoningDisplay} body={mergedBodyDisplay} rawEndRef={streamEndRef} bodyEndRef={mergedStreamEndRef} />
 					</div>
 				</div>
 			)}

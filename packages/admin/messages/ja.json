@@ -954,6 +954,10 @@
 			"invalidTimeout": "1〜3600 の整数秒を入力してください",
 			"timeoutLabel": "総制限時間（秒）",
 			"timeoutHint": "ファイル読み込みと応答全体を含みます。既定値は 300 秒です。"
+		},
+		"responseContent": {
+			"receiving": "受信中…",
+			"unsupported": "この応答に対応するアシスタントの本文が見つかりませんでした。"
 		}
 	},
 	"simulator": {

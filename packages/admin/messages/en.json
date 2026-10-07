@@ -954,6 +954,10 @@
 			"invalidTimeout": "Enter a whole number of seconds from 1 to 3600",
 			"timeoutLabel": "Total time limit (seconds)",
 			"timeoutHint": "Covers file reading and the complete response. Default: 300 seconds."
+		},
+		"responseContent": {
+			"receiving": "Receiving…",
+			"unsupported": "No supported assistant content was found in this response."
 		}
 	},
 	"simulator": {

@@ -954,6 +954,10 @@
 			"invalidTimeout": "1에서 3600 사이의 정수 초를 입력하세요",
 			"timeoutLabel": "전체 제한 시간(초)",
 			"timeoutHint": "파일 읽기와 전체 응답을 포함합니다. 기본값은 300초입니다."
+		},
+		"responseContent": {
+			"receiving": "수신 중…",
+			"unsupported": "이 응답에서 지원되는 어시스턴트 본문을 찾을 수 없습니다."
 		}
 	},
 	"simulator": {
