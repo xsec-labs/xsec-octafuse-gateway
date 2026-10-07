@@ -1778,6 +1778,11 @@
 			"aiDetectionNotImplemented": "Cannot activate an engine that is not implemented yet.",
 			"noKeyCannotActivate": "Cannot activate a provider without an API key.",
 			"switchActiveBeforeClearingKey": "Switch Active to another engine that still has a key before clearing the current engine’s key, then save again to clear it."
+		},
+		"feedback": {
+			"readFailed": "Tools configuration could not be read",
+			"savedKeys": "Confirmed saved: {keys}",
+			"readReplacesDrafts": "Read the server configuration before saving again. Your drafts will be replaced by the server values."
 		}
 	},
 	"pricing": {

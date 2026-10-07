@@ -1778,6 +1778,11 @@
 			"charged": "ユーザー課金",
 			"metered": "供給",
 			"lossHint": "ユーザー課金が供給単価を下回っています（赤字）"
+		},
+		"feedback": {
+			"readFailed": "ツール設定を読み取れませんでした",
+			"savedKeys": "保存を確認済み: {keys}",
+			"readReplacesDrafts": "再保存の前にサーバー設定を読み取ってください。下書きはサーバーの値に置き換わります。"
 		}
 	},
 	"pricing": {

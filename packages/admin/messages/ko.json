@@ -1778,6 +1778,11 @@
 			"charged": "사용자 과금",
 			"metered": "공급",
 			"lossHint": "사용자 과금이 공급 단가보다 낮습니다(적자)"
+		},
+		"feedback": {
+			"readFailed": "도구 설정을 읽을 수 없습니다",
+			"savedKeys": "저장 확인: {keys}",
+			"readReplacesDrafts": "다시 저장하기 전에 서버 설정을 읽으세요. 현재 초안은 서버 값으로 대체됩니다."
 		}
 	},
 	"pricing": {

@@ -1778,6 +1778,11 @@
 			"aiDetectionNotImplemented": "尚未实现的引擎不能设为 Active。",
 			"noKeyCannotActivate": "未配置 API Key 的引擎不能设为 Active。",
 			"switchActiveBeforeClearingKey": "若要清空当前 Active 引擎的 Key，请先把 Active 切到仍有 Key 的引擎并保存，再清空旧 Key。"
+		},
+		"feedback": {
+			"readFailed": "工具配置读取失败",
+			"savedKeys": "已确认保存：{keys}",
+			"readReplacesDrafts": "再次保存前请读取服务器配置。当前草稿将被服务器值替换。"
 		}
 	},
 	"pricing": {
