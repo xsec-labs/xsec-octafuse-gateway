@@ -1421,7 +1421,15 @@
 		},
 		"providerUsage": {
 			"title": "供应商用量",
-			"subtitle": "按上游供应商统计用量与成本"
+			"subtitle": "按上游供应商统计用量与成本",
+			"feedback": {
+				"readFailed": "读取供应商用量失败",
+				"modelsFailed": "读取模型用量失败",
+				"currencyFailed": "确认计费币种失败",
+				"currencyPending": "正在确认计费币种…",
+				"invalidRange": "请选择有效的开始和结束时间。",
+				"modelsFor": "{provider} 的模型用量"
+			}
 		},
 		"userUsage": {
 			"title": "用户用量",

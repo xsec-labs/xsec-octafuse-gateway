@@ -1421,7 +1421,15 @@
 		},
 		"providerUsage": {
 			"title": "Provider Usage",
-			"subtitle": "Usage and cost by upstream provider"
+			"subtitle": "Usage and cost by upstream provider",
+			"feedback": {
+				"readFailed": "Could not load provider usage",
+				"modelsFailed": "Could not load model usage",
+				"currencyFailed": "Could not confirm billing currency",
+				"currencyPending": "Confirming billing currency…",
+				"invalidRange": "Choose a valid start and end time.",
+				"modelsFor": "Models for {provider}"
+			}
 		},
 		"userUsage": {
 			"title": "User Usage",

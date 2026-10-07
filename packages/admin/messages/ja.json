@@ -1421,7 +1421,15 @@
 		},
 		"providerUsage": {
 			"title": "Provider 使用量",
-			"subtitle": "アップストリーム Provider 別の使用量とコスト"
+			"subtitle": "アップストリーム Provider 別の使用量とコスト",
+			"feedback": {
+				"readFailed": "プロバイダー使用量を取得できませんでした",
+				"modelsFailed": "モデル使用量を取得できませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています…",
+				"invalidRange": "有効な開始時刻と終了時刻を選択してください。",
+				"modelsFor": "{provider} のモデル使用量"
+			}
 		},
 		"userUsage": {
 			"title": "ユーザー使用量",
