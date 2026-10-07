@@ -937,6 +937,7 @@
 		"engineProvider": "エンジン Provider",
 		"engineProviderHint": "Active 以外でも、実装済み catalog エントリを検証できます。",
 		"toolsBodyMustBeObject": "リクエストボディは JSON オブジェクトである必要があります。",
+		"toolsTimeoutHint": "ツールの完全な応答までを含みます。既定値は300秒です。",
 		"toolsNeedProvider": "エンジン Provider を選択してください。",
 		"applyTemplate": "テンプレートを適用",
 		"catalog": {

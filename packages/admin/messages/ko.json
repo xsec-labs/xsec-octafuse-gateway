@@ -937,6 +937,7 @@
 		"engineProvider": "엔진 Provider",
 		"engineProviderHint": "Active에 제한되지 않으며, 구현된 catalog 항목을 테스트할 수 있습니다.",
 		"toolsBodyMustBeObject": "요청 본문은 JSON 객체여야 합니다.",
+		"toolsTimeoutHint": "전체 도구 응답에 적용됩니다. 기본값은 300초입니다.",
 		"toolsNeedProvider": "엔진 Provider를 선택하세요.",
 		"applyTemplate": "템플릿 적용",
 		"catalog": {

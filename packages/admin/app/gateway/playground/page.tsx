@@ -558,7 +558,7 @@ function PlaygroundPageInner() {
 					<span> · </span>{t('usageNote')}
 				</>} />
 				<div
-					className="mt-4 inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5"
+					className="playground-mode"
 					role="group"
 					aria-label={t('mode')}
 				>
@@ -570,25 +570,17 @@ function PlaygroundPageInner() {
 					).map((opt) => {
 						const active = playgroundMode === opt.id;
 						return (
-							<button
-								key={opt.id}
-								type="button"
-								onClick={() => { if (opt.id !== playgroundMode) cancelSend(); setPlaygroundMode(opt.id); }}
-								className={
-									active
-										? 'rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
-										: 'rounded px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900'
-								}
-							>
+							<ControlButton key={opt.id} aria-pressed={active} variant={active ? 'primary' : 'outline'}
+								onClick={() => { if (opt.id !== playgroundMode) cancelSend(); setPlaygroundMode(opt.id); }}>
 								{opt.label}
-							</button>
+							</ControlButton>
 						);
 					})}
 				</div>
 			</div>
 
 			{playgroundMode === 'tools' ? (
-				<div className="max-w-3xl">
+				<div>
 					<PlaygroundToolsPanel
 						initialToolId={initialToolId}
 						initialProvider={initialProvider}
@@ -625,11 +617,12 @@ function PlaygroundPageInner() {
 }
 
 export default function PlaygroundPage() {
+	const common = useTranslations('common');
 	return (
 		<Suspense
 			fallback={
 				<div className="flex items-center justify-center h-full min-h-[240px]">
-					<div className="text-gray-600">Loading…</div>
+					<Spinner label={common('loading')} />
 				</div>
 			}
 		>

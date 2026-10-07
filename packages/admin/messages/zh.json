@@ -937,6 +937,7 @@
 		"engineProvider": "引擎 Provider",
 		"engineProviderHint": "不限于当前 Active；可测 catalog 中已实现的任意引擎。",
 		"toolsBodyMustBeObject": "请求体必须是 JSON 对象。",
+		"toolsTimeoutHint": "覆盖完整工具响应，默认 300 秒。",
 		"toolsNeedProvider": "请选择引擎 Provider。",
 		"applyTemplate": "套用模板",
 		"catalog": {

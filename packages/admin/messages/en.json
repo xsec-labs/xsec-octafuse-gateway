@@ -937,6 +937,7 @@
 		"engineProvider": "Engine provider",
 		"engineProviderHint": "Not limited to the Active engine — any implemented catalog entry can be tested.",
 		"toolsBodyMustBeObject": "Request body must be a JSON object.",
+		"toolsTimeoutHint": "Covers the complete tool response. Default: 300 seconds.",
 		"toolsNeedProvider": "Select an engine provider.",
 		"applyTemplate": "Apply template",
 		"catalog": {
