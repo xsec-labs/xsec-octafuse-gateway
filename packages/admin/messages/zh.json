@@ -1729,6 +1729,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "筛选条件",
+				"summary": "查看工具调用、计费和结果摘要。",
+				"invalidQuery": "链接中的筛选条件无效。请清除筛选后开始新的查询。",
+				"currencyFailed": "计费币种读取失败",
+				"readFailed": "工具调用记录读取失败",
+				"payloadInvalid": "存储的工具内容格式无效，原始内容仍可查看。",
+				"inspectRaw": "切换到 JSON 查看存储内容。",
+				"unsafeResultUrl": "此结果链接无法打开，仅支持 HTTP 和 HTTPS 链接。"
+			},
 			"title": "工具调用记录",
 			"subtitle": "记账为 provider octafuse-tools（model_id 为 tool:*）。点击行可查看查询词与结果摘要；与 Request Logs 同源。",
 			"configureTools": "配置 Tools →",

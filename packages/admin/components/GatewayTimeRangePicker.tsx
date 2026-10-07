@@ -1,158 +1,40 @@
 'use client';
-
-/**
- * 紧凑时间范围：滚动快捷 + 日历快捷 + 起止（datetime-local），产出与 Gateway 分析 API 一致的 UTC `YYYY-MM-DD HH:mm:ss`。
- * 自定义输入/回显按 `BUSINESS_TIMEZONE` 墙钟，而非浏览器本地时区。
- */
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ControlButton, Field, Input } from '@xsec/ui-react';
 import { useBusinessTimezone } from '@/components/BusinessTimezoneProvider';
 import { formatBusinessTimezoneLabel, utcApiToZonedInput, zonedInputToUtcApi } from '@/lib/business-timezone-client';
-import {
-	GATEWAY_CALENDAR_PRESETS,
-	GATEWAY_TIME_RANGE_PRESETS,
-	calendarRangeToParams,
-	normalizeCustomApiRange,
-	rangeToParams,
-	type GatewayCalendarPreset,
-	type GatewayRollingPreset,
-	type GatewayTimeRangeValue,
-} from '@/lib/analytics-range';
+import { GATEWAY_CALENDAR_PRESETS, GATEWAY_TIME_RANGE_PRESETS, calendarRangeToParams, rangeToParams, type GatewayCalendarPreset, type GatewayRollingPreset, type GatewayTimeRangeValue } from '@/lib/analytics-range';
+import './gateway-time-range.css';
 
-const btnBase =
-	'px-2 py-1 text-xs font-medium rounded border transition-colors shrink-0';
-const btnIdle = 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100';
-const btnOn = 'border-gray-300 bg-white text-gray-900 shadow-sm';
-
-/** 与 `GET /admin/stats?range=` 一致的滚动快捷键。 */
 export type GatewayDashboardStatsRange = Exclude<GatewayRollingPreset, '90d'>;
-
-function commitCustomLocal(
-	draftStart: string,
-	draftEnd: string,
-	timeZone: string
-): GatewayTimeRangeValue | null {
-	const s = zonedInputToUtcApi(draftStart, timeZone);
-	const e = zonedInputToUtcApi(draftEnd, timeZone);
-	if (!s || !e) return null;
-	const norm = normalizeCustomApiRange(s, e);
-	if (!norm) return null;
-	return { preset: 'custom', ...norm };
-}
-
 export type GatewayTimeRangePickerProps = {
-	value: GatewayTimeRangeValue;
-	onChange: (next: GatewayTimeRangeValue) => void;
-	presets?: Array<Exclude<GatewayRollingPreset, '90d'>>;
-	calendarPresets?: GatewayCalendarPreset[];
-	label?: string;
-	/** 业务 IANA 时区；默认从 `BusinessTimezoneProvider` 读取。 */
-	timeZone?: string;
-	/** 整块右对齐；默认与筛选项第一行左对齐 */
-	align?: 'start' | 'end';
-	className?: string;
+ value: GatewayTimeRangeValue; onChange: (next: GatewayTimeRangeValue) => void;
+ presets?: GatewayDashboardStatsRange[]; calendarPresets?: GatewayCalendarPreset[];
+ label?: string; timeZone?: string; align?: 'start' | 'end'; className?: string;
 };
-
-export function GatewayTimeRangePicker({
-	value,
-	onChange,
-	presets = [...GATEWAY_TIME_RANGE_PRESETS],
-	calendarPresets = [...GATEWAY_CALENDAR_PRESETS],
-	label,
-	timeZone: timeZoneProp,
-	align = 'start',
-	className = '',
-}: GatewayTimeRangePickerProps) {
-	const t = useTranslations('timeRange');
-	const tCommon = useTranslations('common');
-	const contextTimeZone = useBusinessTimezone();
-	const timeZone = timeZoneProp ?? contextTimeZone;
-	const timezoneLabel = formatBusinessTimezoneLabel(timeZone);
-	const resolvedLabel = label ?? t('label', { timezone: timezoneLabel });
-	const [draftStart, setDraftStart] = useState(() => utcApiToZonedInput(value.start_date, timeZone));
-	const [draftEnd, setDraftEnd] = useState(() => utcApiToZonedInput(value.end_date, timeZone));
-
-	useEffect(() => {
-		setDraftStart(utcApiToZonedInput(value.start_date, timeZone));
-		setDraftEnd(utcApiToZonedInput(value.end_date, timeZone));
-	}, [value.start_date, value.end_date, timeZone]);
-
-	const selectRolling = (p: Exclude<GatewayRollingPreset, '90d'>) => {
-		onChange({ preset: p, ...rangeToParams(p) });
-	};
-
-	const selectCalendar = (p: GatewayCalendarPreset) => {
-		onChange({ preset: p, ...calendarRangeToParams(p, timeZone) });
-	};
-
-	const applyCustom = () => {
-		const next = commitCustomLocal(draftStart, draftEnd, timeZone);
-		if (next) onChange(next);
-	};
-
-	const end = align === 'end';
-
-	return (
-		<div className={`w-full min-w-0 ${className}`}>
-			{resolvedLabel ? (
-				<label className={`block text-sm text-gray-500 mb-1 ${end ? 'text-right' : ''}`}>{resolvedLabel}</label>
-			) : null}
-			<div
-				className={`flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-2 ${end ? 'justify-end' : ''}`}
-			>
-				<div className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-					{presets.map((p) => (
-						<button
-							key={p}
-							type="button"
-							onClick={() => selectRolling(p)}
-							className={`${btnBase} ${value.preset === p ? btnOn : btnIdle}`}
-						>
-							{t(`presets.${p}`)}
-						</button>
-					))}
-				</div>
-				{calendarPresets.length > 0 ? (
-					<div className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-						{calendarPresets.map((p) => (
-							<button
-								key={p}
-								type="button"
-								onClick={() => selectCalendar(p)}
-								className={`${btnBase} ${value.preset === p ? btnOn : btnIdle}`}
-							>
-								{t(`calendar.${p}`)}
-							</button>
-						))}
-					</div>
-				) : null}
-				<div className="flex shrink-0 flex-wrap items-center gap-2">
-					<input
-						type="datetime-local"
-						value={draftStart}
-						onChange={(e) => setDraftStart(e.target.value)}
-						aria-label={t('start')}
-						className="px-2 py-1 border border-gray-300 rounded-md text-xs w-[11.5rem]"
-					/>
-					<span aria-hidden="true" className="shrink-0 text-sm text-gray-400">
-						→
-					</span>
-					<input
-						type="datetime-local"
-						value={draftEnd}
-						onChange={(e) => setDraftEnd(e.target.value)}
-						aria-label={t('end')}
-						className="px-2 py-1 border border-gray-300 rounded-md text-xs w-[11.5rem]"
-					/>
-					<button
-						type="button"
-						onClick={applyCustom}
-						className="px-3 py-1 bg-gray-900 text-white text-xs rounded-md hover:bg-gray-800"
-					>
-						{tCommon('apply')}
-					</button>
-				</div>
-			</div>
-		</div>
-	);
+/** Applied UTC range and business timezone define the local draft lifetime. */
+export function GatewayTimeRangePicker(props: GatewayTimeRangePickerProps) {
+ const context = useBusinessTimezone(), timeZone = props.timeZone ?? context;
+ return <RangeFields key={`${timeZone}\n${props.value.start_date}\n${props.value.end_date}`} {...props} timeZone={timeZone}/>;
+}
+function RangeFields({ value, onChange, presets = [...GATEWAY_TIME_RANGE_PRESETS], calendarPresets = [...GATEWAY_CALENDAR_PRESETS], label, timeZone, align = 'start', className = '' }: GatewayTimeRangePickerProps & { timeZone: string }) {
+ const t = useTranslations('timeRange'), common = useTranslations('common'), logs = useTranslations('requestLogs');
+ const [start, setStart] = useState(() => utcApiToZonedInput(value.start_date,timeZone)), [end, setEnd] = useState(() => utcApiToZonedInput(value.end_date,timeZone));
+ const [invalid, setInvalid] = useState(false), first = useRef<HTMLInputElement>(null);
+ const resolvedLabel = label ?? t('label',{timezone:formatBusinessTimezoneLabel(timeZone)});
+ const apply = () => {
+  const start_date = zonedInputToUtcApi(start,timeZone), end_date = zonedInputToUtcApi(end,timeZone);
+  if (!start_date || !end_date || start_date > end_date) { setInvalid(true); first.current?.focus(); return; }
+  setInvalid(false); onChange({preset:'custom',start_date,end_date});
+ };
+ return <section className={`gateway-time-range ${className}`} data-align={align} aria-label={resolvedLabel}>
+  <p className="xui-label">{resolvedLabel}</p><div className="gateway-time-range-actions">
+   <div className="gateway-time-presets">{presets.map(preset=><ControlButton key={preset} variant={value.preset===preset?'secondary':'ghost'} aria-pressed={value.preset===preset} onClick={()=>onChange({preset,...rangeToParams(preset)})}>{t(`presets.${preset}`)}</ControlButton>)}</div>
+   {calendarPresets.length?<div className="gateway-time-presets">{calendarPresets.map(preset=><ControlButton key={preset} variant={value.preset===preset?'secondary':'ghost'} aria-pressed={value.preset===preset} onClick={()=>onChange({preset,...calendarRangeToParams(preset,timeZone)})}>{t(`calendar.${preset}`)}</ControlButton>)}</div>:null}
+   <Field label={t('start')} error={invalid?logs('feedback.invalidRange'):undefined}>{props=><Input {...props} ref={first} type="datetime-local" value={start} onChange={event=>{setStart(event.target.value);setInvalid(false);}}/>}</Field>
+   <Field label={t('end')} error={invalid?logs('feedback.invalidRange'):undefined}>{props=><Input {...props} type="datetime-local" value={end} onChange={event=>{setEnd(event.target.value);setInvalid(false);}}/>}</Field>
+   <ControlButton onClick={apply}>{common('apply')}</ControlButton>
+  </div>
+ </section>;
 }

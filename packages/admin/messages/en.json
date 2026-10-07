@@ -1729,6 +1729,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "Filters",
+				"summary": "Inspect tool calls, charges and result summaries.",
+				"invalidQuery": "The link contains invalid filters. Clear the filters to start a new query.",
+				"currencyFailed": "Billing currency could not be read",
+				"readFailed": "Tool invocations could not be read",
+				"payloadInvalid": "The stored tool payload has an invalid format. Its original content remains available.",
+				"inspectRaw": "Open JSON to inspect the stored content.",
+				"unsafeResultUrl": "This result URL cannot be opened. Only HTTP and HTTPS links are supported."
+			},
 			"title": "Tool invocations",
 			"subtitle": "Calls billed as provider octafuse-tools (model_id tool:*). Click a row to inspect query and result summary. Same underlying rows as Request Logs.",
 			"configureTools": "Configure tools →",

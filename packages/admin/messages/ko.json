@@ -1721,6 +1721,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "필터",
+				"summary": "도구 호출, 요금 및 결과 요약을 확인합니다.",
+				"invalidQuery": "링크의 필터가 유효하지 않습니다. 필터를 지우고 새 조회를 시작하세요.",
+				"currencyFailed": "청구 통화를 읽을 수 없습니다",
+				"readFailed": "도구 호출 기록을 읽을 수 없습니다",
+				"payloadInvalid": "저장된 도구 내용 형식이 유효하지 않습니다. 원본 내용은 확인할 수 있습니다.",
+				"inspectRaw": "JSON으로 전환하여 저장된 내용을 확인하세요.",
+				"unsafeResultUrl": "이 결과 링크를 열 수 없습니다. HTTP와 HTTPS 링크만 지원합니다."
+			},
 			"title": "Tool 호출 내역",
 			"subtitle": "provider=octafuse-tools, model_id=tool:*로 청구된 호출입니다. 행을 클릭하면 Query와 결과 요약을 확인할 수 있습니다. 요청 로그와 동일한 기본 행을 사용합니다.",
 			"configureTools": "Tools 설정 →",

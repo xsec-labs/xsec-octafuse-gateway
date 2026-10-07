@@ -1,0 +1,7 @@
+.gateway-time-range { margin-top:24px; min-width:0; }
+.gateway-time-range-actions { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-top:12px; }
+.gateway-time-presets { display:flex; flex-wrap:wrap; gap:4px; padding:4px; border:1px solid var(--xui-border); border-radius:var(--xui-radius-panel); min-width:0; }
+.gateway-time-range .xui-field { min-width:0; flex:1 1 200px; max-width:280px; }
+.gateway-time-range .xui-input,.gateway-time-range .xui-button { min-height:44px; }
+.gateway-time-range[data-align=end] .gateway-time-range-actions { justify-content:flex-end; }
+@media(max-width:600px) { .gateway-time-range .xui-field { max-width:none; flex-basis:100%; } }

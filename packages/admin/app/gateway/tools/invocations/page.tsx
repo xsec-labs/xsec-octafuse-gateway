@@ -1,483 +1,55 @@
 'use client';
-
-/**
- * Tools 调用查询：筛选 `provider_id=octafuse-tools`（或单工具 `model_id=tool:*`）的 request logs。
- */
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Badge, ControlButton, Drawer, EmptyState, Field, PageHeader, Section, Select, Spinner, Tabs } from '@xsec/ui-react';
+import ShellError from '@/components/layout/ShellError';
 import { GatewayTimeRangePicker } from '@/components/GatewayTimeRangePicker';
-import { readApiJson } from '@/lib/api-json';
-import {
-	createRangeValue,
-	DEFAULT_GATEWAY_TIME_RANGE_PRESET,
-	detectRollingPreset,
-	type GatewayTimeRangeValue,
-} from '@/lib/analytics-range';
-import {
-	formatGatewayMoneyCompact,
-	formatGatewayMoneyCompactSigned,
-	getGatewayCurrencySymbol,
-} from '@/lib/format-gateway-currency';
-import {
-	findGatewayToolById,
-	GATEWAY_TOOLS,
-	GATEWAY_TOOLS_PROVIDER_ID,
-} from '@/lib/gateway-tools';
-import {
-	parseToolRequestSummary,
-	parseToolResponseSummary,
-	resolveToolEngineProvider,
-} from '@/lib/tool-invocation-detail';
+import { GATEWAY_TOOLS } from '@/lib/gateway-tools';
+import { parseToolRequestSummary, parseToolResponseSummary, resolveToolEngineProvider, toolResultHref } from '@/lib/tool-invocation-detail';
 import type { GatewayRequestLog } from '@/lib/types';
-import { useBillingCurrency } from '@/lib/use-billing-currency';
 import { useGatewayDateTime } from '@/lib/use-gateway-datetime';
-import { useReplaceListPageQuery } from '@/lib/use-replace-list-query';
+import { invocationReadQuery } from './invocation-query';
+import { useInvocationState } from './use-invocation-state';
+import { InvocationTable } from './invocation-table';
+import './invocations.css';
 
+const subscribeToClient = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 export default function GatewayToolInvocationsPage() {
-	const t = useTranslations('tools');
-	const tCommon = useTranslations('common');
-	const { currency: billingCurrency } = useBillingCurrency();
-	const billingCurrencySym = getGatewayCurrencySymbol(billingCurrency);
-	const { formatDateTime } = useGatewayDateTime();
-
-	const [toolFilter, setToolFilter] = useState('');
-	const [filterStatus, setFilterStatus] = useState('');
-	const [rangeValue, setRangeValue] = useState<GatewayTimeRangeValue>(() => createRangeValue(DEFAULT_GATEWAY_TIME_RANGE_PRESET));
-	const [logs, setLogs] = useState<GatewayRequestLog[]>([]);
-	const [total, setTotal] = useState(0);
-	const [page, setPage] = useState(1);
-	const [isLoading, setIsLoading] = useState(true);
-	const [detailLogId, setDetailLogId] = useState<string | null>(null);
-	/** Response 面板展示格式：可读列表 / 原始 JSON */
-	const [responseView, setResponseView] = useState<'list' | 'json'>('list');
-	const pageSize = 50;
-
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const tool = params.get('tool');
-		const status = params.get('status');
-		const startDate = params.get('start_date');
-		const endDate = params.get('end_date');
-		const pageParam = params.get('page');
-		const found = findGatewayToolById(tool);
-		if (found) setToolFilter(found.id);
-		if (status != null) setFilterStatus(status);
-		const hasStart = startDate != null && startDate !== '';
-		const hasEnd = endDate != null && endDate !== '';
-		if (hasStart || hasEnd) {
-			const s = hasStart ? startDate! : '';
-			const e = hasEnd ? endDate! : '';
-			setRangeValue({
-				preset: hasStart && hasEnd ? detectRollingPreset(s, e) ?? 'custom' : 'custom',
-				start_date: s,
-				end_date: e,
-			});
-		}
-		if (pageParam) {
-			const n = Number(pageParam);
-			if (Number.isFinite(n) && n >= 1) setPage(n);
-		}
-	}, []);
-
-	useReplaceListPageQuery(
-		() => {
-			const q = new URLSearchParams();
-			if (toolFilter) q.set('tool', toolFilter);
-			if (filterStatus) q.set('status', filterStatus);
-			if (rangeValue.start_date) q.set('start_date', rangeValue.start_date);
-			if (rangeValue.end_date) q.set('end_date', rangeValue.end_date);
-			if (page > 1) q.set('page', String(page));
-			return q;
-		},
-		[toolFilter, filterStatus, rangeValue.start_date, rangeValue.end_date, page]
-	);
-
-	const requestLogsHref = useMemo(() => {
-		const q = new URLSearchParams();
-		const tool = findGatewayToolById(toolFilter);
-		if (tool) {
-			q.set('model_id', tool.modelId);
-		} else {
-			q.set('provider_id', GATEWAY_TOOLS_PROVIDER_ID);
-		}
-		if (filterStatus) q.set('status', filterStatus);
-		if (rangeValue.start_date) q.set('start_date', rangeValue.start_date);
-		if (rangeValue.end_date) q.set('end_date', rangeValue.end_date);
-		return `/gateway/request-logs?${q.toString()}`;
-	}, [toolFilter, filterStatus, rangeValue.start_date, rangeValue.end_date]);
-
-	const fetchLogs = useCallback(async () => {
-		setIsLoading(true);
-		try {
-			const params = new URLSearchParams();
-			params.set('page', String(page));
-			params.set('page_size', String(pageSize));
-			const tool = findGatewayToolById(toolFilter);
-			if (tool) {
-				params.set('model_id', tool.modelId);
-			} else {
-				params.set('provider_id', GATEWAY_TOOLS_PROVIDER_ID);
-			}
-			if (filterStatus) params.set('status', filterStatus);
-			if (rangeValue.start_date) params.set('start_date', rangeValue.start_date);
-			if (rangeValue.end_date) params.set('end_date', rangeValue.end_date);
-
-			const response = await fetch(`/api/admin/request-logs?${params.toString()}`);
-			const data = await readApiJson<GatewayRequestLog[]>(response);
-			if (!data.success) {
-				setLogs([]);
-				setTotal(0);
-				return;
-			}
-			setLogs(data.data || []);
-			setTotal(data.total || 0);
-		} catch (e) {
-			console.error('Fetch tool invocations:', e);
-			setLogs([]);
-			setTotal(0);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [page, toolFilter, filterStatus, rangeValue.start_date, rangeValue.end_date]);
-
-	useEffect(() => {
-		void fetchLogs();
-	}, [fetchLogs]);
-
-	const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-	const toolLabel = (modelId: string | null | undefined) => {
-		const found = GATEWAY_TOOLS.find((x) => x.modelId === modelId);
-		if (found) return t(`catalog.${found.nameKey}`);
-		return modelId || '—';
-	};
-
-	return (
-		<div className="p-8">
-			<div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-				<div>
-					<h1 className="text-3xl font-bold text-gray-900">{t('invocations.title')}</h1>
-					<p className="mt-1 max-w-3xl text-sm text-gray-500">{t('invocations.subtitle')}</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-3">
-					<Link href="/gateway/tools" className="text-sm font-medium text-blue-600 hover:underline">
-						{t('invocations.configureTools')}
-					</Link>
-					<Link
-						href={requestLogsHref}
-						className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
-					>
-						{t('invocations.openInRequestLogs')}
-					</Link>
-				</div>
-			</div>
-
-			<div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-				<div>
-					<label className="mb-1 block text-xs font-medium text-gray-600">{t('invocations.toolFilter')}</label>
-					<select
-						value={toolFilter}
-						onChange={(e) => {
-							setToolFilter(e.target.value);
-							setPage(1);
-						}}
-						className="min-w-[14rem] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm"
-					>
-						<option value="">{t('invocations.allTools')}</option>
-						{GATEWAY_TOOLS.map((tool) => (
-							<option key={tool.id} value={tool.id}>
-								{t(`catalog.${tool.nameKey}`)}
-							</option>
-						))}
-					</select>
-				</div>
-				<div>
-					<label className="mb-1 block text-xs font-medium text-gray-600">{t('invocations.status')}</label>
-					<select
-						value={filterStatus}
-						onChange={(e) => {
-							setFilterStatus(e.target.value);
-							setPage(1);
-						}}
-						className="min-w-[10rem] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm"
-					>
-						<option value="">{tCommon('all')}</option>
-						<option value="success">success</option>
-						<option value="error">error</option>
-					</select>
-				</div>
-				<div className="min-w-[16rem] flex-1">
-					<GatewayTimeRangePicker
-						value={rangeValue}
-						onChange={(next) => {
-							setRangeValue(next);
-							setPage(1);
-						}}
-					/>
-				</div>
-			</div>
-
-			{isLoading ? (
-				<div className="py-12 text-center text-gray-600">{tCommon('loading')}</div>
-			) : logs.length === 0 ? (
-				<div className="rounded-lg border border-dashed border-gray-300 bg-white py-12 text-center text-sm text-gray-500">
-					{t('invocations.empty')}
-				</div>
-			) : (
-				<div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-					<table className="min-w-full divide-y divide-gray-200 text-sm">
-						<thead className="bg-gray-50">
-							<tr>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.time')}</th>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.tool')}</th>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.provider')}</th>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.query')}</th>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.user')}</th>
-								<th className="px-4 py-3 text-left font-medium text-gray-600">{t('invocations.columns.status')}</th>
-								<th className="px-4 py-3 text-right font-medium text-gray-600">{t('invocations.columns.results')}</th>
-								<th
-									className="px-4 py-3 text-right font-medium text-gray-600"
-									title={t('invocations.titles.standard')}
-								>
-									{t('invocations.columns.standard', { currency: billingCurrencySym })}
-								</th>
-								<th
-									className="px-4 py-3 text-right font-medium text-gray-600"
-									title={t('invocations.titles.charged')}
-								>
-									{t('invocations.columns.charged', { currency: billingCurrencySym })}
-								</th>
-								<th
-									className="px-4 py-3 text-right font-medium text-gray-600"
-									title={t('invocations.titles.metered')}
-								>
-									{t('invocations.columns.metered', { currency: billingCurrencySym })}
-								</th>
-								<th
-									className="px-4 py-3 text-right font-medium text-gray-600"
-									title={t('invocations.titles.profit')}
-								>
-									{t('invocations.columns.profit', { currency: billingCurrencySym })}
-								</th>
-								<th className="px-4 py-3 text-right font-medium text-gray-600">{t('invocations.columns.latency')}</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100">
-							{logs.map((log) => {
-								const req = parseToolRequestSummary(log.request_body);
-								const res = parseToolResponseSummary(log.raw_usage);
-								const engine = resolveToolEngineProvider(log);
-								const standardCost = Number(log.standard_cost ?? 0);
-								const chargedCost = Number(log.charged_cost ?? 0);
-								const meteredCost = Number(log.metered_cost ?? 0);
-								const profit = chargedCost - meteredCost;
-								const profitToneClass =
-									profit > 0 ? 'text-emerald-700' : profit < 0 ? 'text-red-600' : 'text-gray-600';
-								const expanded = detailLogId === log.id;
-								return (
-									<Fragment key={log.id}>
-										<tr
-											className={`cursor-pointer hover:bg-gray-50 ${
-												expanded ? 'bg-slate-50' : profit < 0 ? 'bg-amber-50/50' : ''
-											}`}
-											onClick={() => {
-												if (expanded) {
-													setDetailLogId(null);
-												} else {
-													setDetailLogId(log.id);
-													setResponseView('list');
-												}
-											}}
-											aria-expanded={expanded}
-										>
-											<td className="whitespace-nowrap px-4 py-3 text-gray-700">
-												{formatDateTime(log.created_at)}
-											</td>
-											<td className="px-4 py-3 font-mono text-xs text-gray-900">{toolLabel(log.model_id)}</td>
-											<td className="px-4 py-3 font-mono text-xs text-indigo-700" title={engine ?? undefined}>
-												{engine || '—'}
-											</td>
-											<td className="max-w-[18rem] truncate px-4 py-3 text-gray-800" title={req.query ?? ''}>
-												{req.query || '—'}
-											</td>
-											<td className="max-w-[12rem] truncate px-4 py-3 text-gray-700" title={log.user_email ?? ''}>
-												{log.user_email || '—'}
-											</td>
-											<td className="px-4 py-3">
-												<span
-													className={
-														log.status === 'success'
-															? 'text-green-700'
-															: log.status === 'error'
-																? 'text-red-700'
-																: 'text-gray-700'
-													}
-												>
-													{log.status}
-												</span>
-											</td>
-											<td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
-												{res.resultCount != null ? res.resultCount : '—'}
-											</td>
-											<td
-												className="px-4 py-3 text-right font-mono text-xs tabular-nums text-gray-800"
-												title={t('invocations.titles.standard')}
-											>
-												{formatGatewayMoneyCompact(standardCost, billingCurrency)}
-											</td>
-											<td
-												className="px-4 py-3 text-right font-mono text-xs tabular-nums text-gray-900"
-												title={t('invocations.titles.charged')}
-											>
-												{formatGatewayMoneyCompact(chargedCost, billingCurrency)}
-											</td>
-											<td
-												className="px-4 py-3 text-right font-mono text-xs tabular-nums text-gray-700"
-												title={t('invocations.titles.metered')}
-											>
-												{formatGatewayMoneyCompact(meteredCost, billingCurrency)}
-											</td>
-											<td
-												className={`px-4 py-3 text-right font-mono text-xs font-medium tabular-nums ${profitToneClass}`}
-												title={t('invocations.titles.profit')}
-											>
-												{formatGatewayMoneyCompactSigned(profit, billingCurrency)}
-											</td>
-											<td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
-												{log.latency_ms != null ? `${log.latency_ms} ms` : '—'}
-											</td>
-										</tr>
-										{expanded && (
-											<tr className="bg-slate-50">
-												<td colSpan={12} className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-													<div className="grid items-stretch gap-4 lg:grid-cols-2">
-														<div className="flex min-h-[18rem] flex-col">
-															<h3 className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">
-																{t('invocations.detail.request')}
-															</h3>
-															<pre className="min-h-0 flex-1 overflow-auto rounded-md border border-gray-200 bg-white p-3 font-mono text-xs text-gray-800 whitespace-pre-wrap break-all">
-																{log.request_body
-																	? JSON.stringify(req.raw ?? log.request_body, null, 2)
-																	: '—'}
-															</pre>
-														</div>
-														<div className="flex min-h-[18rem] flex-col">
-															<div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-																<h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-																	{t('invocations.detail.response')}
-																</h3>
-																<div
-																	className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 text-xs shadow-sm"
-																	role="tablist"
-																	aria-label={t('invocations.detail.responseFormat')}
-																>
-																	<button
-																		type="button"
-																		role="tab"
-																		aria-selected={responseView === 'list'}
-																		onClick={() => setResponseView('list')}
-																		className={`rounded px-2.5 py-1 font-medium ${
-																			responseView === 'list'
-																				? 'bg-gray-900 text-white'
-																				: 'text-gray-600 hover:bg-gray-50'
-																		}`}
-																	>
-																		{t('invocations.detail.formatList')}
-																	</button>
-																	<button
-																		type="button"
-																		role="tab"
-																		aria-selected={responseView === 'json'}
-																		onClick={() => setResponseView('json')}
-																		className={`rounded px-2.5 py-1 font-medium ${
-																			responseView === 'json'
-																				? 'bg-gray-900 text-white'
-																				: 'text-gray-600 hover:bg-gray-50'
-																		}`}
-																	>
-																		{t('invocations.detail.formatJson')}
-																	</button>
-																</div>
-															</div>
-															<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-gray-200 bg-white">
-																{log.error_message ? (
-																	<p className="shrink-0 border-b border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-																		{log.error_message}
-																	</p>
-																) : null}
-																{responseView === 'list' ? (
-																	res.results.length > 0 ? (
-																		<ul className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-																			{res.results.map((item, idx) => (
-																				<li key={`${item.url ?? 'r'}-${idx}`} className="text-xs">
-																					{item.url ? (
-																						<a
-																							href={item.url}
-																							target="_blank"
-																							rel="noreferrer"
-																							className="font-medium text-blue-700 hover:underline"
-																						>
-																							{item.title || item.url}
-																						</a>
-																					) : (
-																						<span className="font-medium text-gray-900">{item.title || '—'}</span>
-																					)}
-																					{item.snippet ? (
-																						<p className="mt-0.5 line-clamp-2 text-gray-600">{item.snippet}</p>
-																					) : null}
-																				</li>
-																			))}
-																		</ul>
-																	) : (
-																		<div className="flex min-h-0 flex-1 items-center justify-center px-3 py-6 text-xs text-gray-500">
-																			{log.raw_usage
-																				? t('invocations.detail.noListResults')
-																				: t('invocations.detail.noResponseStored')}
-																		</div>
-																	)
-																) : (
-																	<pre className="min-h-0 flex-1 overflow-auto p-3 font-mono text-xs text-gray-800 whitespace-pre-wrap break-all">
-																		{log.raw_usage
-																			? JSON.stringify(res.raw ?? log.raw_usage, null, 2)
-																			: t('invocations.detail.noResponseStored')}
-																	</pre>
-																)}
-															</div>
-														</div>
-													</div>
-													<p className="mt-3 text-xs text-gray-500">{t('invocations.detail.hint')}</p>
-												</td>
-											</tr>
-										)}
-									</Fragment>
-								);
-							})}
-						</tbody>
-					</table>
-					<div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-600">
-						<span>{tCommon('pageOf', { page, totalPages })} · {total}</span>
-						<div className="flex gap-2">
-							<button
-								type="button"
-								disabled={page <= 1}
-								onClick={() => setPage((p) => Math.max(1, p - 1))}
-								className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
-							>
-								{tCommon('previous')}
-							</button>
-							<button
-								type="button"
-								disabled={page >= totalPages}
-								onClick={() => setPage((p) => p + 1)}
-								className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
-							>
-								{tCommon('next')}
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
-		</div>
-	);
+ const clientReady=useSyncExternalStore(subscribeToClient,clientSnapshot,serverSnapshot),common=useTranslations('common');
+ return clientReady?<InvocationContent/>:<Spinner label={common('loading')}/>;
+}
+function InvocationContent() {
+ const t=useTranslations('tools.invocations'),tools=useTranslations('tools'),common=useTranslations('common'),shell=useTranslations('shell'),options=useTranslations('options');
+ const {businessTimezone,formatDateTime}=useGatewayDateTime(),state=useInvocationState(businessTimezone),[detail,setDetail]=useState<GatewayRequestLog|null>(null),[view,setView]=useState('list'),returnFocus=useRef<HTMLButtonElement|null>(null);
+ const query=state.query,currency=state.currency,totalPages=state.result?Math.max(1,Math.ceil(state.result.total/50)):1;
+ const readQuery=query?invocationReadQuery(query):null;if(readQuery){readQuery.delete('page');readQuery.delete('page_size');}
+ const toolLabel=(model:string|null|undefined)=>{const tool=GATEWAY_TOOLS.find(x=>x.modelId===model);return tool?tools('catalog.'+tool.nameKey):model||'—';};
+ const choose=(next:Parameters<typeof state.change>[0])=>{setDetail(null);state.change(next);};
+ const request=detail?parseToolRequestSummary(detail.request_body):null,response=detail?parseToolResponseSummary(detail.raw_usage):null;
+ const inspect=useCallback((log:GatewayRequestLog,trigger:HTMLButtonElement)=>{returnFocus.current=trigger;setView('list');setDetail(log);},[]);
+ return <div className="tool-invocations-page p-8">
+  <PageHeader title={t('title')} description={t('feedback.summary')} actions={<><Link className="invocation-link" href="/gateway/tools">{t('configureTools')}</Link>{readQuery?<Link className="invocation-link" href={'/gateway/request-logs?'+readQuery}>{t('openInRequestLogs')}</Link>:null}</>}/>
+  {state.invalidQuery?<Section title={t('feedback.filters')}><p role="alert" className="invocation-error">{t('feedback.invalidQuery')}</p><ControlButton onClick={state.reset}>{common('clearFilters')}</ControlButton></Section>:query?<Section title={t('feedback.filters')} className="invocation-filters">
+   <div className="invocation-filter-fields"><Field id="invocations-tool" label={t('toolFilter')}>{props=><Select {...props} value={query.tool} options={[{value:'',label:t('allTools')},...GATEWAY_TOOLS.map(tool=>({value:tool.id,label:tools('catalog.'+tool.nameKey)}))]} onValueChange={tool=>{if(tool!==null)choose({tool});}}/>}</Field>
+   <Field id="invocations-status" label={t('status')}>{props=><Select {...props} value={query.status} options={[{value:'',label:common('all')},{value:'success',label:options('requestStatus.success')},{value:'error',label:options('requestStatus.error')}]} onValueChange={status=>{if(status!==null)choose({status});}}/>}</Field>
+   <ControlButton variant="outline" onClick={()=>{setDetail(null);state.reset();}}>{common('clearFilters')}</ControlButton></div>
+   <GatewayTimeRangePicker value={query.range} onChange={range=>choose({range})}/>
+  </Section>:null}
+  {state.currencyFailure?<ShellError title={t('feedback.currencyFailed')} failure={state.currencyFailure} action={<ControlButton variant="outline" onClick={()=>void state.refreshCurrency()}>{shell('retry')}</ControlButton>}/>:state.currencyLoading?<Spinner label={common('loading')}/>:null}
+  {state.failure?<ShellError title={t('feedback.readFailed')} failure={state.failure} action={<ControlButton variant="outline" onClick={()=>void state.refresh()}>{shell('retry')}</ControlButton>}/>:state.loading?<Spinner label={common('loading')}/>:state.result&&query?<>
+   {state.result.logs.length?<div className="invocation-list"><InvocationTable logs={state.result.logs} currency={currency} onInspect={inspect}/></div>:<EmptyState title={t('empty')}/>}
+   <div className="invocation-pagination"><p role="status">{common('pageOf',{page:query.page,totalPages})} · {state.result.total}</p><div><ControlButton variant="outline" disabled={query.page<=1} onClick={()=>choose({page:query.page-1})}>{common('previous')}</ControlButton><ControlButton variant="outline" disabled={query.page>=totalPages} onClick={()=>choose({page:query.page+1})}>{common('next')}</ControlButton></div></div>
+  </>:null}
+  <Drawer open={detail!==null} onOpenChange={open=>{if(!open)setDetail(null);}} title={common('details')} description={detail?`${toolLabel(detail.model_id)} · ${detail.id}`:undefined} finalFocus={()=>returnFocus.current} className="invocation-detail-drawer">
+   {detail&&request&&response?<div className="invocation-detail"><div className="invocation-detail-summary"><p>{formatDateTime(detail.created_at)}</p><p>{resolveToolEngineProvider(detail)||'—'} · {detail.user_email||'—'}</p></div>
+    <div className="invocation-payloads"><section><h3>{t('detail.request')}</h3>{request.invalid?<p role="alert" className="invocation-error">{t('feedback.payloadInvalid')}</p>:null}<pre>{request.text||'—'}</pre></section>
+    <section><h3>{t('detail.response')}</h3>{detail.error_message?<p role="alert" className="invocation-error">{detail.error_message}</p>:null}{response.invalid?<p role="alert" className="invocation-error">{t('feedback.payloadInvalid')}</p>:null}
+     <Tabs value={view} onValueChange={setView} label={t('detail.responseFormat')} items={[{value:'list',label:t('detail.formatList'),content:response.invalid?<p>{t('feedback.inspectRaw')}</p>:response.results.length?<ul className="invocation-results">{response.results.map((item,i)=>{const href=item.url?toolResultHref(item.url):null;return <li key={i}>{href?<a className="invocation-link" href={href} target="_blank" rel="noopener noreferrer">{item.title||item.url}</a>:<p>{item.title||item.url||'—'}</p>}{item.url&&!href?<p className="invocation-error" role="alert">{t('feedback.unsafeResultUrl')}</p>:null}{item.siteName?<p className="invocation-muted">{item.siteName}</p>:null}{item.snippet?<p>{item.snippet}</p>:null}</li>;})}</ul>:<p className="invocation-muted">{response.text?t('detail.noListResults'):t('detail.noResponseStored')}</p>},{value:'json',label:t('detail.formatJson'),content:<pre>{response.text||t('detail.noResponseStored')}</pre>}]}/>
+    </section></div><p className="invocation-muted">{t('detail.hint')}</p>
+   </div>:null}
+  </Drawer>
+ </div>;
 }

@@ -1,10 +1,6 @@
 .request-logs-page { max-width: 1800px; margin: auto; min-width: 0; color: var(--xui-text); }
 .request-logs-page .xui-page-header { margin-bottom: 24px; }
 .request-logs-filters { align-items: end; }
-.request-log-range { margin-top: 24px; }
-.request-log-range-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 12px; }
-.request-log-presets { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--xui-border); border-radius: var(--xui-radius-panel); }
-.request-log-range .xui-field { min-width: 0; flex: 1 1 200px; max-width: 280px; }
 .request-logs-filters .xui-field { flex: 1 1 180px; max-width: 300px; min-width: 0; }
 .request-logs-filters .xui-input, .request-logs-filters .xui-select-trigger { width: 100%; min-width: 0; }
 .request-log-list { border: 1px solid var(--xui-border); border-radius: var(--xui-radius-panel); overflow: hidden; background: var(--xui-surface); }
@@ -45,7 +41,6 @@
 @media(max-width:600px) {
  .request-logs-page { padding: 20px 16px; }
  .request-logs-filters .xui-field { max-width: none; flex-basis: 100%; }
- .request-log-range .xui-field { max-width: none; flex-basis: 100%; }
  .request-log-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
  .request-log-detail-drawer .request-log-payloads, .request-log-identifiers { grid-template-columns: minmax(0,1fr); }
 }

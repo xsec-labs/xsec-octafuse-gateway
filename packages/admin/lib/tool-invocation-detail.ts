@@ -1,113 +1,41 @@
-/**
- * 从工具调用 request_logs 行解析展示用摘要（query / 结果条数等）。
- */
+import { isRecord } from '@/lib/shell-request';
 
-export type ToolInvocationRequestSummary = {
-	query: string | null;
-	provider: string | null;
-	raw: unknown | null;
-};
-
-export type ToolInvocationResultItem = {
-	title?: string;
-	url?: string;
-	snippet?: string;
-	siteName?: string;
-};
-
-export type ToolInvocationResponseSummary = {
-	resultCount: number | null;
-	results: ToolInvocationResultItem[];
-	raw: unknown | null;
-};
-
-function tryParseJson(raw: string | null | undefined): unknown | null {
-	if (raw == null || !String(raw).trim()) {
-		return null;
-	}
-	try {
-		return JSON.parse(raw) as unknown;
-	} catch {
-		return null;
-	}
+type StoredPayload = { raw: unknown; text: string; invalid: boolean };
+/** Stored bytes stay visible when parsing or summary validation fails. */
+function payload(source: string | null | undefined): StoredPayload {
+ if (!source?.trim()) return {raw:null,text:'',invalid:false};
+ try { const raw:unknown=JSON.parse(source);return {raw,text:JSON.stringify(raw,null,2),invalid:false}; }
+ catch { return {raw:null,text:source,invalid:true}; }
 }
-
-export function parseToolRequestSummary(requestBody: string | null | undefined): ToolInvocationRequestSummary {
-	const raw = tryParseJson(requestBody);
-	if (!raw || typeof raw !== 'object') {
-		return { query: null, provider: null, raw };
-	}
-	const rec = raw as Record<string, unknown>;
-	// web-search 用 query；web-fetch 用 url（列表「查询」列复用）
-	const query =
-		typeof rec.query === 'string'
-			? rec.query
-			: typeof rec.url === 'string'
-				? rec.url
-				: null;
-	const provider = typeof rec.provider === 'string' ? rec.provider : null;
-	return { query, provider, raw };
+export type ToolInvocationRequestSummary = StoredPayload & { query: string|null; provider: string|null };
+export type ToolInvocationResultItem = { title?: string; url?: string; snippet?: string; siteName?: string };
+export type ToolInvocationResponseSummary = StoredPayload & { resultCount: number|null; results: ToolInvocationResultItem[] };
+function optionalString(record:Record<string,unknown>,key:string):boolean{return record[key]==null||typeof record[key]==='string';}
+export function parseToolRequestSummary(source: string | null | undefined): ToolInvocationRequestSummary {
+ const p=payload(source);if(!p.text)return {...p,query:null,provider:null};
+ if(p.invalid||!isRecord(p.raw)||!['query','url','provider'].every(key=>optionalString(p.raw as Record<string,unknown>,key)))return {...p,invalid:true,query:null,provider:null};
+ return {...p,query:typeof p.raw.query==='string'?p.raw.query:typeof p.raw.url==='string'?p.raw.url:null,provider:typeof p.raw.provider==='string'?p.raw.provider:null};
 }
-
-/**
- * 解析工具调用引擎：优先 `provider_model_name`（新写入），再 requestBody / pricing_audit。
- * 旧行曾把 tool id 写入 provider_model_name，需排除。
- */
-export function resolveToolEngineProvider(log: {
-	model_id?: string | null;
-	provider_model_name?: string | null;
-	request_body?: string | null;
-	pricing_audit?: string | null;
-}): string | null {
-	const modelId = log.model_id?.trim() || '';
-	const fromColumn = log.provider_model_name?.trim() || '';
-	if (fromColumn && fromColumn !== modelId && !fromColumn.startsWith('tool:')) {
-		return fromColumn;
-	}
-	const fromRequest = parseToolRequestSummary(log.request_body).provider;
-	if (fromRequest?.trim()) {
-		return fromRequest.trim();
-	}
-	const audit = tryParseJson(log.pricing_audit);
-	if (audit && typeof audit === 'object') {
-		const p = (audit as Record<string, unknown>).provider;
-		if (typeof p === 'string' && p.trim()) {
-			return p.trim();
-		}
-	}
-	return null;
+export function parseToolResponseSummary(source: string | null | undefined): ToolInvocationResponseSummary {
+ const p=payload(source),invalid=():ToolInvocationResponseSummary=>({...p,invalid:true,resultCount:null,results:[]});if(!p.text)return {...p,resultCount:null,results:[]};
+ if(p.invalid||!isRecord(p.raw))return invalid();const r=p.raw;
+ if(r.result_count!=null&&(!Number.isSafeInteger(r.result_count)||Number(r.result_count)<0))return invalid();
+ if(!['title','url','content_preview'].every(key=>optionalString(r,key)))return invalid();
+ if(r.results!=null&&!Array.isArray(r.results))return invalid();
+ const results:ToolInvocationResultItem[]=[];
+ for(const item of (r.results??[]) as unknown[]){
+  if(!isRecord(item)||!['title','url','snippet','content_preview','siteName'].every(key=>optionalString(item,key)))return invalid();
+  results.push({title:typeof item.title==='string'?item.title:undefined,url:typeof item.url==='string'?item.url:undefined,snippet:typeof item.snippet==='string'?item.snippet:typeof item.content_preview==='string'?item.content_preview:undefined,siteName:typeof item.siteName==='string'?item.siteName:undefined});
+ }
+ if(!results.length&&(typeof r.content_preview==='string'||typeof r.url==='string'))results.push({title:typeof r.title==='string'?r.title:undefined,url:typeof r.url==='string'?r.url:undefined,snippet:typeof r.content_preview==='string'?r.content_preview:undefined});
+ return {...p,resultCount:typeof r.result_count==='number'?r.result_count:results.length?results.length:null,results};
 }
-
-export function parseToolResponseSummary(rawUsage: string | null | undefined): ToolInvocationResponseSummary {
-	const raw = tryParseJson(rawUsage);
-	if (!raw || typeof raw !== 'object') {
-		return { resultCount: null, results: [], raw };
-	}
-	const rec = raw as Record<string, unknown>;
-	const resultCount = typeof rec.result_count === 'number' ? rec.result_count : null;
-	const resultsRaw = Array.isArray(rec.results) ? rec.results : [];
-	const results: ToolInvocationResultItem[] = resultsRaw
-		.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
-		.map((x) => ({
-			title: typeof x.title === 'string' ? x.title : undefined,
-			url: typeof x.url === 'string' ? x.url : undefined,
-			snippet:
-				typeof x.snippet === 'string'
-					? x.snippet
-					: typeof x.content_preview === 'string'
-						? x.content_preview
-						: undefined,
-			siteName: typeof x.siteName === 'string' ? x.siteName : undefined,
-		}));
-
-	// web-fetch：单页摘要（content_preview / title / url）
-	if (results.length === 0 && (typeof rec.content_preview === 'string' || typeof rec.url === 'string')) {
-		results.push({
-			title: typeof rec.title === 'string' ? rec.title : undefined,
-			url: typeof rec.url === 'string' ? rec.url : undefined,
-			snippet: typeof rec.content_preview === 'string' ? rec.content_preview : undefined,
-		});
-	}
-
-	return { resultCount: resultCount ?? (results.length > 0 ? results.length : null), results, raw };
+/** Engine columns and historical request/audit fields are the established data sources. */
+export function resolveToolEngineProvider(log:{model_id?:string|null;provider_model_name?:string|null;request_body?:string|null;pricing_audit?:string|null}):string|null {
+ const model=log.model_id?.trim(),column=log.provider_model_name?.trim();if(column&&column!==model&&!column.startsWith('tool:'))return column;
+ const request=parseToolRequestSummary(log.request_body);if(!request.invalid&&request.provider?.trim())return request.provider.trim();
+ const audit=payload(log.pricing_audit);if(!audit.invalid&&isRecord(audit.raw)&&typeof audit.raw.provider==='string'&&audit.raw.provider.trim())return audit.raw.provider.trim();return null;
+}
+export function toolResultHref(raw:string):string|null {
+ try{const url=new URL(raw);return ['http:','https:'].includes(url.protocol)?url.href:null;}catch{return null;}
 }

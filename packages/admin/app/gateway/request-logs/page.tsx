@@ -40,7 +40,7 @@ import {
 } from '@/lib/analytics-range';
 import { formatGatewayMoneyCode, formatGatewayMoneyCodeSigned, getGatewayCurrencySymbol } from '@/lib/format-gateway-currency';
 import { summarizePricingAuditJson } from '@/lib/pricing-ui';
-import { parseModels, parseProviders, parseRoutes, parseCurrency, parseLogs } from './log-api';
+import { parseModels, parseProviders, parseRoutes, parseCurrency, parseLogs } from '@/lib/gateway-log-api';
 import { useLogResource } from './use-log-resource';
 import { useGatewayDateTime } from '@/lib/use-gateway-datetime';
 import './request-logs.css';

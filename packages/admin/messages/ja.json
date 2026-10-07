@@ -1721,6 +1721,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "絞り込み",
+				"summary": "ツール呼び出し、料金、結果の要約を確認します。",
+				"invalidQuery": "リンクの絞り込み条件が無効です。条件をクリアして新しい検索を開始してください。",
+				"currencyFailed": "課金通貨を読み取れませんでした",
+				"readFailed": "ツール呼び出し履歴を読み取れませんでした",
+				"payloadInvalid": "保存されたツール内容の形式が無効です。元の内容は確認できます。",
+				"inspectRaw": "JSONに切り替えて保存内容を確認してください。",
+				"unsafeResultUrl": "この結果リンクは開けません。HTTPとHTTPSのリンクのみ対応しています。"
+			},
 			"title": "Tool 呼び出し履歴",
 			"subtitle": "provider octafuse-tools（model_id tool:*）として課金された呼び出しです。行をクリックするとクエリと結果概要を確認できます。リクエストログと同じ元データです。",
 			"configureTools": "Tools を設定 →",
