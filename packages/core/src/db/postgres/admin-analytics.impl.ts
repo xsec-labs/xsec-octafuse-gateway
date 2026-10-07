@@ -104,13 +104,13 @@ export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClien
 				AND rl.user_email IS NOT NULL AND rl.user_email != ''
 				AND rl.user_email LIKE $3
 			GROUP BY rl.user_email`;
-				return (await pg.unsafe(q, [options.start, options.end, like])) as UserAnalyticsRow[];
+				return (await pg.unsafe(q, [postgresUtcBoundary(options.start), postgresUtcBoundary(options.end), like])) as UserAnalyticsRow[];
 			}
 			const q = `${userSel}
 		WHERE rl.created_at >= $1 AND rl.created_at <= $2
 			AND rl.user_email IS NOT NULL AND rl.user_email != ''
 		GROUP BY rl.user_email`;
-			return (await pg.unsafe(q, [options.start, options.end])) as UserAnalyticsRow[];
+			return (await pg.unsafe(q, [postgresUtcBoundary(options.start), postgresUtcBoundary(options.end)])) as UserAnalyticsRow[];
 		},
 
 		async queryProviderAnalytics(options: { start: string; end: string; tag?: string; modelId?: string; routeGroup?: string }): Promise<ProviderAnalyticsRow[]> {
