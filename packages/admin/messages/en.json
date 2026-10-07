@@ -1054,7 +1054,15 @@
 		"toolProtocolHidden": "Tools always use JSON POST /v1/tools/* — protocol selection does not apply.",
 		"readyNeedTool": "Select a tool.",
 		"errSelectTool": "Select a tool before Send.",
-		"openToolsInvocations": "Open Tools Invocations"
+		"openToolsInvocations": "Open Tools Invocations",
+		"setup": {
+			"emptyKeys": "No API keys match this filter",
+			"keyReady": "API key ready",
+			"settingsFailed": "Saved settings could not be used",
+			"settingsReadFailed": "The saved settings could not be read or have an invalid format. Retry or reset to defaults.",
+			"settingsWriteFailed": "The settings could not be saved. Retry or reset to defaults.",
+			"resetSettings": "Reset saved settings"
+		}
 	},
 	"users": {
 		"title": "Users",

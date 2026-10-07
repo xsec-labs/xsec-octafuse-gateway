@@ -5,46 +5,45 @@
  * exercising auth, routing, billing, and request logs (unlike Playground upstream tests).
  */
 import { useTranslations } from 'next-intl';
+import { memo } from 'react';
+import { ControlButton,ErrorState,PageHeader,Spinner } from '@xsec/ui-react';
+import ShellError from '@/components/layout/ShellError';
+import './setup.css';
 import { SimulatorRequestPanel } from './components/simulator-request-panel';
-import { SimulatorResponsePanel } from './components/simulator-response-panel';
-import { SimulatorRoutingPanel } from './components/simulator-routing-panel';
+import { SimulatorResponsePanel as ResponsePanel } from './components/simulator-response-panel';
+import { SimulatorRoutingPanel as RoutingPanel } from './components/simulator-routing-panel';
 import { SimulatorSetupPanel } from './components/simulator-setup-panel';
 import { useSimulatorPageState } from './use-simulator-page-state';
+
+const SimulatorResponsePanel = memo(ResponsePanel);
+const SimulatorRoutingPanel = memo(RoutingPanel);
 
 export default function SimulatorPage() {
 	const t = useTranslations('simulator');
 	const tBrand = useTranslations('brand');
 	const tCommon = useTranslations('common');
+	const tShell = useTranslations('shell');
 	const s = useSimulatorPageState();
 
-	if (s.loadingCatalog) {
+	if(s.settingsError) {
+		return <div className="simulator-read-state"><ErrorState title={t('setup.settingsFailed')} description={t(s.settingsError==='read' ? 'setup.settingsReadFailed' : 'setup.settingsWriteFailed')} errorId={s.settingsError==='read' ? 'SIMULATOR_SETTINGS_READ_FAILED' : 'SIMULATOR_SETTINGS_WRITE_FAILED'} action={<div className="simulator-settings-actions"><ControlButton variant="outline" onClick={s.retrySettings}>{tShell('retry')}</ControlButton><ControlButton variant="outline" onClick={s.resetSettings}>{t('setup.resetSettings')}</ControlButton></div>} /></div>;
+	}
+	if (!s.hydrated||s.loadingCatalog) {
 		return (
 			<div className="flex items-center justify-center h-full min-h-[240px]">
-				<div className="text-gray-600">{tCommon('loading')}</div>
+				<Spinner label={tCommon('loading')} />
 			</div>
 		);
 	}
+	if(s.catalogError) return <div className="simulator-read-state"><ShellError title={tCommon('failedToLoadModels')} failure={s.catalogError} action={<ControlButton variant="outline" onClick={s.refreshCatalog}>{tShell('retry')}</ControlButton>} /></div>;
 
 	return (
-		<div className="min-w-0 overflow-x-hidden bg-gray-100/90 p-4 pb-6 sm:p-6 lg:p-8">
-			<div className="mb-5 sm:mb-6">
-				<h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('title')}</h1>
-				<p className="mt-1 text-sm text-gray-500 max-w-3xl">
-					{t('subtitle', { product: tBrand('product') })}
-					<span className="text-gray-400"> · </span>
-					{t('usageNote')}
-				</p>
-			</div>
+		<div className="simulator-page min-w-0 overflow-x-hidden p-4 pb-6 sm:p-6 lg:p-8">
+			<PageHeader title={t('title')} description={t('subtitle',{product:tBrand('product')})+' · '+t('usageNote')} />
 
-			{s.catalogError ? (
-				<div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm max-w-3xl">
-					{s.catalogError}
-				</div>
-			) : null}
-
-			<div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white/70 shadow-sm ring-1 ring-black/[0.02]">
+			<div className="simulator-workbench overflow-hidden rounded-2xl border">
 				<div className="flex min-w-0 flex-col xl:flex-row xl:items-stretch">
-					<aside className="w-full shrink-0 border-b border-gray-200/80 bg-slate-50/80 p-4 xl:w-[380px] xl:border-b-0 xl:border-r xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto">
+					<aside className="simulator-sidebar w-full shrink-0 border-b p-4 xl:w-[380px] xl:border-b-0 xl:border-r xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto">
 						<div className="space-y-4">
 							<SimulatorSetupPanel
 								proxyBaseUrl={s.proxyBaseUrl}
@@ -63,12 +62,13 @@ export default function SimulatorPage() {
 								keysError={s.keysError}
 								keys={s.keys}
 								keysTotal={s.keysTotal}
-								onRefreshKeys={() => void s.loadKeys()}
+								onRefreshKeys={s.loadKeys}
 								selectedKeyId={s.selectedKeyId}
 								onSelectedKeyIdChange={s.setSelectedKeyId}
 								revealedSk={s.revealedSk}
 								revealLoading={s.revealLoading}
 								revealError={s.revealError}
+								onRetryReveal={s.retryReveal}
 							/>
 							<SimulatorRoutingPanel
 								filterKind={s.filterKind}
@@ -97,7 +97,7 @@ export default function SimulatorPage() {
 						</div>
 					</aside>
 
-					<section className="min-w-0 flex-1 bg-slate-100/70 p-4 sm:p-5 space-y-4">
+					<section className="simulator-exchange min-w-0 flex-1 p-4 sm:p-5 space-y-4">
 						<SimulatorRequestPanel
 							bodyText={s.bodyText}
 							onBodyTextChange={s.setBodyText}

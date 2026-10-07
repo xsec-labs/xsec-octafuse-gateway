@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { flushSync } from 'react-dom';
-import { readApiJson } from '@/lib/api-json';
+import { useShellRequest, shellFailure, type ShellFailure } from '@/lib/shell-request';
+import { notifyAdminSessionExpired } from '@/lib/admin-session-events';
+import { readSimulatorCatalog, parseSimulatorKeys, parseSimulatorKey } from './setup-api';
+import { readSimulatorSettings, saveSimulatorSettings, DEFAULT_SIMULATOR_SETTINGS, type SimulatorSettings } from './preferences';
 import { isAudioRouteModel, validateAudioTranscriptionFile } from '@/lib/audio-transcriptions';
 import {
 	imageRequestMetaFromBody,
@@ -30,7 +33,6 @@ import {
 	DEFAULT_INVOKE_KIND,
 	emptyModelKindCounts,
 	GATEWAY_TOOL_IDS,
-	isInvokeKind,
 	modelKindFromFlags,
 	parseGatewayToolId,
 	resolveRequestOperation,
@@ -43,14 +45,6 @@ import {
 	BODY_TEMPLATES,
 	bodyTemplateForSelection,
 	bodyTemplateForTool,
-	KEYS_PAGE_SIZE,
-	LS_INVOKE_KIND,
-	LS_KEY_ID,
-	LS_MODEL_ID,
-	LS_PROTOCOL,
-	LS_PROXY,
-	LS_ROUTE_GROUP,
-	LS_TOOL_ID,
 	buildModelRoutingString,
 	filterMatchingActiveRoutes,
 	isBodyDirty,
@@ -79,7 +73,9 @@ export function useSimulatorPageState() {
 	const [models, setModels] = useState<AdminModelRow[]>([]);
 	const [routes, setRoutes] = useState<RouteListRow[]>([]);
 	const [loadingCatalog, setLoadingCatalog] = useState(true);
-	const [catalogError, setCatalogError] = useState<string | null>(null);
+	const [catalogError, setCatalogError] = useState<ShellFailure | null>(null);
+	const [catalogAttempt, setCatalogAttempt] = useState(0);
+	const refreshCatalog = useCallback(() => { setLoadingCatalog(true); setCatalogError(null); setCatalogAttempt(value => value + 1); }, []);
 
 	/** llm|image|audio|tool；tool 时走 `/v1/tools/*`，隐藏 model/route */
 	const [filterKind, setFilterKind] = useState<InvokeKind>(DEFAULT_INVOKE_KIND);
@@ -91,14 +87,18 @@ export function useSimulatorPageState() {
 
 	const [keys, setKeys] = useState<AdminKeyListItem[]>([]);
 	const [keysTotal, setKeysTotal] = useState(0);
-	const [filterKeyEmail, setFilterKeyEmail] = useState('');
+	const [filterKeyEmail, setFilterKeyEmailState] = useState('');
 	const [loadingKeys, setLoadingKeys] = useState(false);
-	const [keysError, setKeysError] = useState<string | null>(null);
+	const [keysError, setKeysError] = useState<ShellFailure | null>(null);
+	const { run: runKeys, cancel: cancelKeys } = useShellRequest();
+	const { run: runReveal, cancel: cancelReveal } = useShellRequest();
 
-	const [selectedKeyId, setSelectedKeyId] = useState('');
+	const [selectedKeyId, setSelectedKeyIdState] = useState('');
 	const [revealedSk, setRevealedSk] = useState<string | null>(null);
 	const [revealLoading, setRevealLoading] = useState(false);
-	const [revealError, setRevealError] = useState<string | null>(null);
+	const [revealError, setRevealError] = useState<ShellFailure | null>(null);
+	const [revealAttempt, setRevealAttempt] = useState(0);
+	const retryReveal = useCallback(() => setRevealAttempt(value => value + 1), []);
 
 	const [bodyText, setBodyText] = useState(BODY_TEMPLATES.openai);
 	const [bodyError, setBodyError] = useState<string | null>(null);
@@ -115,6 +115,24 @@ export function useSimulatorPageState() {
 	const [responseTab, setResponseTab] = useState<ResponseTab>('merged');
 	const [imagePreviews, setImagePreviews] = useState<ImagePreviewItem[]>([]);
 	const [hydrated, setHydrated] = useState(false);
+ const [settingsError, setSettingsError] = useState<'read'|'write'|null>(null);
+ const [settingsAttempt, setSettingsAttempt] = useState(0);
+ const retrySettings = useCallback(() => { setHydrated(false); setSettingsError(null); setSettingsAttempt(value=>value+1); }, []);
+ const restoreSettings = useCallback((settings:SimulatorSettings) => {
+  setProxyBaseUrl(settings.proxyBaseUrl);setProtocolState(settings.protocol);setFilterKind(settings.invokeKind);
+  setSelectedToolId(settings.toolId);setSelectedModelId(settings.modelId);setRouteGroup(settings.routeGroup);setSelectedKeyIdState(settings.keyId);
+  setBodyText(settings.invokeKind==='tool' ? bodyTemplateForTool(settings.toolId) : BODY_TEMPLATES[settings.protocol]);
+ }, []);
+ const resetSettings = useCallback(() => {
+  try { saveSimulatorSettings(localStorage,DEFAULT_SIMULATOR_SETTINGS);restoreSettings(DEFAULT_SIMULATOR_SETTINGS);setSettingsError(null);setHydrated(true); }
+  catch { setSettingsError('write'); }
+ }, [restoreSettings]);
+ const setFilterKeyEmail = useCallback((value:string) => {
+  cancelKeys();cancelReveal();setKeys([]);setKeysTotal(0);setRevealedSk(null);setSelectedKeyIdState('');setLoadingKeys(true);setFilterKeyEmailState(value);
+ }, [cancelKeys,cancelReveal]);
+ const setSelectedKeyId = useCallback((value:string) => {
+  cancelReveal();setRevealedSk(null);setRevealError(null);setRevealLoading(Boolean(value));setSelectedKeyIdState(value);
+ }, [cancelReveal]);
 
 	const streamEndRef = useRef<HTMLSpanElement>(null);
 	const mergedStreamEndRef = useRef<HTMLSpanElement>(null);
@@ -403,134 +421,27 @@ export function useSimulatorPageState() {
 		mergedStreamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, []);
 
-	useEffect(() => {
-		try {
-			const u = localStorage.getItem(LS_PROXY);
-			if (u) setProxyBaseUrl(u);
-			const p = localStorage.getItem(LS_PROTOCOL);
-			if (p === 'openai' || p === 'anthropic' || p === 'gemini') {
-				setProtocolState(p);
-				setBodyText(BODY_TEMPLATES[p]);
-			}
-			const kindRaw = localStorage.getItem(LS_INVOKE_KIND);
-			if (kindRaw && isInvokeKind(kindRaw)) {
-				setFilterKind(kindRaw);
-			}
-			const toolRaw = localStorage.getItem(LS_TOOL_ID);
-			const toolParsed = parseGatewayToolId(toolRaw);
-			if (toolParsed) {
-				setSelectedToolId(toolParsed);
-				if (kindRaw === 'tool') {
-					setBodyText(bodyTemplateForTool(toolParsed));
-				}
-			}
-			const mid = localStorage.getItem(LS_MODEL_ID);
-			if (mid) setSelectedModelId(mid);
-			const rg = localStorage.getItem(LS_ROUTE_GROUP);
-			if (rg != null) setRouteGroup(rg);
-			const kid = localStorage.getItem(LS_KEY_ID);
-			if (kid) setSelectedKeyId(kid);
-		} catch {
-			// ignore
-		}
-		setHydrated(true);
-	}, []);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			localStorage.setItem(LS_PROXY, proxyBaseUrl);
-		} catch {
-			// ignore
-		}
-	}, [proxyBaseUrl, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			localStorage.setItem(LS_PROTOCOL, protocol);
-		} catch {
-			// ignore
-		}
-	}, [protocol, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			if (selectedModelId) localStorage.setItem(LS_MODEL_ID, selectedModelId);
-			else localStorage.removeItem(LS_MODEL_ID);
-		} catch {
-			// ignore
-		}
-	}, [selectedModelId, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			localStorage.setItem(LS_ROUTE_GROUP, routeGroup);
-		} catch {
-			// ignore
-		}
-	}, [routeGroup, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			if (selectedKeyId) localStorage.setItem(LS_KEY_ID, selectedKeyId);
-			else localStorage.removeItem(LS_KEY_ID);
-		} catch {
-			// ignore
-		}
-	}, [selectedKeyId, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			localStorage.setItem(LS_INVOKE_KIND, filterKind);
-		} catch {
-			// ignore
-		}
-	}, [filterKind, hydrated]);
-
-	useEffect(() => {
-		if (!hydrated) return;
-		try {
-			localStorage.setItem(LS_TOOL_ID, selectedToolId);
-		} catch {
-			// ignore
-		}
-	}, [selectedToolId, hydrated]);
-
-	useEffect(() => {
-		let cancelled = false;
-		(async () => {
-			setLoadingCatalog(true);
-			setCatalogError(null);
-			try {
-				const [mRes, rRes] = await Promise.all([fetch('/api/admin/models'), fetch('/api/admin/routes')]);
-				const mData = await readApiJson<AdminModelRow[]>(mRes);
-				const rData = await readApiJson<RouteListRow[]>(rRes);
-				if (cancelled) return;
-				if (mData.success && Array.isArray(mData.data)) {
-					setModels(mData.data);
-				} else {
-					setCatalogError(mData.message ?? tCommon('failedToLoadModels'));
-				}
-				if (rData.success && Array.isArray(rData.data)) {
-					setRoutes(rData.data);
-				} else if (!cancelled) {
-					setCatalogError((prev) => prev ?? rData.message ?? tCommon('failedToLoadRoutes'));
-				}
-			} catch (e) {
-				if (!cancelled) setCatalogError(e instanceof Error ? e.message : tCommon('failedToLoadModels'));
-			} finally {
-				if (!cancelled) setLoadingCatalog(false);
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, [tCommon]);
+ useEffect(() => {
+  try { const settings=readSimulatorSettings(localStorage);restoreSettings(settings);setSettingsError(null);setHydrated(true); }
+  catch { setSettingsError('read');setHydrated(false); }
+ }, [settingsAttempt,restoreSettings]);
+ useEffect(() => {
+  if(!hydrated||settingsError)return;
+  try { saveSimulatorSettings(localStorage,{version:1,proxyBaseUrl,protocol,modelId:selectedModelId,routeGroup,keyId:selectedKeyId,invokeKind:filterKind,toolId:selectedToolId}); }
+  catch { setSettingsError('write'); }
+ }, [hydrated,settingsError,proxyBaseUrl,protocol,selectedModelId,routeGroup,selectedKeyId,filterKind,selectedToolId]);
+ useEffect(() => {
+  if(!hydrated||settingsError)return;
+  const controller=new AbortController();let current=true;
+  setLoadingCatalog(true);setCatalogError(null);
+  void readSimulatorCatalog(controller).then(data=>{
+   if(!current)return;setModels(data.models);setRoutes(data.routes);setLoadingCatalog(false);
+  },error=>{
+   if(!current)return;const failure=shellFailure(error);setModels([]);setRoutes([]);setCatalogError(failure);setLoadingCatalog(false);
+   if(failure.status===401)notifyAdminSessionExpired();
+  });
+  return ()=>{current=false;controller.abort();};
+ }, [hydrated,settingsError,catalogAttempt]);
 
 	useEffect(() => {
 		if (!selectedModelId) return;
@@ -607,65 +518,28 @@ export function useSimulatorPageState() {
 		[imageOperation, selectedModelIsImage, protocol]
 	);
 
-	const loadKeys = useCallback(async () => {
-		setLoadingKeys(true);
-		setKeysError(null);
-		try {
-			const sp = new URLSearchParams({
-				page: '1',
-				page_size: String(KEYS_PAGE_SIZE),
-			});
-			if (filterKeyEmail.trim()) sp.set('email', filterKeyEmail.trim());
-			const res = await fetch(`/api/admin/keys?${sp.toString()}`);
-			const data = await readApiJson<AdminKeyListItem[]>(res);
-			if (data.success && Array.isArray(data.data) && typeof data.total === 'number') {
-				setKeys(data.data);
-				setKeysTotal(data.total);
-			} else {
-				setKeysError(data.message ?? tCommon('failedToLoadApiKeys'));
-			}
-		} catch (e) {
-			setKeysError(e instanceof Error ? e.message : tCommon('failedToLoadApiKeys'));
-		} finally {
-			setLoadingKeys(false);
-		}
-	}, [filterKeyEmail, tCommon]);
-
-	useEffect(() => {
-		void loadKeys();
-	}, [loadKeys]);
-
-	useEffect(() => {
-		if (!selectedKeyId) {
-			setRevealedSk(null);
-			setRevealError(null);
-			setRevealLoading(false);
-			return;
-		}
-		let cancelled = false;
-		setRevealLoading(true);
-		setRevealError(null);
-		setRevealedSk(null);
-		void (async () => {
-			try {
-				const res = await fetch(`/api/admin/keys/${encodeURIComponent(selectedKeyId)}`);
-				const data = await readApiJson<{ key: string }>(res);
-				if (cancelled) return;
-				if (data.success && data.data && typeof data.data.key === 'string') {
-					setRevealedSk(data.data.key);
-				} else {
-					setRevealError(data.message ?? tCommon('failedToLoadApiKeys'));
-				}
-			} catch (e) {
-				if (!cancelled) setRevealError(e instanceof Error ? e.message : tCommon('failedToLoadApiKeys'));
-			} finally {
-				if (!cancelled) setRevealLoading(false);
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, [selectedKeyId, tCommon]);
+ const loadKeys = useCallback(async () => {
+  cancelReveal();setRevealedSk(null);setRevealError(null);setRevealLoading(false);setKeys([]);setKeysTotal(0);setLoadingKeys(true);setKeysError(null);
+  const sp=new URLSearchParams({page:'1',page_size:'200'});
+  if(filterKeyEmail.trim())sp.set('email',filterKeyEmail.trim());
+  await runKeys('/api/admin/keys?'+sp.toString(),{},parseSimulatorKeys,data=>{
+   setKeys(data.keys);setKeysTotal(data.total);setSelectedKeyIdState(id=>data.keys.some(row=>row.id===id) ? id : '');setLoadingKeys(false);
+  },failure=>{setKeysError(failure);setLoadingKeys(false);if(failure.status===401)notifyAdminSessionExpired();});
+ }, [filterKeyEmail,runKeys,cancelReveal]);
+ useEffect(() => {
+  if(!hydrated||settingsError||loadingCatalog||catalogError)return;
+  void loadKeys();
+  return cancelKeys;
+ }, [loadKeys,cancelKeys,hydrated,settingsError,loadingCatalog,catalogError]);
+ useEffect(() => {
+  setRevealedSk(null);setRevealError(null);
+  if(!selectedKeyId||loadingKeys||keysError||!keys.some(row=>row.id===selectedKeyId)||!hydrated||settingsError||loadingCatalog||catalogError){setRevealLoading(false);return;}
+  setRevealLoading(true);
+  void runReveal('/api/admin/keys/'+encodeURIComponent(selectedKeyId),{},body=>parseSimulatorKey(body,selectedKeyId),key=>{
+   setRevealedSk(key);setRevealLoading(false);
+  },failure=>{setRevealError(failure);setRevealLoading(false);if(failure.status===401)notifyAdminSessionExpired();});
+  return cancelReveal;
+ }, [selectedKeyId,loadingKeys,keysError,keys,runReveal,cancelReveal,revealAttempt,hydrated,settingsError,loadingCatalog,catalogError]);
 
 	const applyProtocolTemplate = useCallback(
 		(next: SimulatorProtocol, isImage = selectedModelIsImage, isAudio = selectedModelIsAudio) => {
@@ -993,6 +867,12 @@ export function useSimulatorPageState() {
 	return {
 		loadingCatalog,
 		catalogError,
+		refreshCatalog,
+		hydrated,
+		settingsError,
+		retrySettings,
+		resetSettings,
+		retryReveal,
 		proxyBaseUrl,
 		setProxyBaseUrl,
 		protocol,
@@ -1059,7 +939,7 @@ export function useSimulatorPageState() {
 		stop,
 		sendBlockReason,
 		sendBlockedHint,
-		canSend: sendBlockReason === null && !sending,
+		canSend: hydrated && !settingsError && !loadingCatalog && !catalogError && !loadingKeys && !keysError && !revealError && sendBlockReason === null && !sending,
 		responseMeta,
 		responseText,
 		usageHint,

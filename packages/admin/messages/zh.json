@@ -1054,7 +1054,15 @@
 		"toolProtocolHidden": "Tools 固定走 JSON POST /v1/tools/*，无需选择协议。",
 		"readyNeedTool": "请选择工具。",
 		"errSelectTool": "发送前请先选择工具。",
-		"openToolsInvocations": "打开 Tools 调用记录"
+		"openToolsInvocations": "打开 Tools 调用记录",
+		"setup": {
+			"emptyKeys": "没有符合筛选条件的 API 密钥",
+			"keyReady": "API 密钥已就绪",
+			"settingsFailed": "无法使用保存的设置",
+			"settingsReadFailed": "无法读取保存的设置或其格式无效。请重试或恢复默认设置。",
+			"settingsWriteFailed": "无法保存设置。请重试或恢复默认设置。",
+			"resetSettings": "恢复默认设置"
+		}
 	},
 	"users": {
 		"title": "用户",

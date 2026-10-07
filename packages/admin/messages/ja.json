@@ -1054,7 +1054,15 @@
 		"toolProtocolHidden": "Tools は常に JSON POST /v1/tools/* です。プロトコル選択は不要です。",
 		"readyNeedTool": "ツールを選択してください。",
 		"errSelectTool": "送信前にツールを選択してください。",
-		"openToolsInvocations": "Tools Invocations を開く"
+		"openToolsInvocations": "Tools Invocations を開く",
+		"setup": {
+			"emptyKeys": "このフィルターに一致する API キーはありません",
+			"keyReady": "API キーの準備が完了しました",
+			"settingsFailed": "保存した設定を使用できません",
+			"settingsReadFailed": "保存した設定を読み取れないか、形式が無効です。再試行するか初期設定に戻してください。",
+			"settingsWriteFailed": "設定を保存できません。再試行するか初期設定に戻してください。",
+			"resetSettings": "初期設定に戻す"
+		}
 	},
 	"users": {
 		"title": "ユーザー",

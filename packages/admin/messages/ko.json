@@ -1054,7 +1054,15 @@
 		"toolProtocolHidden": "Tools는 항상 JSON POST /v1/tools/* 입니다. 프로토콜 선택은 적용되지 않습니다.",
 		"readyNeedTool": "도구를 선택하세요.",
 		"errSelectTool": "전송 전에 도구를 선택하세요.",
-		"openToolsInvocations": "Tools Invocations 열기"
+		"openToolsInvocations": "Tools Invocations 열기",
+		"setup": {
+			"emptyKeys": "필터와 일치하는 API 키가 없습니다",
+			"keyReady": "API 키가 준비되었습니다",
+			"settingsFailed": "저장된 설정을 사용할 수 없습니다",
+			"settingsReadFailed": "저장된 설정을 읽을 수 없거나 형식이 잘못되었습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
+			"settingsWriteFailed": "설정을 저장할 수 없습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
+			"resetSettings": "기본 설정으로 복원"
+		}
 	},
 	"users": {
 		"title": "사용자",
