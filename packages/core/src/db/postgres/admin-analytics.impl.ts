@@ -13,6 +13,14 @@ import type {
 	UserAnalyticsRow,
 } from '../../storage/repository-dtos';
 
+/** Admin reliability boundaries without an explicit offset use the API's UTC SQL format. */
+function postgresUtcBoundary(value: string): string {
+	const trimmed = value.trim();
+	return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)
+		? `${trimmed.replace(' ', 'T')}Z`
+		: trimmed;
+}
+
 export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClient): AdminAnalyticsRepository {
 	const pg = db.raw;
 	return {
@@ -176,7 +184,7 @@ export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClien
 		LEFT JOIN providers p ON p.id = rl.provider_id
 		WHERE rl.created_at >= $1 AND rl.created_at <= $2 AND rl.provider_id IS NOT NULL
 		GROUP BY rl.provider_id`;
-			return (await pg.unsafe(q, [options.start, options.end])) as ProviderReliabilityRow[];
+			return (await pg.unsafe(q, [postgresUtcBoundary(options.start), postgresUtcBoundary(options.end)])) as ProviderReliabilityRow[];
 		},
 
 		async queryModelProviderReliability(options: { start: string; end: string }): Promise<ModelProviderReliabilityRow[]> {
@@ -197,7 +205,7 @@ export function createPostgresAdminAnalyticsRepository(db: PostgresDatabaseClien
 		LEFT JOIN providers p ON p.id = rl.provider_id
 		WHERE rl.created_at >= $1 AND rl.created_at <= $2 AND rl.model_id IS NOT NULL AND rl.provider_id IS NOT NULL
 		GROUP BY rl.model_id, rl.provider_id`;
-			return (await pg.unsafe(q, [options.start, options.end])) as ModelProviderReliabilityRow[];
+			return (await pg.unsafe(q, [postgresUtcBoundary(options.start), postgresUtcBoundary(options.end)])) as ModelProviderReliabilityRow[];
 		},
 	};
 }
