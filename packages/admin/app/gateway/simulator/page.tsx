@@ -10,6 +10,7 @@ import { ControlButton,ErrorState,PageHeader,Spinner } from '@xsec/ui-react';
 import ShellError from '@/components/layout/ShellError';
 import './setup.css';
 import './routing.css';
+import './exchange.css';
 import { SimulatorRequestPanel } from './components/simulator-request-panel';
 import { SimulatorResponsePanel as ResponsePanel } from './components/simulator-response-panel';
 import { SimulatorRoutingPanel as RoutingPanel } from './components/simulator-routing-panel';
@@ -107,6 +108,10 @@ export default function SimulatorPage() {
 							onApplyTemplate={s.applyCurrentTemplate}
 							infoHint={s.infoHint}
 							bodyError={s.bodyError}
+							sendErrorCode={s.sendErrorCode}
+							timeoutSeconds={s.sendTimeoutSeconds}
+							onTimeoutChange={s.setSendTimeoutSeconds}
+							timeoutError={s.timeoutError}
 							displayWire={s.displayWire}
 							wireOpen={s.wireOpen}
 							onWireOpenChange={s.setWireOpen}
@@ -137,12 +142,8 @@ export default function SimulatorPage() {
 							mergedBodyDisplay={s.mergedBodyDisplay}
 							streamEndRef={s.streamEndRef}
 							mergedStreamEndRef={s.mergedStreamEndRef}
-							selectedKeyId={s.selectedKeyId}
-							selectedModelId={s.selectedModelId}
-							routeGroup={s.routeGroup}
-							protocol={s.protocol}
-							isToolKind={s.isToolKind}
-							selectedToolId={s.selectedToolId}
+							logsHref={s.responseLogsHref}
+							isToolResponse={s.responseIsTool}
 						/>
 					</section>
 				</div>

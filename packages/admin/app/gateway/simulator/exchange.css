@@ -1,0 +1,42 @@
+.simulator-request-panel.xui-section,.simulator-response-panel.xui-section { display:grid; gap:16px; min-width:0; padding:20px; border:1px solid var(--xui-border); border-radius:var(--xui-radius-panel); background:var(--xui-surface); }
+.simulator-panel-actions,.simulator-response-meta { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.simulator-panel-actions { justify-content:flex-end; }
+.simulator-panel-actions .xui-button { min-height:44px; }
+.simulator-panel-actions svg { width:16px; height:16px; }
+.simulator-exchange-hint { margin:0; color:var(--xui-muted); font-size:12px; line-height:1.65; overflow-wrap:anywhere; }
+.simulator-target-url { display:grid; gap:4px; min-width:0; padding:12px; background:var(--xui-subtle); border:1px solid var(--xui-border); border-radius:var(--xui-radius-control); }
+.simulator-target-url p,.simulator-wire-url { margin:0; font-size:12px; line-height:1.65; overflow-wrap:anywhere; }
+.simulator-request-panel .xui-field { min-width:0; }
+.simulator-request-panel .xui-input { min-width:0; min-height:44px; }
+.simulator-request-panel input[type=number] { max-width:180px; }
+.simulator-request-panel input[type=file] { padding:8px; overflow:hidden; }
+.simulator-request-panel input::file-selector-button { margin-right:8px; padding:6px 10px; border:1px solid var(--xui-border); border-radius:var(--xui-radius-control); color:var(--xui-text); background:var(--xui-subtle); font:inherit; }
+.simulator-json-input { min-height:240px; font-family:ui-monospace,monospace; font-size:13px; resize:vertical; line-height:1.65; }
+.simulator-image-operation { min-width:0; margin:0; padding:0; border:0; }
+.simulator-image-operation .xui-radio-group { margin-top:8px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.simulator-image-operation .xui-radio-choice { min-width:0; min-height:44px; align-items:center; padding:10px; }
+.simulator-upload-list { margin:0; padding-left:20px; color:var(--xui-muted); font-size:12px; overflow-wrap:anywhere; }
+.simulator-exchange-error,.simulator-exchange-notice,.simulator-usage-hint { margin:0; padding:12px; border:1px solid var(--xui-border); border-radius:var(--xui-radius-control); background:var(--xui-subtle); font-size:13px; line-height:1.65; overflow-wrap:anywhere; }
+.simulator-exchange-error { color:var(--xui-danger); border-color:var(--xui-danger); }
+.simulator-exchange-error p { margin:0; white-space:pre-wrap; }
+.simulator-exchange-error code { display:block; margin-top:8px; font-size:11px; }
+.simulator-exchange-notice { color:var(--xui-primary); }
+.simulator-wire { min-width:0; padding-top:8px; border-top:1px solid var(--xui-border); }
+.simulator-wire-toggle.xui-button { width:100%; min-height:44px; justify-content:space-between; text-align:left; white-space:normal; }
+.simulator-wire-toggle svg { width:16px; height:16px; flex-shrink:0; }
+.simulator-wire-toggle svg[data-open=true] { transform:rotate(180deg); }
+.simulator-wire-content { display:grid; gap:12px; padding-top:12px; }
+.simulator-wire-content h3,.simulator-merged-response h3 { margin:0 0 8px; font-size:12px; font-weight:600; color:var(--xui-muted); }
+.simulator-code-block { min-width:0; max-height:320px; margin:0; padding:12px; overflow:auto; border:1px solid var(--xui-border); border-radius:var(--xui-radius-control); color:var(--xui-text); background:var(--xui-subtle); font-family:ui-monospace,monospace; font-size:12px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.simulator-response-meta .xui-badge { min-width:0; max-width:100%; }
+.simulator-content-type { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.simulator-logs-link { justify-self:start; display:inline-flex; align-items:center; min-height:44px; color:var(--xui-primary); font-size:13px; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+.simulator-logs-link:focus-visible { outline:2px solid var(--xui-focus); outline-offset:3px; border-radius:4px; }
+.simulator-response-panel .xui-tabs,.simulator-response-panel .xui-tab-panel { min-width:0; }
+.simulator-response-panel .xui-tab { min-height:44px; }
+.simulator-merged-response { display:grid; gap:16px; }
+.simulator-reasoning .simulator-code-block { max-height:min(200px,28vh); }
+.simulator-response-body { max-height:min(320px,42vh); }
+.simulator-raw-response { max-height:min(520px,55vh); }
+.simulator-stream-end { display:inline-block; width:0; height:0; overflow:hidden; }
+@media(max-width:600px) { .simulator-request-panel.xui-section,.simulator-response-panel.xui-section { padding:16px; } .simulator-panel-actions .xui-button { flex:1; } }

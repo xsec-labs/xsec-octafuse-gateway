@@ -1,278 +1,77 @@
 'use client';
-
-import { PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/outline';
+import { useId } from 'react';
+import { PaperAirplaneIcon, StopIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useTranslations } from 'next-intl';
-import { RequestTargetUrl } from '@/components/request-target-url';
+import { ControlButton, Field, Input, RadioGroup, Section, Textarea } from '@xsec/ui-react';
 import { validateAudioTranscriptionFile } from '@/lib/audio-transcriptions';
-import {
-	IMAGE_MAX_REFERENCE_COUNT,
-	validateEditImageFiles,
-	type ImageOperation,
-} from '@/lib/image-generations';
-import { codeBlockClass, inputClass, labelClass, prettyJsonBody } from '../simulator-utils';
+import { IMAGE_MAX_REFERENCE_COUNT, validateEditImageFiles, type ImageOperation } from '@/lib/image-generations';
+import { prettyJsonBody } from '../simulator-utils';
 import type { WirePreview } from '../types';
 
 type Props = {
-	bodyText: string;
-	onBodyTextChange: (v: string) => void;
-	bodyDirty: boolean;
-	onApplyTemplate: () => void;
-	infoHint: string | null;
-	bodyError: string | null;
-	displayWire: WirePreview | null;
-	wireOpen: boolean;
-	onWireOpenChange: (open: boolean) => void;
-	sending: boolean;
-	canSend: boolean;
-	sendBlockedHint: string | null;
-	onSend: () => void;
-	onStop: () => void;
-	/** Image catalog model selected with openai protocol. */
-	showImageOperation?: boolean;
-	imageOperation?: ImageOperation;
-	onImageOperationChange?: (op: ImageOperation) => void;
-	editFiles?: File[];
-	onEditFilesChange?: (files: File[]) => void;
-	/** Audio ASR model selected with openai protocol. */
-	showAudioTranscriptions?: boolean;
-	audioFile?: File | null;
-	onAudioFileChange?: (file: File | null) => void;
+ bodyText: string; onBodyTextChange: (value: string) => void; bodyDirty: boolean; onApplyTemplate: () => void;
+ infoHint: string | null; bodyError: string | null; sendErrorCode: string | null;
+ displayWire: WirePreview | null; wireOpen: boolean; onWireOpenChange: (open: boolean) => void;
+ sending: boolean; canSend: boolean; sendBlockedHint: string | null; onSend: () => void; onStop: () => void;
+ timeoutSeconds: string; onTimeoutChange: (value: string) => void; timeoutError: string | null;
+ showImageOperation?: boolean; imageOperation?: ImageOperation; onImageOperationChange?: (operation: ImageOperation) => void;
+ editFiles?: File[]; onEditFilesChange?: (files: File[]) => void;
+ showAudioTranscriptions?: boolean; audioFile?: File | null; onAudioFileChange?: (file: File | null) => void;
 };
 
 export function SimulatorRequestPanel({
-	bodyText,
-	onBodyTextChange,
-	bodyDirty,
-	onApplyTemplate,
-	infoHint,
-	bodyError,
-	displayWire,
-	wireOpen,
-	onWireOpenChange,
-	sending,
-	canSend,
-	sendBlockedHint,
-	onSend,
-	onStop,
-	showImageOperation = false,
-	imageOperation = 'generations',
-	onImageOperationChange,
-	editFiles = [],
-	onEditFilesChange,
-	showAudioTranscriptions = false,
-	audioFile = null,
-	onAudioFileChange,
+ bodyText, onBodyTextChange, bodyDirty, onApplyTemplate, infoHint, bodyError, sendErrorCode,
+ displayWire, wireOpen, onWireOpenChange, sending, canSend, sendBlockedHint, onSend, onStop,
+ timeoutSeconds, onTimeoutChange, timeoutError,
+ showImageOperation = false, imageOperation = 'generations', onImageOperationChange,
+ editFiles = [], onEditFilesChange, showAudioTranscriptions = false, audioFile = null, onAudioFileChange,
 }: Props) {
-	const t = useTranslations('simulator');
-	const tCommon = useTranslations('common');
-
-	return (
-		<section className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm space-y-3 flex flex-col min-h-0">
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<h2 className="text-sm font-semibold text-gray-900">{t('requestBody')}</h2>
-				<div className="flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						onClick={onApplyTemplate}
-						disabled={!bodyDirty || sending}
-						className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-					>
-						{t('applyTemplate')}
-					</button>
-					{sending ? (
-						<button
-							type="button"
-							onClick={onStop}
-							className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700"
-						>
-							<StopIcon className="h-4 w-4" />
-							{tCommon('stop')}
-						</button>
-					) : (
-						<button
-							type="button"
-							onClick={onSend}
-							disabled={!canSend}
-							title={sendBlockedHint ?? undefined}
-							className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-						>
-							<PaperAirplaneIcon className="h-4 w-4" />
-							{tCommon('send')}
-						</button>
-					)}
-				</div>
-			</div>
-			{sendBlockedHint && !sending ? (
-				<p className="text-xs text-gray-500 -mt-1">{sendBlockedHint}</p>
-			) : null}
-			{infoHint ? (
-				<div className="p-2.5 bg-blue-50 border border-blue-200 rounded-md text-blue-900 text-sm">{infoHint}</div>
-			) : null}
-			<RequestTargetUrl
-				label={t('requestTargetUrl')}
-				method={displayWire?.method ?? 'POST'}
-				url={displayWire?.url}
-				emptyHint={t('requestTargetUrlEmpty')}
-			/>
-			{showAudioTranscriptions ? (
-				<div className="space-y-2">
-					<p className="text-xs text-gray-500">{t('audioTranscriptionsHint')}</p>
-					<div>
-						<label className={labelClass}>{t('audioFile')}</label>
-						<input
-							type="file"
-							accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg,.flac"
-							disabled={sending}
-							className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-700`}
-							onChange={(e) => {
-								onAudioFileChange?.(e.target.files?.[0] ?? null);
-							}}
-						/>
-						<p className="mt-1 text-[11px] text-gray-400">{t('audioFileHint')}</p>
-						{!audioFile ? (
-							<p className="mt-1 text-xs text-amber-700">{t('audioFileRequired')}</p>
-						) : (
-							<p className="mt-1 text-xs text-gray-600">
-								{audioFile.name} ({audioFile.size} bytes)
-							</p>
-						)}
-						{(() => {
-							if (!audioFile) return null;
-							const validated = validateAudioTranscriptionFile(audioFile);
-							if (validated.ok) return null;
-							return <p className="mt-1 text-xs text-red-600">{validated.error}</p>;
-						})()}
-					</div>
-				</div>
-			) : null}
-			{showImageOperation ? (
-				<>
-					<fieldset className="flex flex-wrap items-center gap-4 text-sm border border-gray-200 rounded-md px-3 py-2">
-						<legend className="sr-only">{t('imageOperation')}</legend>
-						<span className="text-gray-600 font-medium">{t('imageOperation')}</span>
-						<label className="inline-flex items-center gap-2 cursor-pointer">
-							<input
-								type="radio"
-								name="simulatorImageOperation"
-								className="text-blue-600 focus:ring-blue-500"
-								checked={imageOperation === 'generations'}
-								onChange={() => onImageOperationChange?.('generations')}
-								disabled={sending}
-							/>
-							generations
-						</label>
-						<label className="inline-flex items-center gap-2 cursor-pointer">
-							<input
-								type="radio"
-								name="simulatorImageOperation"
-								className="text-blue-600 focus:ring-blue-500"
-								checked={imageOperation === 'edits'}
-								onChange={() => onImageOperationChange?.('edits')}
-								disabled={sending}
-							/>
-							edits
-						</label>
-					</fieldset>
-					{imageOperation === 'generations' ? (
-						<p className="text-xs text-gray-500">{t('imageGenerationsHint')}</p>
-					) : (
-						<p className="text-xs text-gray-500">{t('imageEditsHint')}</p>
-					)}
-					{imageOperation === 'edits' ? (
-						<div>
-							<label className={labelClass}>{t('referenceImages')}</label>
-							<input
-								type="file"
-								accept="image/png,image/jpeg,image/webp,image/*"
-								multiple
-								disabled={sending}
-								className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-blue-700`}
-								onChange={(e) => {
-									const list = e.target.files ? Array.from(e.target.files) : [];
-									onEditFilesChange?.(list.slice(0, IMAGE_MAX_REFERENCE_COUNT));
-								}}
-							/>
-							<p className="mt-1 text-[11px] text-gray-400">
-								{t('referenceImagesHint', { max: IMAGE_MAX_REFERENCE_COUNT })}
-								{editFiles.length > 0
-									? ` · ${t('referenceImagesSelected', { count: editFiles.length })}`
-									: ''}
-							</p>
-							{editFiles.length === 0 ? (
-								<p className="mt-1 text-xs text-amber-700">{t('referenceImagesRequired')}</p>
-							) : null}
-							{(() => {
-								if (editFiles.length === 0) return null;
-								const validated = validateEditImageFiles(editFiles);
-								if (validated.ok) return null;
-								return <p className="mt-1 text-xs text-red-600">{validated.error}</p>;
-							})()}
-							{editFiles.length > 0 ? (
-								<ul className="mt-1 text-xs text-gray-600 list-disc list-inside">
-									{editFiles.map((f) => (
-										<li key={`${f.name}-${f.size}-${f.lastModified}`}>
-											{f.name} ({f.size} bytes)
-										</li>
-									))}
-								</ul>
-							) : null}
-						</div>
-					) : null}
-				</>
-			) : null}
-			<div className="flex-1 min-h-0 flex flex-col">
-				<label className={labelClass}>JSON</label>
-				<textarea
-					value={bodyText}
-					onChange={(e) => onBodyTextChange(e.target.value)}
-					rows={12}
-					className={`${inputClass} font-mono text-sm min-h-[180px] flex-1`}
-					spellCheck={false}
-				/>
-			</div>
-			{bodyError ? (
-				<div className="p-2.5 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">{bodyError}</div>
-			) : null}
-
-			<div className="border-t border-gray-100 pt-2">
-				<button
-					type="button"
-					onClick={() => onWireOpenChange(!wireOpen)}
-					className="flex w-full items-center justify-between text-left text-xs font-medium text-gray-600 hover:text-gray-900"
-					aria-expanded={wireOpen}
-				>
-					<span>{t('wirePreview')}</span>
-					<span className="text-gray-400">{wireOpen ? '▾' : '▸'}</span>
-				</button>
-				{wireOpen ? (
-					displayWire ? (
-						<div className="mt-2 space-y-2">
-							<div className="text-xs text-gray-600">
-								<span className="font-semibold text-gray-700">{displayWire.method}</span>{' '}
-								<span className="font-mono break-all">{displayWire.url}</span>
-							</div>
-							<div>
-								<div className="text-[11px] font-medium text-gray-500 mb-1">{t('wireHeaders')}</div>
-								<pre className={codeBlockClass}>
-									{Object.entries(displayWire.headers)
-										.map(([k, v]) => `${k}: ${v}`)
-										.join('\n')}
-								</pre>
-							</div>
-							<div>
-								<div className="text-[11px] font-medium text-gray-500 mb-1">{t('wireBody')}</div>
-								<pre className={codeBlockClass}>
-									{displayWire.isMultipart
-										? displayWire.bodyText
-										: prettyJsonBody(displayWire.bodyText)}
-								</pre>
-							</div>
-						</div>
-					) : (
-						<p className="mt-2 text-xs text-gray-500">{t('wirePreviewEmpty')}</p>
-					)
-				) : null}
-			</div>
-		</section>
-	);
+ const t = useTranslations('simulator'), common = useTranslations('common'), wireId = useId();
+ const audioValidation = audioFile ? validateAudioTranscriptionFile(audioFile) : null;
+ const imagesValidation = editFiles.length ? validateEditImageFiles(editFiles) : null;
+ return <Section title={t('requestBody')} className="simulator-request-panel">
+  <div className="simulator-panel-actions">
+   <ControlButton variant="outline" size="sm" onClick={onApplyTemplate} disabled={!bodyDirty || sending}>{t('applyTemplate')}</ControlButton>
+   {sending
+    ? <ControlButton variant="danger" size="sm" onClick={onStop}><StopIcon aria-hidden="true" />{common('stop')}</ControlButton>
+    : <ControlButton size="sm" onClick={onSend} disabled={!canSend || Boolean(timeoutError)} title={sendBlockedHint ?? undefined}><PaperAirplaneIcon aria-hidden="true" />{common('send')}</ControlButton>}
+  </div>
+  {sendBlockedHint && !sending ? <p className="simulator-exchange-hint">{sendBlockedHint}</p> : null}
+  {infoHint ? <p role="status" className="simulator-exchange-notice">{infoHint}</p> : null}
+  <div className="simulator-target-url"><span className="xui-label">{t('requestTargetUrl')}</span><p>{displayWire ? <><strong>{displayWire.method}</strong> <code>{displayWire.url}</code></> : t('requestTargetUrlEmpty')}</p></div>
+  <Field label={t('exchange.timeoutLabel')} hint={t('exchange.timeoutHint')} error={timeoutError}>
+   {field => <Input {...field} type="number" min={1} max={3600} step={1} disabled={sending} value={timeoutSeconds} onChange={event => onTimeoutChange(event.target.value)} />}
+  </Field>
+  {showAudioTranscriptions ? <>
+   <p className="simulator-exchange-hint">{t('audioTranscriptionsHint')}</p>
+   <Field label={t('audioFile')} hint={t('audioFileHint')} error={audioValidation && !audioValidation.ok ? audioValidation.error : !audioFile ? t('audioFileRequired') : undefined}>
+    {field => <Input {...field} type="file" accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg,.flac" disabled={sending} onChange={event => onAudioFileChange?.(event.target.files?.[0] ?? null)} />}
+   </Field>
+   {audioFile ? <p className="simulator-exchange-hint">{audioFile.name} ({audioFile.size} bytes)</p> : null}
+  </> : null}
+  {showImageOperation ? <>
+   <fieldset className="simulator-image-operation"><legend className="xui-label">{t('imageOperation')}</legend>
+    <RadioGroup name="simulatorImageOperation" aria-label={t('imageOperation')} value={imageOperation} disabled={sending}
+     options={[{value:'generations', label:'generations'}, {value:'edits', label:'edits'}]}
+     onValueChange={value => { if(value !== 'generations' && value !== 'edits') throw new TypeError('Invalid image operation'); onImageOperationChange?.(value); }} />
+   </fieldset>
+   <p className="simulator-exchange-hint">{t(imageOperation === 'generations' ? 'imageGenerationsHint' : 'imageEditsHint')}</p>
+   {imageOperation === 'edits' ? <>
+    <Field label={t('referenceImages')} hint={t('referenceImagesHint',{max:IMAGE_MAX_REFERENCE_COUNT})} error={imagesValidation && !imagesValidation.ok ? imagesValidation.error : !editFiles.length ? t('referenceImagesRequired') : undefined}>
+     {field => <Input {...field} type="file" accept="image/png,image/jpeg,image/webp,image/*" multiple disabled={sending} onChange={event => onEditFilesChange?.(Array.from(event.target.files ?? []).slice(0, IMAGE_MAX_REFERENCE_COUNT))} />}
+    </Field>
+    {editFiles.length ? <><p className="simulator-exchange-hint">{t('referenceImagesSelected',{count:editFiles.length})}</p><ul className="simulator-upload-list">{editFiles.map(file => <li key={`${file.name}-${file.size}-${file.lastModified}`}>{file.name} ({file.size} bytes)</li>)}</ul></> : null}
+   </> : null}
+  </> : null}
+  <Field label="JSON">{field => <Textarea {...field} value={bodyText} onChange={event => onBodyTextChange(event.target.value)} rows={12} spellCheck={false} disabled={sending} className="simulator-json-input" />}</Field>
+  {bodyError ? <div role="alert" className="simulator-exchange-error"><p>{bodyError}</p>{sendErrorCode ? <code>{sendErrorCode}</code> : null}</div> : null}
+  <div className="simulator-wire">
+   <ControlButton variant="ghost" className="simulator-wire-toggle" aria-expanded={wireOpen} aria-controls={wireId} onClick={() => onWireOpenChange(!wireOpen)}>{t('wirePreview')}<ChevronDownIcon aria-hidden="true" data-open={wireOpen} /></ControlButton>
+   {wireOpen ? <div id={wireId} className="simulator-wire-content">{displayWire ? <>
+    <p className="simulator-wire-url"><strong>{displayWire.method}</strong> <code>{displayWire.url}</code></p>
+    <div><h3>{t('wireHeaders')}</h3><pre className="simulator-code-block">{Object.entries(displayWire.headers).map(([key,value])=>`${key}: ${value}`).join('\n')}</pre></div>
+    <div><h3>{t('wireBody')}</h3><pre className="simulator-code-block">{displayWire.isMultipart ? displayWire.bodyText : prettyJsonBody(displayWire.bodyText)}</pre></div>
+   </> : <p className="simulator-exchange-hint">{t('wirePreviewEmpty')}</p>}</div> : null}
+  </div>
+ </Section>;
 }

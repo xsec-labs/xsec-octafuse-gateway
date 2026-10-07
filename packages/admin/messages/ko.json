@@ -1073,6 +1073,12 @@
 			"modelCount": "이 유형 총 {total}개 · {filtered}개 일치",
 			"noModels": "필터와 일치하는 모델이 없습니다",
 			"legacyPool": "이전 형식의 경로 풀"
+		},
+		"exchange": {
+			"timeoutLabel": "요청 전체 제한 시간(초)",
+			"timeoutHint": "1–3600초. 응답 헤더와 전체 본문 읽기를 포함합니다. 기본값은 300초입니다.",
+			"invalidTimeout": "1부터 3600 사이의 정수를 입력하세요.",
+			"timeout": "요청 전체 제한 시간이 지나 연결을 취소했습니다. 다시 전송할 수 있습니다."
 		}
 	},
 	"users": {

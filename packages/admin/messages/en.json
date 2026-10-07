@@ -1073,6 +1073,12 @@
 			"modelCount": "{total} in this kind · {filtered} match",
 			"noModels": "No models match this filter",
 			"legacyPool": "Legacy route pool"
+		},
+		"exchange": {
+			"timeoutLabel": "Total request timeout (seconds)",
+			"timeoutHint": "1–3600 seconds, including response headers and the complete body. Default: 300 seconds.",
+			"invalidTimeout": "Enter a whole number from 1 to 3600 seconds.",
+			"timeout": "The total request timeout was reached. The connection was cancelled; you can send again."
 		}
 	},
 	"users": {

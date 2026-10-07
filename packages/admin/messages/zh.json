@@ -1073,6 +1073,12 @@
 			"modelCount": "该类型共 {total} 个模型 · {filtered} 个符合筛选",
 			"noModels": "没有符合筛选条件的模型",
 			"legacyPool": "旧版路由池"
+		},
+		"exchange": {
+			"timeoutLabel": "请求总超时（秒）",
+			"timeoutHint": "1–3600 秒，覆盖响应头和完整正文读取，默认 300 秒。",
+			"invalidTimeout": "请输入 1 到 3600 之间的整数秒数。",
+			"timeout": "请求已达到总超时，连接已取消。可以重新发送。"
 		}
 	},
 	"users": {

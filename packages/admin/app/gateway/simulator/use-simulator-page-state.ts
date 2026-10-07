@@ -45,6 +45,8 @@ import {
 	BODY_TEMPLATES,
 	bodyTemplateForSelection,
 	bodyTemplateForTool,
+	buildRequestLogsHref,
+	buildToolsInvocationsHref,
 	buildModelRoutingString,
 	filterMatchingActiveRoutes,
 	isBodyDirty,
@@ -106,6 +108,18 @@ export function useSimulatorPageState() {
 
 	const [sending, setSending] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
+	const [sendTimeoutSeconds, setSendTimeoutSeconds] = useState('300');
+	const timeoutSeconds = Number(sendTimeoutSeconds);
+	const timeoutError = Number.isSafeInteger(timeoutSeconds) && timeoutSeconds >= 1 && timeoutSeconds <= 3600
+		? null : t('exchange.invalidTimeout');
+	const [sendErrorCode, setSendErrorCode] = useState<string | null>(null);
+	const [responseLogsHref, setResponseLogsHref] = useState<string | null>(null);
+	const [responseIsTool, setResponseIsTool] = useState(false);
+	useEffect(() => () => {
+		const controller = abortRef.current;
+		abortRef.current = null;
+		controller?.abort();
+	}, []);
 	const [responseMeta, setResponseMeta] = useState<ResponseMeta | null>(null);
 	const [responseText, setResponseText] = useState('');
 	const [responseProtocol, setResponseProtocol] = useState<PlaygroundProtocol>('openai');
@@ -619,10 +633,13 @@ export function useSimulatorPageState() {
 
 	const stop = useCallback(() => {
 		abortRef.current?.abort();
-		abortRef.current = null;
 	}, []);
 
 	const send = useCallback(async () => {
+		if (abortRef.current) return;
+		setSendErrorCode(null);
+		if (timeoutError) { setBodyError(timeoutError); return; }
+		if (routingSelectionError) { setBodyError(routingSelectionError); return; }
 		setInfoHint(null);
 		const parsed = tryParseProxyBaseUrl(proxyBaseUrl);
 		if (!parsed.ok) {
@@ -719,6 +736,10 @@ export function useSimulatorPageState() {
 		setImagePreviews([]);
 		setResponseMeta(null);
 		setResponseTab('merged');
+		setResponseIsTool(isToolKind);
+		setResponseLogsHref(isToolKind
+			? buildToolsInvocationsHref({ toolId: selectedToolId })
+			: buildRequestLogsHref({ apiKeyId: selectedKeyId, modelId: selectedModelId, routeGroup: routeGroup || undefined, protocol }));
 		setWirePreview({
 			method: 'POST',
 			url: built.url,
@@ -730,6 +751,7 @@ export function useSimulatorPageState() {
 
 		const ac = new AbortController();
 		abortRef.current = ac;
+		const timer = setTimeout(() => ac.abort(new DOMException(t('exchange.timeout'), 'TimeoutError')), timeoutSeconds * 1000);
 		const t0 = performance.now();
 
 		try {
@@ -739,6 +761,7 @@ export function useSimulatorPageState() {
 				body: built.formData ?? built.bodyText,
 				signal: ac.signal,
 			});
+			if (abortRef.current !== ac) return;
 
 			const latencyMs = String(Math.round(performance.now() - t0));
 			const ct = res.headers.get('Content-Type') ?? '';
@@ -756,8 +779,10 @@ export function useSimulatorPageState() {
 					error?: string | { message?: string };
 					message?: string;
 				};
+				if (abortRef.current !== ac) return;
 				setResponseText(JSON.stringify(j, null, 2));
 				if (!res.ok) {
+					setSendErrorCode('SIMULATOR_HTTP_ERROR');
 					setUsageHint(null);
 					const errObj = j.error;
 					const nestedMsg =
@@ -784,7 +809,6 @@ export function useSimulatorPageState() {
 				} else {
 					setUsageHint(tryParseUsageSummary(JSON.stringify(j), protoNorm));
 				}
-				setSending(false);
 				return;
 			}
 
@@ -792,56 +816,65 @@ export function useSimulatorPageState() {
 				const reader = res.body.getReader();
 				const dec = new TextDecoder();
 				let acc = '';
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					acc += dec.decode(value, { stream: true });
-					flushSync(() => {
-						setResponseText(acc);
-					});
-					scrollStreamToBottom();
-				}
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (abortRef.current !== ac) return;
+						if (done) break;
+						acc += dec.decode(value, { stream: true });
+						flushSync(() => { setResponseText(acc); });
+						scrollStreamToBottom();
+					}
+				} finally { reader.releaseLock(); }
 				acc += dec.decode();
 				flushSync(() => {
 					setResponseText(acc);
 				});
 				setUsageHint(parseLastStreamUsage(acc, protoNorm));
-				setSending(false);
+				if (!res.ok) { setSendErrorCode('SIMULATOR_HTTP_ERROR'); setBodyError(`HTTP ${res.status}`); }
 				return;
 			}
 
 			const text = await res.text();
+			if (abortRef.current !== ac) return;
 			setResponseText(text);
 			if (useImages && res.ok) {
 				const parsedImg = parseImagesGenerationsResponse(text, imageRequestMetaFromBody(bodyObj));
 				setImagePreviews(parsedImg.images);
 				setUsageHint(parsedImg.usageHint);
 			} else {
-				let summary: string | null = null;
-				try {
-					summary = tryParseUsageSummary(text, protoNorm);
-				} catch {
-					summary = null;
-				}
-				setUsageHint(summary);
+				setUsageHint(tryParseUsageSummary(text, protoNorm));
 			}
 			if (!res.ok) {
+				setSendErrorCode('SIMULATOR_HTTP_ERROR');
 				setBodyError(text.slice(0, 500) || `HTTP ${res.status}`);
 			}
 		} catch (e) {
-			if (e instanceof DOMException && e.name === 'AbortError') {
+			if (abortRef.current !== ac) return;
+			if (ac.signal.aborted && ac.signal.reason instanceof DOMException && ac.signal.reason.name === 'TimeoutError') {
+				setSendErrorCode('SIMULATOR_REQUEST_TIMEOUT');
+				setBodyError(t('exchange.timeout'));
+			} else if (ac.signal.aborted) {
+				setSendErrorCode('SIMULATOR_REQUEST_CANCELLED');
 				setBodyError(tCommon('requestCancelled'));
-				setResponseText('');
 			} else {
-				setResponseText('');
+				setSendErrorCode(e instanceof SyntaxError ? 'SIMULATOR_INVALID_RESPONSE' : 'SIMULATOR_NETWORK_ERROR');
 				setBodyError(e instanceof Error ? e.message : tCommon('requestFailed'));
 			}
 		} finally {
-			setSending(false);
-			abortRef.current = null;
+			clearTimeout(timer);
+			if (abortRef.current === ac) {
+				setSending(false);
+				abortRef.current = null;
+			}
 		}
 	}, [
 		proxyBaseUrl,
+		timeoutError,
+		timeoutSeconds,
+		routingSelectionError,
+		selectedKeyId,
+		routeGroup,
 		isToolKind,
 		filterKind,
 		selectedToolId,
@@ -943,7 +976,13 @@ export function useSimulatorPageState() {
 		stop,
 		sendBlockReason,
 		sendBlockedHint,
-		canSend: hydrated && !settingsError && !loadingCatalog && !catalogError && !loadingKeys && !keysError && !revealError && !routingSelectionError && sendBlockReason === null && !sending,
+		canSend: hydrated && !settingsError && !loadingCatalog && !catalogError && !loadingKeys && !keysError && !revealError && !routingSelectionError && !timeoutError && sendBlockReason === null && !sending,
+		sendTimeoutSeconds,
+		setSendTimeoutSeconds,
+		timeoutError,
+		sendErrorCode,
+		responseLogsHref,
+		responseIsTool,
 		responseMeta,
 		responseText,
 		usageHint,
