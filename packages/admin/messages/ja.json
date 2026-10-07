@@ -1573,7 +1573,14 @@
 			"description": "モデルに route_policy がない場合の既定戦略（system_config.ROUTE_STRATEGY）。",
 			"strategy": "戦略"
 		},
-		"saveRouteStrategy": "ルート戦略を保存"
+		"saveRouteStrategy": "ルート戦略を保存",
+		"feedback": {
+			"readFailed": "システム設定を読み込めません",
+			"savedKeys": "保存を確認済み: {keys}",
+			"readReplacesDrafts": "再読み込みすると、下書きはサーバーの現在値に置き換わります。",
+			"invalidStrategy": "対応するルーティング戦略を選択してください。",
+			"keyRequired": "設定キーを入力してください。"
+		}
 	},
 	"tools": {
 		"catalog": {

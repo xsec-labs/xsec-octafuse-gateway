@@ -1573,7 +1573,14 @@
 			"description": "模型未配置 route_policy 时的默认策略（system_config.ROUTE_STRATEGY）。",
 			"strategy": "策略"
 		},
-		"saveRouteStrategy": "保存路由策略"
+		"saveRouteStrategy": "保存路由策略",
+		"feedback": {
+			"readFailed": "无法读取系统配置",
+			"savedKeys": "已确认保存：{keys}",
+			"readReplacesDrafts": "重新读取将用服务器当前值替换本页草稿。",
+			"invalidStrategy": "请选择支持的路由策略。",
+			"keyRequired": "请输入配置键。"
+		}
 	},
 	"tools": {
 		"catalog": {

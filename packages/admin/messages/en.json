@@ -1573,7 +1573,14 @@
 			"description": "Default strategy when a model has no route_policy override (system_config.ROUTE_STRATEGY).",
 			"strategy": "Strategy"
 		},
-		"saveRouteStrategy": "Save route strategy"
+		"saveRouteStrategy": "Save route strategy",
+		"feedback": {
+			"readFailed": "Unable to read system config",
+			"savedKeys": "Confirmed saved: {keys}",
+			"readReplacesDrafts": "Reading again replaces these drafts with the current server values.",
+			"invalidStrategy": "Choose a supported route strategy.",
+			"keyRequired": "Enter a config key."
+		}
 	},
 	"tools": {
 		"catalog": {

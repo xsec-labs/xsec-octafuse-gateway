@@ -1,0 +1,23 @@
+.config-page{max-width:1440px;min-width:0;margin:auto;color:var(--xui-text)}
+.config-page>.xui-page-header{margin-bottom:24px}
+.config-page .xui-button,.config-page .xui-select-trigger,.config-page .xui-input{min-height:44px}
+.config-section{min-width:0;margin:0 0 20px;padding:24px;border:1px solid var(--xui-border);border-radius:var(--xui-radius-panel);background:var(--xui-surface);display:grid;grid-template-columns:minmax(200px,280px) minmax(0,1fr);gap:32px}
+.config-section>h2{grid-column:1;font-size:16px;font-weight:600;margin:0;line-height:1.5}
+.config-description{grid-column:1;grid-row:2;align-self:start;margin:-20px 0 0;color:var(--xui-muted);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.config-content{grid-column:2;grid-row:1 / span 2;min-width:0}
+.config-form{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
+.config-form>.xui-field{flex:1 1 240px;min-width:0;max-width:440px}
+.config-form .xui-select-trigger{width:100%;min-width:0}
+.config-form .xui-select-trigger>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.config-secret{min-width:0;display:flex;align-items:start;gap:8px}
+.config-secret>.xui-input{min-width:0;flex:1;font-family:var(--xui-font-mono,monospace)}
+.config-secret>.xui-button{flex:none}
+.config-webhooks{display:grid;gap:16px;min-width:0}
+.config-webhooks .xui-field{min-width:0}
+.config-note{margin:0;color:var(--xui-muted);font-size:13px;line-height:1.6}
+.config-success{color:var(--xui-success);font-size:13px;margin:16px 0 0;overflow-wrap:anywhere}
+.config-feedback{margin-top:16px;min-width:0}
+.config-feedback .xui-error{margin-top:8px}
+.config-fieldset{border:0;margin:0;padding:0;min-width:0}
+@media(max-width:1000px){.config-section{grid-template-columns:minmax(0,1fr);gap:16px}.config-section>h2,.config-description,.config-content{grid-column:auto;grid-row:auto}.config-description{margin:0}.config-form>.xui-field{max-width:none}}
+@media(max-width:600px){.config-page{padding:20px 16px}.config-section{padding:16px}.config-form>.xui-field{flex-basis:100%}.config-secret{flex-wrap:wrap}.config-secret>.xui-input{flex-basis:calc(100% - 80px)}.config-form>.xui-button{flex:1}.config-page>.xui-page-header .xui-actions{width:100%}}
