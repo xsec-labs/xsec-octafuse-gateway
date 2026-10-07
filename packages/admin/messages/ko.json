@@ -1409,7 +1409,15 @@
 	"analytics": {
 		"modelUsage": {
 			"title": "모델 사용량",
-			"subtitle": "모델 및 Route 그룹별 사용량과 비용"
+			"subtitle": "모델 및 Route 그룹별 사용량과 비용",
+			"feedback": {
+				"readFailed": "모델 사용량을 읽을 수 없습니다",
+				"providersFailed": "공급자 세부 정보를 읽을 수 없습니다",
+				"currencyFailed": "청구 통화를 확인할 수 없습니다",
+				"currencyPending": "청구 통화를 확인하는 동안 금액 표시가 보류됩니다",
+				"invalidRange": "시작 및 종료 시간을 올바른 순서로 입력하세요",
+				"providersFor": "{model} / {group} 공급자"
+			}
 		},
 		"providerUsage": {
 			"title": "Provider 사용량",

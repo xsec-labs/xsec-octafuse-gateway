@@ -1409,7 +1409,15 @@
 	"analytics": {
 		"modelUsage": {
 			"title": "モデル使用量",
-			"subtitle": "モデルおよび Route Group 別の使用量とコスト"
+			"subtitle": "モデルおよび Route Group 別の使用量とコスト",
+			"feedback": {
+				"readFailed": "モデル使用量を読み込めませんでした",
+				"providersFailed": "プロバイダー内訳を読み込めませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認中です。金額の表示を保留しています",
+				"invalidRange": "有効な開始日時と終了日時を時系列順に入力してください",
+				"providersFor": "{model} / {group} のプロバイダー"
+			}
 		},
 		"providerUsage": {
 			"title": "Provider 使用量",
