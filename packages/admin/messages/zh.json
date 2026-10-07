@@ -1062,6 +1062,17 @@
 			"settingsReadFailed": "无法读取保存的设置或其格式无效。请重试或恢复默认设置。",
 			"settingsWriteFailed": "无法保存设置。请重试或恢复默认设置。",
 			"resetSettings": "恢复默认设置"
+		},
+		"routing": {
+			"activeRoute": "有启用的路由",
+			"noActiveRoute": "没有启用的路由",
+			"unavailableOption": "{id} · 已不可用",
+			"selectedOutsideFilter": "筛选时仍保留当前选中的模型。",
+			"modelUnavailable": "选中的模型已不可用，请选择可用的模型。",
+			"groupUnavailable": "选中的路由组已不可用，请选择可用的路由组或默认组。",
+			"modelCount": "该类型共 {total} 个模型 · {filtered} 个符合筛选",
+			"noModels": "没有符合筛选条件的模型",
+			"legacyPool": "旧版路由池"
 		}
 	},
 	"users": {

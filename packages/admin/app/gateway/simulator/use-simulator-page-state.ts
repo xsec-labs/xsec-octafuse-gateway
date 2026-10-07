@@ -214,6 +214,13 @@ export function useSimulatorPageState() {
 		[models, selectedModelId]
 	);
 
+	const routingSelectionError: 'model' | 'routeGroup' | null = isToolKind || loadingCatalog || catalogError
+		? null
+		: selectedModelId && !selectedModel
+			? 'model'
+			: selectedModel && routeGroup && routeGroup !== 'default' && !routeGroupsForModel.includes(routeGroup)
+				? 'routeGroup' : null;
+
 	const selectedModelIsImage = useMemo(
 		() => (selectedModel ? isImageRouteModel(selectedModel) : false),
 		[selectedModel]
@@ -296,6 +303,7 @@ export function useSimulatorPageState() {
 	]);
 
 	const sendBlockedHint = useMemo(() => {
+		if (routingSelectionError) return t(routingSelectionError === 'model' ? 'routing.modelUnavailable' : 'routing.groupUnavailable');
 		switch (sendBlockReason) {
 			case 'proxyBaseUrl':
 				return t('readyNeedProxyUrl');
@@ -325,7 +333,7 @@ export function useSimulatorPageState() {
 			default:
 				return null;
 		}
-	}, [sendBlockReason, editFiles, audioFile, t]);
+	}, [sendBlockReason, editFiles, audioFile, t, routingSelectionError]);
 
 	const liveWirePreview = useMemo((): WirePreview | null => {
 		const parsed = tryParseProxyBaseUrl(proxyBaseUrl);
@@ -443,12 +451,7 @@ export function useSimulatorPageState() {
   return ()=>{current=false;controller.abort();};
  }, [hydrated,settingsError,catalogAttempt]);
 
-	useEffect(() => {
-		if (!selectedModelId) return;
-		if (routeGroup && !routeGroupsForModel.includes(routeGroup) && routeGroupsForModel.length > 0) {
-			setRouteGroup('');
-		}
-	}, [selectedModelId, routeGroup, routeGroupsForModel]);
+
 
 	/**
 	 * localStorage 恢复的模型可能是 Image/Audio：把 Kind 对齐到该模型，
@@ -913,6 +916,7 @@ export function useSimulatorPageState() {
 		setRouteGroup,
 		routeGroupsForModel,
 		selectedModel,
+		routingSelectionError,
 		selectedModelIsImage,
 		selectedModelIsAudio,
 		modelRoutingString,
@@ -939,7 +943,7 @@ export function useSimulatorPageState() {
 		stop,
 		sendBlockReason,
 		sendBlockedHint,
-		canSend: hydrated && !settingsError && !loadingCatalog && !catalogError && !loadingKeys && !keysError && !revealError && sendBlockReason === null && !sending,
+		canSend: hydrated && !settingsError && !loadingCatalog && !catalogError && !loadingKeys && !keysError && !revealError && !routingSelectionError && sendBlockReason === null && !sending,
 		responseMeta,
 		responseText,
 		usageHint,

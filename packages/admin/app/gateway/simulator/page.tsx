@@ -9,6 +9,7 @@ import { memo } from 'react';
 import { ControlButton,ErrorState,PageHeader,Spinner } from '@xsec/ui-react';
 import ShellError from '@/components/layout/ShellError';
 import './setup.css';
+import './routing.css';
 import { SimulatorRequestPanel } from './components/simulator-request-panel';
 import { SimulatorResponsePanel as ResponsePanel } from './components/simulator-response-panel';
 import { SimulatorRoutingPanel as RoutingPanel } from './components/simulator-routing-panel';
@@ -89,6 +90,7 @@ export default function SimulatorPage() {
 								onRouteGroupChange={s.setRouteGroup}
 								routeGroupsForModel={s.routeGroupsForModel}
 								selectedModel={s.selectedModel}
+								routingSelectionError={s.routingSelectionError}
 								selectedModelIsImage={s.selectedModelIsImage}
 								selectedModelIsAudio={s.selectedModelIsAudio}
 								modelRoutingString={s.modelRoutingString}

@@ -1062,6 +1062,17 @@
 			"settingsReadFailed": "The saved settings could not be read or have an invalid format. Retry or reset to defaults.",
 			"settingsWriteFailed": "The settings could not be saved. Retry or reset to defaults.",
 			"resetSettings": "Reset saved settings"
+		},
+		"routing": {
+			"activeRoute": "Active route",
+			"noActiveRoute": "No active route",
+			"unavailableOption": "{id} · unavailable",
+			"selectedOutsideFilter": "The selected model stays active while you filter.",
+			"modelUnavailable": "The selected model is unavailable. Select an available model.",
+			"groupUnavailable": "The selected route group is unavailable. Select an available group or the default.",
+			"modelCount": "{total} in this kind · {filtered} match",
+			"noModels": "No models match this filter",
+			"legacyPool": "Legacy route pool"
 		}
 	},
 	"users": {

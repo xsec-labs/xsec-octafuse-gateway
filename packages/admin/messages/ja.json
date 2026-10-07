@@ -1062,6 +1062,17 @@
 			"settingsReadFailed": "保存した設定を読み取れないか、形式が無効です。再試行するか初期設定に戻してください。",
 			"settingsWriteFailed": "設定を保存できません。再試行するか初期設定に戻してください。",
 			"resetSettings": "初期設定に戻す"
+		},
+		"routing": {
+			"activeRoute": "有効なルートあり",
+			"noActiveRoute": "有効なルートなし",
+			"unavailableOption": "{id} · 利用不可",
+			"selectedOutsideFilter": "絞り込み中も選択したモデルを維持します。",
+			"modelUnavailable": "選択したモデルは利用できません。利用可能なモデルを選択してください。",
+			"groupUnavailable": "選択したルートグループは利用できません。利用可能なグループまたはデフォルトを選択してください。",
+			"modelCount": "この種類は {total} 件 · {filtered} 件が一致",
+			"noModels": "条件に一致するモデルはありません",
+			"legacyPool": "旧形式のルートプール"
 		}
 	},
 	"users": {

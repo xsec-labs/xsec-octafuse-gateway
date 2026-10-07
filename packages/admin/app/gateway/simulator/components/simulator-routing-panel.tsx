@@ -1,24 +1,15 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { Badge, EmptyState, Field, Input, RadioGroup, Section, Select, type SelectOption } from '@xsec/ui-react';
 import type { GatewayToolDefinition } from '@/lib/gateway-tools';
-import type { InvokeKind } from '@/lib/invoke-kind';
-import {
-	formatModelOptionLabel,
-	inputClass,
-	labelClass,
-	panelClass,
-} from '../simulator-utils';
+import { isInvokeKind, type InvokeKind } from '@/lib/invoke-kind';
+import { formatModelLabel } from '../simulator-utils';
 import type { AdminModelRow, RouteListRow } from '../types';
 
 function ReadonlyField({ label, children }: { label: string; children: ReactNode }) {
-	return (
-		<div className="min-w-0">
-			<div className="text-xs font-medium text-gray-500">{label}</div>
-			<div className="mt-0.5 text-sm text-gray-900 break-words font-mono">{children}</div>
-		</div>
-	);
+	return <div className="simulator-routing-detail"><dt>{label}</dt><dd>{children}</dd></div>;
 }
 
 type Props = {
@@ -30,217 +21,94 @@ type Props = {
 	selectedToolId: string;
 	onSelectTool: (id: string) => void;
 	filterModel: string;
-	onFilterModelChange: (v: string) => void;
+	onFilterModelChange: (value: string) => void;
 	filteredModels: AdminModelRow[];
 	modelsInKindTotal: number;
 	modelIdsWithActiveRouter: Set<string>;
 	selectedModelId: string;
 	onSelectModel: (id: string) => void;
 	routeGroup: string;
-	onRouteGroupChange: (g: string) => void;
+	onRouteGroupChange: (group: string) => void;
 	routeGroupsForModel: string[];
 	selectedModel: AdminModelRow | null;
 	selectedModelIsImage?: boolean;
 	selectedModelIsAudio?: boolean;
 	modelRoutingString: string;
 	matchingRoutes: RouteListRow[];
+	routingSelectionError: 'model' | 'routeGroup' | null;
 };
 
 export function SimulatorRoutingPanel({
-	filterKind,
-	onFilterKindChange,
-	kindCounts,
-	isToolKind,
-	gatewayTools,
-	selectedToolId,
-	onSelectTool,
-	filterModel,
-	onFilterModelChange,
-	filteredModels,
-	modelsInKindTotal,
-	modelIdsWithActiveRouter,
-	selectedModelId,
-	onSelectModel,
-	routeGroup,
-	onRouteGroupChange,
-	routeGroupsForModel,
-	selectedModel,
-	selectedModelIsImage = false,
-	selectedModelIsAudio = false,
-	modelRoutingString,
-	matchingRoutes,
+	filterKind, onFilterKindChange, kindCounts, isToolKind, gatewayTools,
+	selectedToolId, onSelectTool, filterModel, onFilterModelChange, filteredModels,
+	modelsInKindTotal, modelIdsWithActiveRouter, selectedModelId, onSelectModel,
+	routeGroup, onRouteGroupChange, routeGroupsForModel, selectedModel,
+	selectedModelIsImage = false, selectedModelIsAudio = false, modelRoutingString,
+	matchingRoutes, routingSelectionError,
 }: Props) {
 	const t = useTranslations('simulator');
 	const tRoutes = useTranslations('routes.card');
 	const tTools = useTranslations('tools.catalog');
+	const selectedOutsideFilter = Boolean(selectedModel && !filteredModels.some(model => model.id === selectedModel.id));
+	const modelOptions = useMemo(() => {
+		const visible = selectedModel && !filteredModels.some(model => model.id === selectedModel.id)
+			? [selectedModel, ...filteredModels] : filteredModels;
+		const options: SelectOption[] = [{ value: '', label: t('selectModel') }, ...visible.map(model => ({
+			value: model.id,
+			label: `${formatModelLabel(model)} · ${t(modelIdsWithActiveRouter.has(model.id) ? 'routing.activeRoute' : 'routing.noActiveRoute')}`,
+		}))];
+		if (selectedModelId && !selectedModel) options.push({ value: selectedModelId, label: t('routing.unavailableOption', { id: selectedModelId }), disabled: true });
+		return options;
+	}, [t, filteredModels, selectedModel, selectedModelId, modelIdsWithActiveRouter]);
+	const groupOptions = useMemo(() => {
+		const options: { value: string; label: string; disabled?: boolean }[] = [
+			{ value: '', label: t('defaultRouteGroup') },
+			...routeGroupsForModel.filter(group => group !== 'default').map(group => ({ value: group, label: group })),
+		];
+		if (routingSelectionError === 'routeGroup') options.push({ value: routeGroup, label: t('routing.unavailableOption', { id: routeGroup }), disabled: true });
+		return options;
+	}, [t, routeGroupsForModel, routeGroup, routingSelectionError]);
+	const toolOptions = useMemo(() => gatewayTools.map(tool => ({ value: tool.id, label: `${tTools(tool.nameKey)} (${tool.id})` })), [gatewayTools, tTools]);
+	const kinds = [
+		{ value: 'llm', label: <>{t('kindLlm')} <Badge>{kindCounts.llm}</Badge></> },
+		{ value: 'image', label: <>{t('kindImage')} <Badge>{kindCounts.image}</Badge></> },
+		{ value: 'audio', label: <>{t('kindAudio')} <Badge>{kindCounts.audio}</Badge></> },
+		{ value: 'tool', label: <>{t('kindTool')} <Badge>{kindCounts.tool}</Badge></> },
+	];
 
-	return (
-		<section className={panelClass}>
-			<h2 className="text-sm font-semibold text-gray-900">{t('routingTarget')}</h2>
-			<div>
-				<label className={labelClass}>{t('kind')}</label>
-				<div
-					className="inline-flex w-full rounded-md border border-gray-200 bg-gray-50 p-0.5"
-					role="group"
-					aria-label={t('kind')}
-				>
-					{(
-						[
-							{ id: 'llm' as const, label: t('kindLlm'), count: kindCounts.llm },
-							{ id: 'image' as const, label: t('kindImage'), count: kindCounts.image },
-							{ id: 'audio' as const, label: t('kindAudio'), count: kindCounts.audio },
-							{ id: 'tool' as const, label: t('kindTool'), count: kindCounts.tool },
-						] as const
-					).map((opt) => {
-						const active = filterKind === opt.id;
-						return (
-							<button
-								key={opt.id}
-								type="button"
-								onClick={() => onFilterKindChange(opt.id)}
-								className={
-									active
-										? 'flex-1 rounded px-1.5 py-1.5 text-[11px] font-medium bg-white text-gray-900 shadow-sm sm:text-xs'
-										: 'flex-1 rounded px-1.5 py-1.5 text-[11px] font-medium text-gray-600 hover:text-gray-900 sm:text-xs'
-								}
-							>
-								{opt.label}
-								<span className="ml-0.5 text-[10px] text-gray-400 tabular-nums">{opt.count}</span>
-							</button>
-						);
-					})}
-				</div>
+	return <Section title={t('routingTarget')} className="simulator-routing-panel">
+		<Field label={t('kind')}>{field => <RadioGroup {...field} aria-label={t('kind')} value={filterKind} options={kinds} onValueChange={value => {
+			if (!isInvokeKind(value)) throw new Error('INVALID_SIMULATOR_KIND');
+			onFilterKindChange(value);
+		}} />}</Field>
+		{isToolKind ? <>
+			<Field label={t('tool')} hint={t('toolHint')}>{field => <Select {...field} value={selectedToolId} onValueChange={value => {
+				if (!value || !gatewayTools.some(tool => tool.id === value)) throw new Error('INVALID_SIMULATOR_TOOL');
+				onSelectTool(value);
+			}} options={toolOptions} />}</Field>
+			<p className="simulator-routing-hint">{t('toolNoRoutes')}</p>
+			<dl className="simulator-routing-details"><ReadonlyField label={t('toolEndpoint')}>{`/v1/tools/${selectedToolId}`}</ReadonlyField></dl>
+		</> : <>
+			<Field label={t('filter')}>{field => <Input {...field} value={filterModel} onChange={event => onFilterModelChange(event.target.value)} placeholder={t('modelFilterPlaceholder')} autoComplete="off" />}</Field>
+			<Field label={t('model')} hint={t('routing.modelCount', { total: modelsInKindTotal, filtered: filteredModels.length })} error={routingSelectionError === 'model' ? t('routing.modelUnavailable') : undefined}>{field => <Select {...field} value={selectedModelId} onValueChange={value => onSelectModel(value ?? '')} options={modelOptions} />}</Field>
+			{selectedOutsideFilter ? <p className="simulator-routing-hint" role="status">{t('routing.selectedOutsideFilter')}</p> : null}
+			{filteredModels.length === 0 ? <EmptyState title={t('routing.noModels')} /> : null}
+			<Field label={t('routeGroupOptional')} hint={t('routeGroupHint')} error={routingSelectionError === 'routeGroup' ? t('routing.groupUnavailable') : undefined}>{field => <Select {...field} value={routeGroup === 'default' ? '' : routeGroup} onValueChange={value => onRouteGroupChange(value ?? '')} disabled={!selectedModel} options={groupOptions} />}</Field>
+			{selectedModel ? <dl className="simulator-routing-details">
+				<ReadonlyField label={t('routingModelString')}>{modelRoutingString}</ReadonlyField>
+				{selectedModelIsAudio ? <ReadonlyField label={t('modelKind')}>{tRoutes('audioModelHint')}</ReadonlyField>
+					: selectedModelIsImage ? <ReadonlyField label={t('modelKind')}>{tRoutes('imageModelHint')}</ReadonlyField>
+						: <ReadonlyField label="max_tokens">{selectedModel.max_tokens ?? '—'}</ReadonlyField>}
+			</dl> : null}
+			<div className="simulator-routing-preview"><h3>{t('matchingRoutes')}</h3>
+				{!selectedModel ? <EmptyState title={t('matchingRoutesNeedModel')} />
+					: matchingRoutes.length === 0 ? <EmptyState title={t('matchingRoutesEmpty')} />
+						: <ul className="simulator-routing-matches">{matchingRoutes.map(route => <li key={route.id}>
+							<div><strong>{route.provider_name || route.provider_id}</strong><Badge>p{route.priority}</Badge><span>{route.route_group || 'default'}</span></div>
+							<p>{[route.provider_model_name, route.upstream_protocol ? `${route.upstream_protocol}.${route.upstream_operation ?? '*'}` : null].filter(Boolean).join(' · ')}</p>
+							<p>{route.pool_name ?? route.route_pool_id ?? t('routing.legacyPool')}</p>
+						</li>)}</ul>}
 			</div>
-
-			{isToolKind ? (
-				<>
-					<div>
-						<label className={labelClass}>{t('tool')}</label>
-						<select
-							value={selectedToolId}
-							onChange={(e) => onSelectTool(e.target.value)}
-							className={`${inputClass} font-mono`}
-						>
-							{gatewayTools.map((tool) => (
-								<option key={tool.id} value={tool.id}>
-									{tTools(tool.nameKey)} ({tool.id})
-								</option>
-							))}
-						</select>
-						<p className="mt-1.5 text-xs text-gray-500">{t('toolHint')}</p>
-					</div>
-					<div className="pt-2 border-t border-gray-100 space-y-2">
-						<p className="text-xs text-gray-500">{t('toolNoRoutes')}</p>
-						{selectedToolId ? (
-							<ReadonlyField label={t('toolEndpoint')}>
-								{`/v1/tools/${selectedToolId}`}
-							</ReadonlyField>
-						) : null}
-					</div>
-				</>
-			) : (
-				<>
-					<div>
-						<label className={labelClass}>{t('filter')}</label>
-						<input
-							type="text"
-							placeholder={t('modelFilterPlaceholder')}
-							value={filterModel}
-							onChange={(e) => onFilterModelChange(e.target.value)}
-							className={inputClass}
-						/>
-					</div>
-					<div>
-						<label className={labelClass}>{t('model')}</label>
-						<select
-							value={selectedModelId}
-							onChange={(e) => onSelectModel(e.target.value)}
-							className={`${inputClass} font-mono`}
-						>
-							<option value="">{t('selectModel')}</option>
-							{filteredModels.map((m) => (
-								<option key={m.id} value={m.id}>
-									{formatModelOptionLabel(m, modelIdsWithActiveRouter.has(m.id))}
-								</option>
-							))}
-						</select>
-						<p className="mt-1.5 text-xs text-gray-500">
-							{t('modelCount', { total: modelsInKindTotal, filtered: filteredModels.length })}
-						</p>
-					</div>
-					<div>
-						<label className={labelClass}>{t('routeGroupOptional')}</label>
-						<select
-							value={routeGroup}
-							onChange={(e) => onRouteGroupChange(e.target.value)}
-							className={inputClass}
-							disabled={!selectedModelId}
-						>
-							<option value="">{t('defaultRouteGroup')}</option>
-							{routeGroupsForModel.map((g) => (
-								<option key={g} value={g}>
-									{g}
-								</option>
-							))}
-						</select>
-						<p className="mt-1 text-xs text-gray-500">{t('routeGroupHint')}</p>
-					</div>
-					{selectedModel ? (
-						<div className="grid grid-cols-1 gap-2 pt-2 border-t border-gray-100">
-							<ReadonlyField label={t('routingModelString')}>
-								{modelRoutingString || '—'}
-							</ReadonlyField>
-							{selectedModelIsAudio ? (
-								<ReadonlyField label={t('modelKind')}>{tRoutes('audioModelHint')}</ReadonlyField>
-							) : selectedModelIsImage ? (
-								<ReadonlyField label={t('modelKind')}>{tRoutes('imageModelHint')}</ReadonlyField>
-							) : (
-								<ReadonlyField label="max_tokens">
-									{String(selectedModel.max_tokens ?? '—')}
-								</ReadonlyField>
-							)}
-						</div>
-					) : null}
-
-					<div className="pt-2 border-t border-gray-100 space-y-2">
-						<div className="text-xs font-medium text-gray-600">{t('matchingRoutes')}</div>
-						{!selectedModelId ? (
-							<p className="text-xs text-gray-500">{t('matchingRoutesNeedModel')}</p>
-						) : matchingRoutes.length === 0 ? (
-							<p className="text-xs text-amber-800">{t('matchingRoutesEmpty')}</p>
-						) : (
-							<ul className="max-h-40 overflow-y-auto divide-y divide-gray-100 rounded-md border border-gray-200 bg-gray-50/80 text-xs">
-								{matchingRoutes.map((r) => (
-									<li key={r.id} className="px-2.5 py-2 font-mono text-gray-800">
-										<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-											<span className="font-semibold text-gray-900">
-												{r.provider_name || r.provider_id || '—'}
-											</span>
-											<span className="text-gray-500">p{r.priority}</span>
-											<span className="text-gray-500">{r.route_group || 'default'}</span>
-										</div>
-										{(r.provider_model_name || r.upstream_protocol) && (
-											<div className="mt-0.5 text-gray-500 truncate">
-												{[
-													r.provider_model_name,
-													r.upstream_protocol
-														? `${r.upstream_protocol}.${r.upstream_operation ?? '*'}`
-														: null,
-												]
-													.filter(Boolean)
-													.join(' · ')}
-											</div>
-										)}
-										<div className="mt-0.5 truncate text-[10px] text-indigo-600">
-											{r.pool_name ?? r.route_pool_id ?? 'legacy pool'}
-										</div>
-									</li>
-								))}
-							</ul>
-						)}
-					</div>
-				</>
-			)}
-		</section>
-	);
+		</>}
+	</Section>;
 }

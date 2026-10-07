@@ -1062,6 +1062,17 @@
 			"settingsReadFailed": "저장된 설정을 읽을 수 없거나 형식이 잘못되었습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
 			"settingsWriteFailed": "설정을 저장할 수 없습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
 			"resetSettings": "기본 설정으로 복원"
+		},
+		"routing": {
+			"activeRoute": "활성 경로 있음",
+			"noActiveRoute": "활성 경로 없음",
+			"unavailableOption": "{id} · 사용할 수 없음",
+			"selectedOutsideFilter": "필터를 변경해도 선택한 모델을 유지합니다.",
+			"modelUnavailable": "선택한 모델을 사용할 수 없습니다. 사용 가능한 모델을 선택하세요.",
+			"groupUnavailable": "선택한 경로 그룹을 사용할 수 없습니다. 사용 가능한 그룹이나 기본 그룹을 선택하세요.",
+			"modelCount": "이 유형 총 {total}개 · {filtered}개 일치",
+			"noModels": "필터와 일치하는 모델이 없습니다",
+			"legacyPool": "이전 형식의 경로 풀"
 		}
 	},
 	"users": {
