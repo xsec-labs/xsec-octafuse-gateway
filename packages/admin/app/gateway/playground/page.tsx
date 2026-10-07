@@ -3,14 +3,14 @@
 /**
  * Playground：选定单条 model_route，编辑 JSON 请求体，直连上游验证连通性（不计费、不入库）。
  */
-import { useCallback, useMemo, useRef, useState, Suspense } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { flushSync } from 'react-dom';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { ImageGenerationsPreview } from '@/components/image-generations-preview';
 import { RequestTargetUrl } from '@/components/request-target-url';
-import { ControlButton, PageHeader, Spinner } from '@xsec/ui-react';
+import { ControlButton, Field, Input, PageHeader, Spinner } from '@xsec/ui-react';
 import ShellError from '@/components/layout/ShellError';
 import { usePlaygroundCatalog } from './use-playground-catalog';
 import { PlaygroundCatalog, type CatalogFilters } from './playground-catalog';
@@ -47,7 +47,8 @@ import {
 	tryParseUsageSummary,
 } from '@/lib/playground/usage-parsing';
 import { ShellRequestError } from '@/lib/shell-request';
-import type { ApiResponse } from '@/lib/types';
+import { notifyAdminSessionExpired } from '@/lib/admin-session-events';
+import { isRecord } from '@/lib/shell-request';
 import {
 	DEFAULT_KIND_FILTER,
 	type ModelKindFilter,
@@ -133,6 +134,18 @@ function PlaygroundPageInner() {
 	const [audioFile, setAudioFile] = useState<File | null>(null);
 
 	const [sending, setSending] = useState(false);
+	const [sendTimeoutSeconds, setSendTimeoutSeconds] = useState('300');
+	const [sendNotice, setSendNotice] = useState<string | null>(null);
+	const activeSend = useRef<AbortController | null>(null);
+	useEffect(() => () => { const active = activeSend.current; activeSend.current = null; active?.abort(); }, []);
+	const cancelSend = () => {
+		const active = activeSend.current;
+		if (!active) return;
+		activeSend.current = null;
+		active.abort();
+		setSending(false);
+		setSendNotice(t('sendState.cancelled'));
+	};
 	const [responseMeta, setResponseMeta] = useState<{
 		status: number;
 		latencyMs: string | null;
@@ -299,6 +312,7 @@ function PlaygroundPageInner() {
 	const onSelectRoute = useCallback((id: string) => {
 		setSelectedId(id);
 		setBodyError(null);
+		setSendNotice(null);
 		setImageOperation('generations');
 		setEditFiles([]);
 		setAudioFile(null);
@@ -355,6 +369,12 @@ function PlaygroundPageInner() {
 	}, []);
 
 	const send = async () => {
+		if (activeSend.current) return;
+		const timeoutSeconds = Number(sendTimeoutSeconds);
+		if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 3600) {
+			setBodyError(t('sendState.invalidTimeout'));
+			return;
+		}
 		if (!selected) {
 			setBodyError(tCommon('selectRouteFirst'));
 			return;
@@ -384,40 +404,10 @@ function PlaygroundPageInner() {
 		const useImages = selectedIsImage && !selectedIsAudio && proto === 'openai';
 		const effectiveImageOp: ImageOperation | undefined = useImages ? imageOperation : undefined;
 
-		if (useAudio) {
-			const validated = validateAudioTranscriptionFile(audioFile);
-			if (!validated.ok) {
-				setBodyError(validated.error);
-				return;
-			}
-			try {
-				const dataUrl = await readFileAsDataUrl(audioFile!);
-				// file_name：供服务端拼 multipart 文件名（勿丢扩展名；中文名服务端会规范为 audio.<ext>）
-				bodyObj = { ...bodyObj, file: dataUrl, file_name: audioFile!.name };
-			} catch (e) {
-				setBodyError(e instanceof Error ? e.message : tCommon('requestFailed'));
-				return;
-			}
-		}
-
-		if (effectiveImageOp === 'edits') {
-			const validated = validateEditImageFiles(editFiles);
-			if (!validated.ok) {
-				setBodyError(validated.error);
-				return;
-			}
-			try {
-				const dataUrls = await Promise.all(editFiles.map((f) => readFileAsDataUrl(f)));
-				bodyObj = {
-					...bodyObj,
-					image: dataUrls.length === 1 ? dataUrls[0] : dataUrls,
-				};
-			} catch (e) {
-				setBodyError(e instanceof Error ? e.message : tCommon('requestFailed'));
-				return;
-			}
-		}
-
+		const controller = new AbortController();
+		activeSend.current = controller;
+		const timer = setTimeout(() => controller.abort(new Error(t('sendState.timeout'))), timeoutSeconds * 1000);
+		setSendNotice(null);
 		setBodyError(null);
 		setSending(true);
 		setResponseText('');
@@ -441,11 +431,40 @@ function PlaygroundPageInner() {
 		}
 
 		try {
+			if (useAudio) {
+				const validated = validateAudioTranscriptionFile(audioFile);
+				if (!validated.ok) {
+					setBodyError(validated.error);
+					return;
+				}
+				const dataUrl = await readFileAsDataUrl(audioFile!, controller.signal);
+				controller.signal.throwIfAborted();
+				// file_name：供服务端拼 multipart 文件名（勿丢扩展名；中文名服务端会规范为 audio.<ext>）
+				bodyObj = { ...bodyObj, file: dataUrl, file_name: audioFile!.name };
+			}
+
+			if (effectiveImageOp === 'edits') {
+				const validated = validateEditImageFiles(editFiles);
+				if (!validated.ok) {
+					setBodyError(validated.error);
+					return;
+				}
+				const dataUrls = await Promise.all(editFiles.map((f) => readFileAsDataUrl(f, controller.signal)));
+				controller.signal.throwIfAborted();
+				bodyObj = {
+					...bodyObj,
+					image: dataUrls.length === 1 ? dataUrls[0] : dataUrls,
+				};
+			}
+			payload.body = bodyObj;
 			const res = await fetch('/api/admin/playground', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),
+				signal: controller.signal,
 			});
+			controller.signal.throwIfAborted();
+			if (res.status === 401) { notifyAdminSessionExpired(); controller.abort(); return; }
 
 			const latencyMs = res.headers.get('x-playground-latency-ms');
 			const upstreamUrl = res.headers.get('x-playground-upstream-url');
@@ -462,19 +481,17 @@ function PlaygroundPageInner() {
 
 			const jsonErr = ct.includes('application/json') && !ct.includes('text/event-stream');
 			if (jsonErr) {
-				const j = (await res.json()) as ApiResponse<unknown> & {
-					error?: string | { message?: string };
-					message?: string;
-				};
+				const j: unknown = await res.json();
+				controller.signal.throwIfAborted();
 				setResponseText(JSON.stringify(j, null, 2));
 				if (!res.ok) {
 					setUsageHint(null);
-					const errObj = j.error;
+					const errObj = isRecord(j) ? j.error : undefined;
 					const nested =
 						errObj && typeof errObj === 'object' && 'message' in errObj
 							? String((errObj as { message?: unknown }).message ?? '')
 							: '';
-					let msg = (j.message ?? '').trim();
+					let msg = isRecord(j) && typeof j.message === 'string' ? j.message.trim() : '';
 					if (!msg && typeof errObj === 'string') msg = errObj;
 					if (!msg) msg = nested.trim();
 					if (!msg) msg = tCommon('requestFailed');
@@ -490,53 +507,54 @@ function PlaygroundPageInner() {
 					const summary = tryParseUsageSummary(JSON.stringify(j), proto);
 					setUsageHint(summary);
 				}
-				setSending(false);
 				return;
 			}
 
 			if (ct.includes('text/event-stream') && res.body) {
 				const reader = res.body.getReader();
-				const dec = new TextDecoder();
-				let acc = '';
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					acc += dec.decode(value, { stream: true });
-					// 避免 React 18 批处理把多次更新合成一次渲染，导致「拼接内容」只在流结束后才出现
+				try {
+					const dec = new TextDecoder();
+					let acc = '';
+					while (true) {
+						const { done, value } = await reader.read();
+						controller.signal.throwIfAborted();
+						if (done) break;
+						acc += dec.decode(value, { stream: true });
+						// 避免 React 18 批处理把多次更新合成一次渲染，导致「拼接内容」只在流结束后才出现
+						flushSync(() => {
+							setResponseText(acc);
+						});
+						scrollStreamToBottom();
+					}
+					acc += dec.decode();
 					flushSync(() => {
 						setResponseText(acc);
 					});
-					scrollStreamToBottom();
-				}
-				acc += dec.decode();
-				flushSync(() => {
-					setResponseText(acc);
-				});
-				setUsageHint(parseLastStreamUsage(acc, proto));
-				setSending(false);
-				return;
+					setUsageHint(parseLastStreamUsage(acc, proto));
+					return;
+				} finally { reader.releaseLock(); }
 			}
 
 			const text = await res.text();
+			controller.signal.throwIfAborted();
 			setResponseText(text);
-			if (useImages && res.ok) {
+			if (!res.ok) { setBodyError(tCommon('requestFailed') + ' (HTTP ' + res.status + ')'); setUsageHint(null); return; }
+			if (useImages) {
 				const parsedImg = parseImagesGenerationsResponse(text, imageRequestMetaFromBody(bodyObj));
 				setImagePreviews(parsedImg.images);
 				setUsageHint(parsedImg.usageHint);
 			} else {
-				let summary: string | null = null;
-				try {
-					summary = tryParseUsageSummary(text, proto);
-				} catch {
-					summary = null;
-				}
-				setUsageHint(summary);
+				setUsageHint(tryParseUsageSummary(text, proto));
 			}
 		} catch (e) {
-			setResponseText('');
-			setBodyError(e instanceof Error ? e.message : tCommon('requestFailed'));
+			if (activeSend.current === controller) {
+				const failure = controller.signal.aborted ? controller.signal.reason : e;
+				controller.abort();
+				setBodyError(failure instanceof Error ? failure.message : tCommon('requestFailed'));
+			}
 		} finally {
-			setSending(false);
+			clearTimeout(timer);
+			if (activeSend.current === controller) { activeSend.current = null; setSending(false); }
 		}
 	};
 
@@ -563,7 +581,7 @@ function PlaygroundPageInner() {
 							<button
 								key={opt.id}
 								type="button"
-								onClick={() => setPlaygroundMode(opt.id)}
+								onClick={() => { if (opt.id !== playgroundMode) cancelSend(); setPlaygroundMode(opt.id); }}
 								className={
 									active
 										? 'rounded px-3 py-1.5 text-sm font-medium bg-white text-gray-900 shadow-sm'
@@ -598,6 +616,7 @@ function PlaygroundPageInner() {
 						<div className="bg-white rounded-lg shadow-md p-6 space-y-4">
 							<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-gray-100 pb-3">
 								<h2 className="text-lg font-semibold text-gray-900">{t('requestBody')}</h2>
+								{sending ? <ControlButton variant="outline" onClick={cancelSend}>{tCommon('cancel')}</ControlButton> : null}
 								<button
 									type="button"
 									onClick={() => void send()}
@@ -618,6 +637,10 @@ function PlaygroundPageInner() {
 									{sending ? tCommon('sending') : tCommon('send')}
 								</button>
 							</div>
+							<Field label={t('sendState.timeoutLabel')} hint={t('sendState.timeoutHint')}>
+								{field => <Input {...field} type="number" min={1} max={3600} step={1} disabled={sending} value={sendTimeoutSeconds} onChange={event => setSendTimeoutSeconds(event.target.value)} />}
+							</Field>
+							{sendNotice ? <p role="status">{sendNotice}</p> : null}
 							{imageSendBlocked ? (
 								<div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
 									{t('imageOpenaiOnly')}
@@ -756,6 +779,7 @@ function PlaygroundPageInner() {
 											className="text-blue-600 focus:ring-blue-500"
 											checked={geminiAction === 'generateContent'}
 											onChange={() => setGeminiAction('generateContent')}
+											disabled={sending}
 										/>
 										generateContent
 									</label>
@@ -765,6 +789,7 @@ function PlaygroundPageInner() {
 											name="geminiAction"
 											checked={geminiAction === 'streamGenerateContent'}
 											onChange={() => setGeminiAction('streamGenerateContent')}
+											disabled={sending}
 										/>
 										streamGenerateContent
 									</label>
@@ -775,6 +800,7 @@ function PlaygroundPageInner() {
 								<textarea
 									value={bodyText}
 									onChange={(e) => setBodyText(e.target.value)}
+									disabled={sending}
 									rows={8}
 									className={`${inputClass} font-mono text-sm min-h-[100px]`}
 									spellCheck={false}

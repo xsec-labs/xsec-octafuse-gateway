@@ -947,6 +947,13 @@
 			"surfaces": "公开入口",
 			"legacyPool": "旧版路由",
 			"configuration": "路由配置"
+		},
+		"sendState": {
+			"cancelled": "请求已取消",
+			"timeout": "REQUEST_TIMEOUT：请求超过总时限",
+			"invalidTimeout": "请输入 1 至 3600 之间的整数秒数",
+			"timeoutLabel": "总时限（秒）",
+			"timeoutHint": "覆盖文件读取和完整响应。默认 300 秒。"
 		}
 	},
 	"simulator": {

@@ -947,6 +947,13 @@
 			"surfaces": "Public surfaces",
 			"legacyPool": "Legacy route",
 			"configuration": "Route configuration"
+		},
+		"sendState": {
+			"cancelled": "Request cancelled",
+			"timeout": "REQUEST_TIMEOUT: the request exceeded its total time limit",
+			"invalidTimeout": "Enter a whole number of seconds from 1 to 3600",
+			"timeoutLabel": "Total time limit (seconds)",
+			"timeoutHint": "Covers file reading and the complete response. Default: 300 seconds."
 		}
 	},
 	"simulator": {

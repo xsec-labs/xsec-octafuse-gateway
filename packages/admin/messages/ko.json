@@ -947,6 +947,13 @@
 			"surfaces": "공개 진입점",
 			"legacyPool": "기존 라우트",
 			"configuration": "라우트 설정"
+		},
+		"sendState": {
+			"cancelled": "요청이 취소되었습니다",
+			"timeout": "REQUEST_TIMEOUT: 요청의 전체 제한 시간을 초과했습니다",
+			"invalidTimeout": "1에서 3600 사이의 정수 초를 입력하세요",
+			"timeoutLabel": "전체 제한 시간(초)",
+			"timeoutHint": "파일 읽기와 전체 응답을 포함합니다. 기본값은 300초입니다."
 		}
 	},
 	"simulator": {

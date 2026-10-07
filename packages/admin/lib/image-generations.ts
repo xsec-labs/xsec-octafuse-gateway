@@ -70,15 +70,25 @@ export function validateEditImageFiles(
 }
 
 /** Read a File as a data URL (for Playground JSON → server multipart). */
-export function readFileAsDataUrl(file: File): Promise<string> {
+export function readFileAsDataUrl(file: File, signal?: AbortSignal): Promise<string> {
 	return new Promise((resolve, reject) => {
+		if (signal?.aborted) { reject(signal.reason); return; }
 		const reader = new FileReader();
+		const cleanup = () => {
+			signal?.removeEventListener('abort', abort);
+			reader.onload = reader.onerror = reader.onabort = null;
+		};
+		const abort = () => { reader.abort(); cleanup(); reject(signal?.reason); };
 		reader.onload = () => {
+			cleanup();
 			if (typeof reader.result === 'string') resolve(reader.result);
 			else reject(new Error('Failed to read file as data URL'));
 		};
-		reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
-		reader.readAsDataURL(file);
+		reader.onerror = () => { cleanup(); reject(reader.error ?? new Error('Failed to read file')); };
+		reader.onabort = () => { cleanup(); reject(signal?.reason ?? new DOMException('File read cancelled', 'AbortError')); };
+		signal?.addEventListener('abort', abort, { once: true });
+		try { reader.readAsDataURL(file); }
+		catch (error) { cleanup(); reject(error); }
 	});
 }
 

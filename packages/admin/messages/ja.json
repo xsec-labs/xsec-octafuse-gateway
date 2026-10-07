@@ -947,6 +947,13 @@
 			"surfaces": "公開エントリー",
 			"legacyPool": "従来のルート",
 			"configuration": "ルート設定"
+		},
+		"sendState": {
+			"cancelled": "リクエストをキャンセルしました",
+			"timeout": "REQUEST_TIMEOUT：リクエストの総制限時間を超えました",
+			"invalidTimeout": "1〜3600 の整数秒を入力してください",
+			"timeoutLabel": "総制限時間（秒）",
+			"timeoutHint": "ファイル読み込みと応答全体を含みます。既定値は 300 秒です。"
 		}
 	},
 	"simulator": {
