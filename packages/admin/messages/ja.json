@@ -1337,7 +1337,7 @@
 	},
 	"auditLogs": {
 		"title": "監査ログ",
-		"subtitle": "ユーザー監査証跡（user_audit_logs）— spent / budget_max は変更前後のユーザースナップショットから算出されます。change_payload に旧形式 / 追加の JSON がある場合は下部に追記されます（独立した Metadata 列はありません）。",
+		"subtitle": "ユーザーの変更、予算の調整、実行した担当者やサービスを確認します。",
 		"empty": "フィルターに一致する監査ログはありません。",
 		"filters": {
 			"eventType": "イベント種別",
@@ -1395,7 +1395,16 @@
 			"noChangeDetail": "展開可能な変更詳細はありません。",
 			"more": "他 {count} 件"
 		},
-		"userRemovedTitle": "ユーザーは削除済みです。snapshot / change_payload を確認してください"
+		"userRemovedTitle": "ユーザーは削除済みです。snapshot / change_payload を確認してください",
+		"feedback": {
+			"reasonsFailed": "監査理由を読み取れません",
+			"logsFailed": "監査ログを読み取れません",
+			"invalidJson": "保存された監査 JSON が無効です。元の記録を確認してください。",
+			"rawRecord": "元の監査記録",
+			"invalidRange": "有効な開始時刻と終了時刻を順番に入力してください。",
+			"moreFilters": "その他の絞り込み",
+			"currencyFailed": "請求通貨を読み取れません"
+		}
 	},
 	"analytics": {
 		"modelUsage": {

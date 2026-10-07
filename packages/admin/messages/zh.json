@@ -1337,7 +1337,7 @@
 	},
 	"auditLogs": {
 		"title": "审计日志",
-		"subtitle": "用户审计追踪（user_audit_logs）— spent / budget_max 由前后用户快照推导；存在时会在下方追加 change_payload 中的遗留 / 额外 JSON（无独立 Metadata 列）。",
+		"subtitle": "查看用户变更、预算调整及对应的操作人或服务。",
 		"empty": "没有符合筛选条件的审计日志。",
 		"filters": {
 			"eventType": "事件类型",
@@ -1395,7 +1395,16 @@
 			"noChangeDetail": "没有可展开的变更详情。",
 			"more": "+{count} 更多"
 		},
-		"userRemovedTitle": "用户已删除；请查看快照 / change_payload"
+		"userRemovedTitle": "用户已删除；请查看快照 / change_payload",
+		"feedback": {
+			"reasonsFailed": "无法读取审计原因目录",
+			"logsFailed": "无法读取审计日志",
+			"invalidJson": "已存储的审计 JSON 格式无效，请查看原始记录。",
+			"rawRecord": "原始审计记录",
+			"invalidRange": "请输入有效且按先后排列的起止时间。",
+			"moreFilters": "更多筛选",
+			"currencyFailed": "无法读取结算币种"
+		}
 	},
 	"analytics": {
 		"modelUsage": {

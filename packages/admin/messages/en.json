@@ -1337,7 +1337,7 @@
 	},
 	"auditLogs": {
 		"title": "Audit Logs",
-		"subtitle": "User audit trail (user_audit_logs) — spent / budget_max are derived from before/after user snapshots; legacy / extra JSON from change_payload is appended below when present (no separate Metadata column).",
+		"subtitle": "Review user changes, budget adjustments, and the people or services responsible.",
 		"empty": "No audit logs match the filters.",
 		"filters": {
 			"eventType": "Event type",
@@ -1395,7 +1395,16 @@
 			"noChangeDetail": "No expandable change detail.",
 			"more": "+{count} more"
 		},
-		"userRemovedTitle": "User removed; see snapshot / change_payload"
+		"userRemovedTitle": "User removed; see snapshot / change_payload",
+		"feedback": {
+			"reasonsFailed": "Unable to read audit reasons",
+			"logsFailed": "Unable to read audit logs",
+			"invalidJson": "Stored audit JSON is invalid. Review the original record.",
+			"rawRecord": "Original audit record",
+			"invalidRange": "Enter a valid start and end time in order.",
+			"moreFilters": "More filters",
+			"currencyFailed": "Unable to read billing currency"
+		}
 	},
 	"analytics": {
 		"modelUsage": {

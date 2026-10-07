@@ -1337,7 +1337,7 @@
 	},
 	"auditLogs": {
 		"title": "감사 로그",
-		"subtitle": "사용자 감사 기록(user_audit_logs) — spent / budget_max는 변경 전후 사용자 Snapshot에서 계산됩니다. change_payload에 레거시 / 추가 JSON이 있으면 아래에 함께 표시되며 별도의 Metadata 열은 없습니다.",
+		"subtitle": "사용자 변경, 예산 조정, 작업한 담당자 또는 서비스를 확인하세요.",
 		"empty": "필터와 일치하는 감사 로그가 없습니다.",
 		"filters": {
 			"eventType": "이벤트 유형",
@@ -1395,7 +1395,16 @@
 			"noChangeDetail": "펼쳐 볼 변경 세부 정보가 없습니다.",
 			"more": "+{count}개 더 보기"
 		},
-		"userRemovedTitle": "사용자가 삭제되었습니다. snapshot / change_payload를 확인하세요"
+		"userRemovedTitle": "사용자가 삭제되었습니다. snapshot / change_payload를 확인하세요",
+		"feedback": {
+			"reasonsFailed": "감사 사유를 읽을 수 없습니다",
+			"logsFailed": "감사 로그를 읽을 수 없습니다",
+			"invalidJson": "저장된 감사 JSON이 유효하지 않습니다. 원본 기록을 확인하세요.",
+			"rawRecord": "원본 감사 기록",
+			"invalidRange": "유효한 시작 시간과 종료 시간을 순서대로 입력하세요.",
+			"moreFilters": "추가 필터",
+			"currencyFailed": "결제 통화를 읽을 수 없습니다"
+		}
 	},
 	"analytics": {
 		"modelUsage": {
