@@ -1425,7 +1425,15 @@
 		},
 		"userUsage": {
 			"title": "ユーザー使用量",
-			"subtitle": "リクエストログのメールアドレス別の使用量とコスト。予算列は users から取得します（user_id で JOIN）。"
+			"subtitle": "ユーザー別の使用量、コスト、成功率、予算使用状況を確認します。",
+			"feedback": {
+				"readFailed": "ユーザー使用量を取得できませんでした",
+				"modelsFailed": "モデル使用量を取得できませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています…",
+				"invalidRange": "有効な開始時刻と終了時刻を選択してください。",
+				"modelsFor": "{email} のモデル使用量"
+			}
 		},
 		"reliability": {
 			"title": "信頼性",

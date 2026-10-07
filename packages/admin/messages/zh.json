@@ -1425,7 +1425,15 @@
 		},
 		"userUsage": {
 			"title": "用户用量",
-			"subtitle": "按请求日志 email 的用量与成本；额度列来自 users（通过 user_id JOIN）。"
+			"subtitle": "按用户查看用量、成本、成功率和预算使用情况。",
+			"feedback": {
+				"readFailed": "读取用户用量失败",
+				"modelsFailed": "读取模型用量失败",
+				"currencyFailed": "确认计费币种失败",
+				"currencyPending": "正在确认计费币种…",
+				"invalidRange": "请选择有效的开始和结束时间。",
+				"modelsFor": "{email} 的模型用量"
+			}
 		},
 		"reliability": {
 			"title": "可靠性",

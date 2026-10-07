@@ -1425,7 +1425,15 @@
 		},
 		"userUsage": {
 			"title": "User Usage",
-			"subtitle": "Usage and cost by request log email; budget columns come from users (JOIN on user_id)."
+			"subtitle": "View usage, costs, success rates and budget use by user.",
+			"feedback": {
+				"readFailed": "Could not load user usage",
+				"modelsFailed": "Could not load model usage",
+				"currencyFailed": "Could not confirm billing currency",
+				"currencyPending": "Confirming billing currency…",
+				"invalidRange": "Choose a valid start and end time.",
+				"modelsFor": "Models for {email}"
+			}
 		},
 		"reliability": {
 			"title": "Reliability",
