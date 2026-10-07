@@ -8,7 +8,7 @@ TTFT 保留原主指标选择和鼠标悬停文本。点击或键盘打开共享
 
 独立 UTC 修复候选 dc09bfbe5dcc8f97cadcc02d65616c956f72e871 已本地集成为 ab6ab24ec4282086ce6eeae1a79afe68fa4362ef。真实 PostgreSQL 上海连接复现无偏移 SQL 边界被按本地时区解释；修复仅归一化模型聚合和供应商明细的绑定值。回归覆盖 UTC、上海、洛杉矶连接，SQL/ISO/明确偏移/毫秒、包含边界及 tag/user/provider/route 筛选。原实现失败、修复后与主仓回归通过。用户聚合查询保持独立范围。
 
-实际命令：受影响 ESLint；Next 16.2.3 webpack 生产构建；standalone 链接检查；npm run typecheck；tsx --test 的真实 PostgreSQL 回归；统一资源入口运行 /Users/xiaosong/.codex/visualizations/2026/10/02/01a0faad-6517-7cd3-90b5-b818bc64660d/octafuse-model-analytics-ui/run.mjs 的浏览器脚本。构建、类型、19 项页面流程、8 项生命周期及24 组视觉检查通过。Chromium 153 验收 320/390/768/1024/1440px、明暗、四语言和真实滚轮；最低对比度 5.36:1。人工复核最终桌面与手机 Dialog 截图。console 仅有刻意使数据库表不可用时的 HTTP 500，pageerror 为0。生命周期对应 final-v1；后续变更为按钮色调和截图/鼠标验证，读取所有权代码保持。
+实际命令：受影响 ESLint；Next 16.2.3 webpack 生产构建；standalone 链接检查；npm run typecheck；tsx --test 的真实 PostgreSQL 回归；统一资源入口运行 /Users/xiaosong/.codex/visualizations/2026/10/02/01a0faad-6517-7cd3-90b5-b818bc64660d/octafuse-model-analytics-ui/run.mjs 的浏览器脚本。构建、类型、19 项页面流程、8 项生命周期及24 组视觉检查通过。Chromium 153 验收 320/390/768/1024/1440px、明暗、四语言和真实滚轮；最低对比度 5.30:1。最新视觉证据为 visual-v4-visual.json，对比度包含实际公共按钮；Dialog 截图等待 open 状态、最终 opacity、有限动画结束及两个绘制帧，并在截图时禁用动画。人工复核 visual-v4-mobile-dialog.png 与 final-v2-visual-desktop-light.png。console 仅有刻意使数据库表不可用时的 HTTP 500，pageerror 为0。生命周期对应 final-v1；后续变更为按钮色调和截图/鼠标验证，读取所有权代码保持。
 
 性能使用同一 62 条真实记录、40 行模型、4预热/32正式 ABBA/BAAB，新 Chromium 上下文、禁缓存与GC后heap，七天范围须在真实 DOM 从请求数2显示为3。JS heap 单位为bytes，其余时间为ms，gzip为bytes。
 
