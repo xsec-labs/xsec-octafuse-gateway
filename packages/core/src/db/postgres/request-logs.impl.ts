@@ -15,6 +15,8 @@ import { sqlitePlaceholdersToPg } from '../shared/sql-placeholders';
 import { filterAllowedRequestLogStatuses } from '../request-log-status-filter';
 
 /** Admin/API ranges are serialized as UTC `YYYY-MM-DD HH:mm:ss` when they omit an offset. */
+function postgresUtcBoundary(value: string): string;
+function postgresUtcBoundary(value: string | undefined): string | undefined;
 function postgresUtcBoundary(value: string | undefined): string | undefined {
 	if (!value) return value;
 	const trimmed = value.trim();
@@ -177,7 +179,7 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 				COALESCE(${sqlMoneyRound('SUM(metered_cost)')}, 0) as metered_cost,
 				COALESCE(${sqlMoneyRound('SUM(standard_cost)')}, 0) as standard_cost
 			 FROM api_key_request_logs WHERE created_at >= $1 AND created_at ${comparator} $2`;
-			const rows = (await pg.unsafe(q, [options.startDate, options.endDate])) as Record<string, unknown>[];
+			const rows = (await pg.unsafe(q, [postgresUtcBoundary(options.startDate), postgresUtcBoundary(options.endDate)])) as Record<string, unknown>[];
 			return mapRequestStatsByRangeRow(rows[0]);
 		},
 
@@ -188,8 +190,8 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 		}) {
 			const bucketExpr =
 				options.granularity === 'hour'
-					? "to_char(date_trunc('hour', created_at::timestamp), 'YYYY-MM-DD HH24:MI:SS')"
-					: "to_char(date_trunc('day', created_at::timestamp), 'YYYY-MM-DD')";
+					? "to_char(date_trunc('hour', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:MI:SS')"
+					: "to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD')";
 			const q = `SELECT
 				${bucketExpr} as bucket,
 				COUNT(*)::bigint as request_count,
@@ -204,7 +206,7 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 			 WHERE created_at >= $1 AND created_at <= $2
 			 GROUP BY 1
 			 ORDER BY 1 ASC`;
-			const rows = (await pg.unsafe(q, [options.startDate, options.endDate])) as Record<string, unknown>[];
+			const rows = (await pg.unsafe(q, [postgresUtcBoundary(options.startDate), postgresUtcBoundary(options.endDate)])) as Record<string, unknown>[];
 			return mapRequestTimeseriesRows(rows);
 		},
 
@@ -217,8 +219,8 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 			if (options.userEmails.length === 0) return [];
 			const bucketExpr =
 				options.granularity === 'hour'
-					? "to_char(date_trunc('hour', created_at::timestamp), 'YYYY-MM-DD HH24:MI:SS')"
-					: "to_char(date_trunc('day', created_at::timestamp), 'YYYY-MM-DD')";
+					? "to_char(date_trunc('hour', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD HH24:MI:SS')"
+					: "to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD')";
 			const emailParams = options.userEmails.map((_, i) => `$${i + 3}`).join(', ');
 			const q = `SELECT
 				${bucketExpr} as bucket,
@@ -229,15 +231,15 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 			   AND user_email IN (${emailParams})
 			 GROUP BY 1, user_email
 			 ORDER BY 1 ASC`;
-			const rows = (await pg.unsafe(q, [options.startDate, options.endDate, ...options.userEmails])) as Record<string, unknown>[];
+			const rows = (await pg.unsafe(q, [postgresUtcBoundary(options.startDate), postgresUtcBoundary(options.endDate), ...options.userEmails])) as Record<string, unknown>[];
 			return mapUserTokenTimeseriesRows(rows);
 		},
 
 		async getThroughputLastMinute() {
 			const end = new Date();
 			const start = new Date(end.getTime() - 60 * 1000);
-			const startDate = start.toISOString().slice(0, 19).replace('T', ' ');
-			const endDate = end.toISOString().slice(0, 19).replace('T', ' ');
+			const startDate = start.toISOString();
+			const endDate = end.toISOString();
 			const q = `SELECT
 				COUNT(*)::bigint as request_count,
 				COALESCE(SUM(total_tokens), 0)::bigint as total_tokens
@@ -263,7 +265,7 @@ export function createPostgresRequestLogsRepository(db: PostgresDatabaseClient):
 			const q = `SELECT
 				COUNT(DISTINCT CASE WHEN user_email IS NOT NULL AND user_email != '' THEN user_email END)::bigint as active_users
 			 FROM api_key_request_logs WHERE created_at >= $1 AND created_at ${comparator} $2`;
-			const rows = (await pg.unsafe(q, [options.startDate, options.endDate])) as { active_users?: string | number }[];
+			const rows = (await pg.unsafe(q, [postgresUtcBoundary(options.startDate), postgresUtcBoundary(options.endDate)])) as { active_users?: string | number }[];
 			return Number(rows[0]?.active_users ?? 0);
 		},
 	};
