@@ -1,5 +1,8 @@
 # Octafuse 路由管理公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 模型路由列表、顶栏筛选、新建/编辑、复制草稿、启停、删除确认、路由池和模型策略、倍率与每日时段采用tokens0.1.2/UI React0.1.5。PageHeader、ControlButton、RadioGroup、Select、Dialog、Field、Input、Textarea、Badge、Spinner和状态反馈统一主题、焦点及减少动效。专业协议图标、模型价格展示和计费serializer继续承担业务职责。en/zh/ja/ko各新增12个反馈键，起点每种语言1464个值保持。
 
 ## 行为与数据契约

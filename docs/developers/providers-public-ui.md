@@ -1,5 +1,8 @@
 # Octafuse 供应商公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 供应商列表、搜索、新建和编辑、状态切换、密钥复制、删除确认及模板导入采用公共 tokens 0.1.2 / UI React 0.1.5。PageHeader、Toolbar、按钮、字段、Input、Textarea、Switch、Checkbox、Badge、Dialog 和状态反馈统一明暗主题、焦点和减少动效。应用继续维护 en/zh/ja/ko 文案；每种语言新增 19 个反馈键，原有文案值保持。布局在 1440/1024/820/390/320px 验证，主操作至少 44px，窄屏列表和弹窗按内容滚动。
 
 ## 行为与请求契约

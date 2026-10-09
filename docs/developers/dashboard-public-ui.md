@@ -1,5 +1,8 @@
 # 总览公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /dashboard 使用公共PageHeader、ControlButton、Field/Input、Table、Badge、Spinner及ShellError，统一8张KPI卡片、模型/用户分布、Token趋势、近期请求/错误和时间范围。卡片采用语义surface、border、radius及文字token；保留Recharts、四位金额、Token、延迟、8项KPI及全部操作入口。分布表保留4列，桌面图表与表格按完整宽度排列，窄视口使用表格内部横向滚动。近期5项日志和5项错误保持全局近期口径；success/error/incomplete/cancelled使用独立状态tone。
 
 统计和币种分别拥有取消与完整正文20秒预算。新范围隐藏旧统计并保留分布视图的组件身份；成功提交新数据，失败清除结果。离页和替换范围取消所属请求，用户显式重新读取。币种未确认时暂停所有财务金额。响应校验当前端点的完整KPI、行身份与唯一键、计数、有限财务、百分比、时间及延迟。初始Today范围采用已确认的业务时区日界，自定义墙钟转换为UTC，非法或倒序输入在请求前反馈。成功空范围仍保留今日及全局近期信息，范围图表使用空状态。

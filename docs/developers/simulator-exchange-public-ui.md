@@ -1,5 +1,8 @@
 # Simulator request and response
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 The request and response panels use shared Section, Field, Input, Textarea,
 RadioGroup, ControlButton, Badge, Tabs and EmptyState components. Associated labels,
 44px controls, keyboard tabs, a labelled wire disclosure and shared theme tokens

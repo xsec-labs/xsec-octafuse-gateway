@@ -1,5 +1,8 @@
 # Playground 工具与模式公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /gateway/playground 的模式按钮、工具与引擎选择、模板、JSON编辑、发送反馈及响应使用公共ControlButton、Section、Field、Select、Input、Textarea、ErrorState、Badge、Spinner和EmptyState。明暗主题、44px目标、键盘焦点、Select Portal、响应式双列/单列和可展开实际请求正文统一。模式aria-pressed表达当前选择，原链接与配置入口保持。合法默认工具为ai-detection；工具/供应商输入依据既有白名单验证。工具与供应商由单一selection对象持有，事件中更新及清除旧响应。
 
 真实生产浏览器基线复现三项行为：切换模式及SPA离页后等待返回的工具POST在一秒预算内仍连接；发送时切换工具将旧AI结果显示在web-search选择下。原实现缺少发送取消所有者，且发送期间工具、引擎、模板与JSON仍可修改。现在首个await前同步ref认领单次发送，AbortController覆盖HTTP与完整正文，控件在发送中锁定。用户取消、模式卸载和离页终止浏览器操作，迟到结果不回写；1–3600整数秒总时限默认300秒，实际POST401通知既有会话所有者。

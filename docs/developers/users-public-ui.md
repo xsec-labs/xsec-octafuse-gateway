@@ -1,5 +1,8 @@
 # 用户列表与创建公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 候选从 `7c1d55863f29dc38553b33cba2b0116220e3ee47` 接入现有 tokens 0.1.2 / UI React 0.1.5。`/gateway/users` 的标题、四项筛选、五列排序、20 条分页、创建窗口和 metadata 预览使用公共 PageHeader、Field、Input/Textarea、Select、ControlButton、Table、Badge、Dialog 和状态反馈。用户邮箱使用 Next Link 进入已有详情页，支持键盘和浏览器链接操作；关闭窗口恢复操作焦点。明暗主题沿用公共 tokens，长表单和宽表格各有明确滚动区域。
 
 ## 行为与边界

@@ -1,5 +1,8 @@
 # Gateway 用户详情公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 用户详情的资料、预算、用户密钥、最近请求和用户审计采用公共 PageHeader、Field、Input、Textarea、Select、Switch、ControlButton、Dialog、Table、Badge 与状态反馈。页面消费既有明暗主题。桌面资料和密钥使用双列卡片，窄屏表单单列，宽表在各自容器内滚动。四语言原有各 1496 项文案保持，各增加 15 项详情反馈；包清单和锁文件保持，新增依赖为零。复制控件移到 `components/GatewayCopyControl.tsx`，内容字节保持，密钥页面继续通过公共入口消费。
 
 ## 读取和写入契约

@@ -1,5 +1,8 @@
 # 工具调用记录公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /gateway/tools/invocations 使用公共 PageHeader、Section、Field、Select、ControlButton、Table、Drawer、Tabs、Badge、Spinner、EmptyState 与 ShellError。筛选与详情统一明暗主题、44px 控件、焦点、间距和窄屏布局。表格在自身区域横向滚动；窄屏详情纵向展示请求、结果列表及 JSON。金额说明提示保留，standard/charged/metered/profit 的计算与格式保持。公共时间控件由请求日志与调用记录共享；共享响应解析器原样移到 lib/gateway-log-api.ts。
 
 URL 查询先校验再发出一次列表读取：工具别名规范到 id，状态仅接受已声明值，页码必须为安全正整数，重复参数及非法 UTC 日期明确失败。空或单边时间范围保持查询语义，链接到请求日志保留 model/status/UTC 范围并从第一页开始。业务墙钟应用后只转换一次 UTC，反向自定义范围关联错误并聚焦起点。列表和币种各有独立所有者、取消及 20 秒完整正文预算；切换筛选先清除旧结果并取消旧读，迟到的响应无法覆盖新结果。离页取消，401 交给既有会话所有者。读取失败显示显式错误及重新读取操作；币种失败暂停金额展示。实际 GET500 从基线空列表改为读取错误。

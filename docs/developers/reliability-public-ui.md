@@ -1,5 +1,8 @@
 # Reliability analysis public UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 The reliability page uses the shared page header, controls, fields, tables, badges and read feedback. The provider table and model/provider table retain their aggregate columns, success-rate thresholds and money precision. Recent errors show the ten latest error records across all time; the selected range applies to the two reliability aggregates. The error-log link opens the existing request-log status filter.
 
 Rolling and calendar presets apply a UTC API range. Custom fields display business-timezone wall-clock values, validate both boundaries and expose invalid input before issuing a read. Each date draft belongs to its applied range and timezone.

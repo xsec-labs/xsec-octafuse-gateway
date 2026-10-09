@@ -1,5 +1,8 @@
 # Octafuse 模型管理公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 模型列表、类别与供应商筛选、搜索、新建和编辑、删除确认、模板导入、metadata 预览和价格编辑采用公共 tokens 0.1.2 / UI React 0.1.5。PageHeader、Toolbar、按钮、RadioGroup、Badge、Dialog、Field、Input、Textarea、Select、Checkbox、Tooltip、表格和状态反馈统一主题、焦点及减少动效。专业模型图标、多模态标记和成熟定价 serializer 继续承担业务展示及数据转换。en/zh/ja/ko 各新增24个反馈键，每种语言原有1440个文案值保持。
 
 ## 行为与状态契约

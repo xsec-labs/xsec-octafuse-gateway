@@ -1,5 +1,8 @@
 # Playground 请求与响应公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /gateway/playground 的请求编辑、媒体输入、发送操作、错误反馈和响应使用公共 Section、Field、Input、Textarea、RadioGroup、ControlButton、ErrorState、Badge、Spinner 与 EmptyState。请求和响应在宽屏并列、窄屏单列，统一明暗主题、44px 控件、焦点、间距与可滚动代码块。JSON、总时限、文件与 Gemini 操作具有命名及错误关联。图像编辑展示全部已选文件，原有五张上限阻止超额发送。HTTP 错误展示真实原始正文，成功状态才展示合并内容。
 
 发送失败由单一判别对象持有，JSON 校验关联编辑器，时限校验关联时限输入，传输失败在 ErrorState 展示，合法 JSON 保持有效状态。响应滚动尊重 prefers-reduced-motion。发送所有权沿用前置提交 43a9bcd14e7a7107a965404aa3e60807691bbe23：首次 await 前认领，AbortController 覆盖实际 FileReader、HTTP 和完整正文，用户取消、模式切换及离页终止操作，1–3600 整数秒总预算默认 300 秒，POST401 通知既有会话所有者。前置问题复现、实现和回滚见 playground-send-ownership.md。

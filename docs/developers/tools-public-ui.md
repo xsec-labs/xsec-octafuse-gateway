@@ -1,5 +1,8 @@
 # 工具配置公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /gateway/tools 使用公共 PageHeader、Section、Field、Input、Select、ControlButton、Spinner、Dialog、Badge 与 ShellError。搜索、抓取、深度搜索和 AI 检测按统一分组展示；供应商、standard/charged/metered 三价格及凭据在桌面采用行布局，窄屏纵向排列。亏损使用 warning 色，凭据初始隐藏。供应商需显式启用，缺少必需凭据的选项禁用。指南拥有独立开关状态和稳定组件身份。四语言各新增三项反馈，原有1556项译文叶子、包和锁文件保持，新增依赖零。
 
 单次配置读取同时取得币种，并校验完整行、唯一键、目录、active、价格及凭据类型。core目录解析维护合法旧cost与缺省价格语义，搜索/抓取支持合法旧三键配置。非法已存值显式失败并移除可写表单。实际GET500从基线的空可编辑表单变为公共读取错误；显式重新读取采用已确认服务器值。

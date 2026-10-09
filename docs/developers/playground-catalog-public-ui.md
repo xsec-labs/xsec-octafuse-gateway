@@ -1,5 +1,8 @@
 # Playground 路由目录公共 UI
 
+本页保存该批候选阶段的实现、测量和验收档案。当前产品的 24 批公共 UI 已于 2026-10-10 本地合入 `master`（`90c8f942be5389ec3686011888dbfd2bda5e7248`）；成本决定、主仓复验与资源清理以[公共 UI 集成记录](public-ui-integration.md)及其证据收据为准。
+
+
 /gateway/playground 的页面标题、目录读取、联动筛选、路由选择与详情使用公共 PageHeader、Section、Field、Select、RadioGroup、Badge、EmptyState、Spinner、ControlButton 与 ShellError。控件统一明暗主题、44px 目标、焦点、间距和窄屏布局。完整路由 ID 与状态可读；公开入口、custom_params、price_override 收入默认折叠的原生路由配置区域。请求/响应、发送函数和工具面板保留原实现，本批契约限定为目录。
 
 三个真实 GET 并行读取并复用模型、供应商、路由的现有解析器，通过各自 catalog.ts 公共入口消费。任一读取、正文或引用完整性失败使整个目录显式失败；20 秒预算覆盖完整正文，失败取消其余读取，离页取消，迟到响应无法覆盖新页面所有者。用户可显式重新读取；401 通知既有会话所有者。缺失模型或供应商引用属于 INVALID_RESPONSE。联动筛选在事件中归一化：兼容过滤值和已编辑请求保持，冲突值及不可见选择清除；类型切换清除选择、媒体与响应状态，新路由使用对应协议模板。
