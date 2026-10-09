@@ -1,0 +1,46 @@
+.request-logs-page { max-width: 1800px; margin: auto; min-width: 0; color: var(--xui-text); }
+.request-logs-page .xui-page-header { margin-bottom: 24px; }
+.request-logs-filters { align-items: end; }
+.request-logs-filters .xui-field { flex: 1 1 180px; max-width: 300px; min-width: 0; }
+.request-logs-filters .xui-input, .request-logs-filters .xui-select-trigger { width: 100%; min-width: 0; }
+.request-log-list { border: 1px solid var(--xui-border); border-radius: var(--xui-radius-panel); overflow: hidden; background: var(--xui-surface); }
+.request-log-table { min-width: 1050px; }
+.request-log-status-success { background: var(--xui-success, #15803d); }
+.request-log-status-error { background: var(--xui-danger); }
+.request-log-status-incomplete { background: var(--xui-warning, #a16207); }
+.request-log-status-cancelled { background: #8b5cf6; }
+.request-log-status-other { background: var(--xui-muted); }
+.request-log-profit-positive { color: var(--xui-success); }
+.request-log-profit-negative { color: var(--xui-danger); }
+.request-log-profit-neutral { color: var(--xui-muted); }
+.request-log-identifier { color: var(--xui-text); background: var(--xui-surface); border-color: var(--xui-border); }
+.request-log-table th { background: var(--xui-subtle); }
+.request-log-table tr { border-color: var(--xui-border); }
+.request-log-table tr[aria-expanded='true'] { background: var(--xui-subtle); }
+.request-log-table tr[tabindex]:hover { background: var(--xui-subtle); }
+.request-log-table tr[tabindex]:focus-visible { outline: 2px solid var(--xui-focus); outline-offset: -2px; }
+.request-log-detail { min-width: 0; }
+.request-log-json-error { color: var(--xui-danger); font-size: 12px; padding: 8px; }
+.request-log-detail.request-logs-page { margin: 0; padding: 0; }
+.request-log-detail-drawer { width: min(1400px,calc(100vw - 32px)); max-width: 1400px; }
+.request-log-detail-drawer .xui-dialog-description { overflow-wrap: anywhere; }
+.request-log-detail-drawer .request-log-payloads { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.request-log-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.request-log-payloads { display: grid; grid-template-columns: repeat(3,minmax(220px,1fr)); gap: 16px; padding: 16px; }
+.request-log-payloads > div { background: var(--xui-surface); border-color: var(--xui-border); }
+.request-log-payloads pre { max-height: 500px; color: var(--xui-text); background: var(--xui-subtle); border-color: var(--xui-border); }
+.request-log-timing-dialog { width: min(800px,calc(100vw - 32px)); max-width: 800px; }
+.request-log-timing-help pre { color: var(--xui-text); background: var(--xui-subtle); border-color: var(--xui-border); }
+.request-logs-page .key-copy { display: inline-flex; align-items: center; gap: 8px; }
+.request-logs-page .key-copy [role='alert'] { color: var(--xui-danger); }
+.request-logs-page [class*='text-gray-'], .request-logs-page [class*='text-slate-'], .request-logs-page [class*='text-sky-'], .request-logs-page [class*='text-violet-'], .request-logs-page [class*='text-indigo-'] { color: var(--xui-text); }
+.request-logs-page [class*='text-gray-400'], .request-logs-page [class*='text-gray-500'], .request-logs-page [class*='text-slate-400'] { color: var(--xui-muted); }
+.request-logs-page [class*='bg-white'], .request-logs-page [class*='bg-gray-50'], .request-logs-page [class*='bg-slate-50'], .request-logs-page [class*='bg-sky-'], .request-logs-page [class*='bg-violet-'], .request-logs-page [class*='bg-emerald-50'] { background: var(--xui-surface); }
+.request-logs-page [class*='border-gray-'], .request-logs-page [class*='border-sky-'], .request-logs-page [class*='border-violet-'] { border-color: var(--xui-border); }
+.request-log-list .xui-loading { display: flex; justify-content: center; padding: 40px; }
+@media(max-width:600px) {
+ .request-logs-page { padding: 20px 16px; }
+ .request-logs-filters .xui-field { max-width: none; flex-basis: 100%; }
+ .request-log-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .request-log-detail-drawer .request-log-payloads, .request-log-identifiers { grid-template-columns: minmax(0,1fr); }
+}

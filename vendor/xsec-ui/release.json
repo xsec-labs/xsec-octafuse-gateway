@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "name": "@xsec/design-tokens",
+      "version": "0.1.2",
+      "file": "xsec-design-tokens-0.1.2.tgz",
+      "sha256": "add2fe350b31311472c615c911b17b1c39e8b5396859ac3594e496ef0ae031eb"
+    },
+    {
+      "name": "@xsec/ui-react",
+      "version": "0.1.6",
+      "file": "xsec-ui-react-0.1.6.tgz",
+      "sha256": "25b11330a2c4b96bee92992f07247276d5e09b962bb4814d3d9d9d9357e2f6c2"
+    }
+  ]
+}

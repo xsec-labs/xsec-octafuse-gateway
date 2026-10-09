@@ -261,6 +261,12 @@
 			"today": "Today",
 			"this_week": "WTD",
 			"this_month": "MTD"
+		},
+		"feedback": {
+			"readFailed": "Unable to read dashboard statistics",
+			"currencyFailed": "Unable to confirm the billing currency",
+			"currencyPending": "Confirming the billing currency…",
+			"invalidRange": "Enter a valid start and end time, with the end at or after the start."
 		}
 	},
 	"filter": {
@@ -396,6 +402,27 @@
 			"apiKeyEditHint": "Leave blank to keep the current key. Enter a new value to replace it.",
 			"statusEnabled": "Provider enabled",
 			"statusHint": "Disabled providers are skipped for routing and playground."
+		},
+		"feedback": {
+			"copyName": "{name} (copy)",
+			"nameRequired": "Enter a provider name.",
+			"keyRequired": "Enter an API key for the new provider.",
+			"listFailed": "Unable to load providers",
+			"readList": "Read providers again",
+			"saveFailed": "Provider save was not confirmed",
+			"deleteFailed": "Provider deletion was not confirmed",
+			"statusFailed": "Provider status change was not confirmed",
+			"copyFailed": "Unable to read the provider key",
+			"clipboardFailed": "Unable to write to the clipboard. Check browser permissions and try again.",
+			"catalogFailed": "Unable to load templates",
+			"readCatalog": "Read templates again",
+			"importFailed": "Provider import was not confirmed",
+			"importResult": "Created {count} providers",
+			"importComplete": "Review the imported providers and set their API keys before enabling them.",
+			"deleteTitle": "Delete provider?",
+			"deleteDescription": "Delete {name} from the gateway.",
+			"deleteHint": "Model routes must be removed or reassigned before this provider can be deleted.",
+			"importRowFailed": "This template could not be imported. Check its configuration and storage availability before selecting it again."
 		}
 	},
 	"models": {
@@ -537,6 +564,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "View metadata JSON",
 			"kindAudio": "Audio"
+		},
+		"feedback": {
+			"listFailed": "Models could not be loaded",
+			"readList": "Read models",
+			"detailFailed": "Model details could not be loaded",
+			"saveFailed": "Model could not be saved",
+			"deleteFailed": "Model could not be deleted",
+			"currencyFailed": "Billing currency could not be loaded",
+			"readCurrency": "Read billing currency",
+			"catalogFailed": "Model catalog could not be loaded",
+			"importFailed": "Models could not be imported",
+			"idRequired": "Enter a model ID",
+			"tokenLimits": "Token limits must be positive integers",
+			"search": "Search models, IDs or tags",
+			"deleteTitle": "Delete model",
+			"deleteDescription": "Delete {id}?",
+			"deleteHint": "Associated routes and tags will also be deleted.",
+			"importTitle": "Import models",
+			"importDescription": "Import {count} models using the {currency} catalog?",
+			"importHint": "Existing model IDs keep their current data.",
+			"importResult": "Created {created} · Existing {skipped} · Failed {failed} · {currency}",
+			"failedTemplates": "Templates that failed to import",
+			"pricingPreview": "Pricing preview for {id}",
+			"clipboardFailed": "Pricing JSON could not be copied",
+			"importHelp": "Import details",
+			"importSummary": "Select models to import. Existing models are preserved. Prices use the {currency} catalog."
 		}
 	},
 	"routes": {
@@ -798,6 +851,20 @@
 			"inactiveExcluded": "Disabled routes or providers are excluded from this preview.",
 			"hintCache": "Non-affinity may reduce prompt cache hit rate.",
 			"hintNoCache": "Upstream has no prompt cache; prefer weighted_random or round_robin."
+		},
+		"feedback": {
+			"saveFailed": "Unable to save the route",
+			"deleteFailed": "Unable to delete the route",
+			"statusFailed": "Unable to change route status",
+			"strategyFailed": "Unable to save the strategy",
+			"copyFailed": "Unable to copy the model ID",
+			"validationFailed": "Review the route fields",
+			"invalidFields": "Select a model and provider, enter an upstream model name, and use whole-number priority and weight (weight ≥ 1).",
+			"deleteTitle": "Delete route",
+			"deleteDescription": "Delete route {id}?",
+			"deleteHint": "The route target will be removed from its pool.",
+			"invalidPricing": "Enter valid non-negative factors and non-overlapping schedule windows.",
+			"invalidParams": "Enter a valid JSON object for custom parameters."
 		}
 	},
 	"playground": {
@@ -870,8 +937,29 @@
 		"engineProvider": "Engine provider",
 		"engineProviderHint": "Not limited to the Active engine — any implemented catalog entry can be tested.",
 		"toolsBodyMustBeObject": "Request body must be a JSON object.",
+		"toolsTimeoutHint": "Covers the complete tool response. Default: 300 seconds.",
 		"toolsNeedProvider": "Select an engine provider.",
-		"applyTemplate": "Apply template"
+		"applyTemplate": "Apply template",
+		"catalog": {
+			"readFailed": "Unable to read the route catalog",
+			"empty": "No routes match these filters",
+			"operation": "Upstream operation",
+			"pool": "Routing pool",
+			"surfaces": "Public surfaces",
+			"legacyPool": "Legacy route",
+			"configuration": "Route configuration"
+		},
+		"sendState": {
+			"cancelled": "Request cancelled",
+			"timeout": "REQUEST_TIMEOUT: the request exceeded its total time limit",
+			"invalidTimeout": "Enter a whole number of seconds from 1 to 3600",
+			"timeoutLabel": "Total time limit (seconds)",
+			"timeoutHint": "Covers file reading and the complete response. Default: 300 seconds."
+		},
+		"responseContent": {
+			"receiving": "Receiving…",
+			"unsupported": "No supported assistant content was found in this response."
+		}
 	},
 	"simulator": {
 		"title": "Simulator",
@@ -966,7 +1054,32 @@
 		"toolProtocolHidden": "Tools always use JSON POST /v1/tools/* — protocol selection does not apply.",
 		"readyNeedTool": "Select a tool.",
 		"errSelectTool": "Select a tool before Send.",
-		"openToolsInvocations": "Open Tools Invocations"
+		"openToolsInvocations": "Open Tools Invocations",
+		"setup": {
+			"emptyKeys": "No API keys match this filter",
+			"keyReady": "API key ready",
+			"settingsFailed": "Saved settings could not be used",
+			"settingsReadFailed": "The saved settings could not be read or have an invalid format. Retry or reset to defaults.",
+			"settingsWriteFailed": "The settings could not be saved. Retry or reset to defaults.",
+			"resetSettings": "Reset saved settings"
+		},
+		"routing": {
+			"activeRoute": "Active route",
+			"noActiveRoute": "No active route",
+			"unavailableOption": "{id} · unavailable",
+			"selectedOutsideFilter": "The selected model stays active while you filter.",
+			"modelUnavailable": "The selected model is unavailable. Select an available model.",
+			"groupUnavailable": "The selected route group is unavailable. Select an available group or the default.",
+			"modelCount": "{total} in this kind · {filtered} match",
+			"noModels": "No models match this filter",
+			"legacyPool": "Legacy route pool"
+		},
+		"exchange": {
+			"timeoutLabel": "Total request timeout (seconds)",
+			"timeoutHint": "1–3600 seconds, including response headers and the complete body. Default: 300 seconds.",
+			"invalidTimeout": "Enter a whole number from 1 to 3600 seconds.",
+			"timeout": "The total request timeout was reached. The connection was cancelled; you can send again."
+		}
 	},
 	"users": {
 		"title": "Users",
@@ -1066,6 +1179,33 @@
 			"updateFailed": "Update failed",
 			"deleteFailed": "Delete failed",
 			"createFailed": "Create failed"
+		},
+		"feedback": {
+			"emailRequired": "Email is required.",
+			"externalPair": "External system and external user ID must both be set or both empty.",
+			"budgetInvalid": "Budget amounts must be finite numbers.",
+			"metadataInvalid": "Metadata must be valid JSON.",
+			"sortBy": "Sort by {label}",
+			"detail": "User detail: {name}",
+			"metadataFor": "Metadata for {name}",
+			"pagination": "User list pages"
+		},
+		"detailFeedback": {
+			"userFailed": "Unable to read user",
+			"keysFailed": "Unable to read API keys",
+			"logsFailed": "Unable to read request logs",
+			"auditsFailed": "Unable to read user audit logs",
+			"dateInvalid": "Budget reset time must be a valid date.",
+			"readRequired": "Read current state to continue",
+			"readRequiredHint": "Read the current user and affected records before making another change.",
+			"copyKey": "Copy API key: {name}",
+			"copyNewKey": "Copy new API key",
+			"metadataFor": "Metadata for {name}",
+			"deleteKey": "Delete API key: {name}",
+			"standard": "Standard",
+			"charged": "Charged",
+			"metered": "Metered",
+			"currencyFailed": "Could not read billing currency"
 		}
 	},
 	"keysPage": {
@@ -1139,9 +1279,31 @@
 		"copyKey": "Copy key",
 		"copyId": "Copy ID",
 		"copySecret": "Copy secret",
-		"confirmDelete": "Permanently delete this API key?"
+		"confirmDelete": "Permanently delete this API key?",
+		"feedback": {
+			"sortCreated": "Sort by creation time",
+			"editKey": "Edit key: {name}",
+			"pagination": "API key pagination",
+			"metadataInvalid": "Metadata must be valid JSON",
+			"userRequired": "A gateway User ID is required",
+			"externalRequired": "External system and external user ID are both required",
+			"emailRequired": "Email is required for external identity",
+			"deleteFailed": "Key deletion failed",
+			"copyFailed": "Copy failed. Please try again.",
+			"budgetBase": "Base: {amount}",
+			"deleteWarning": "This permanently removes gateway access for this key. The user and their budget are retained.",
+			"keyId": "Key ID"
+		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "Enter a valid start and end in chronological order.",
+			"invalidJson": "Recorded payload contains invalid JSON. Original text is shown.",
+			"resourceFailed": "Could not read {resource}",
+			"currency": "Billing currency",
+			"unlisted": "{id} (outside the current catalog)",
+			"readFailed": "Could not read request logs"
+		},
 		"title": "Request Logs",
 		"subtitle": "View gateway request history",
 		"filters": {
@@ -1227,7 +1389,7 @@
 	},
 	"auditLogs": {
 		"title": "Audit Logs",
-		"subtitle": "User audit trail (user_audit_logs) — spent / budget_max are derived from before/after user snapshots; legacy / extra JSON from change_payload is appended below when present (no separate Metadata column).",
+		"subtitle": "Review user changes, budget adjustments, and the people or services responsible.",
 		"empty": "No audit logs match the filters.",
 		"filters": {
 			"eventType": "Event type",
@@ -1285,20 +1447,53 @@
 			"noChangeDetail": "No expandable change detail.",
 			"more": "+{count} more"
 		},
-		"userRemovedTitle": "User removed; see snapshot / change_payload"
+		"userRemovedTitle": "User removed; see snapshot / change_payload",
+		"feedback": {
+			"reasonsFailed": "Unable to read audit reasons",
+			"logsFailed": "Unable to read audit logs",
+			"invalidJson": "Stored audit JSON is invalid. Review the original record.",
+			"rawRecord": "Original audit record",
+			"invalidRange": "Enter a valid start and end time in order.",
+			"moreFilters": "More filters",
+			"currencyFailed": "Unable to read billing currency"
+		}
 	},
 	"analytics": {
 		"modelUsage": {
 			"title": "Model Usage",
-			"subtitle": "Usage and cost by model and route group"
+			"subtitle": "Usage and cost by model and route group",
+			"feedback": {
+				"readFailed": "Could not read model usage",
+				"providersFailed": "Could not read provider breakdown",
+				"currencyFailed": "Could not confirm billing currency",
+				"currencyPending": "Confirming billing currency; amounts are paused",
+				"invalidRange": "Enter a valid start and end time in chronological order",
+				"providersFor": "Providers for {model} / {group}"
+			}
 		},
 		"providerUsage": {
 			"title": "Provider Usage",
-			"subtitle": "Usage and cost by upstream provider"
+			"subtitle": "Usage and cost by upstream provider",
+			"feedback": {
+				"readFailed": "Could not load provider usage",
+				"modelsFailed": "Could not load model usage",
+				"currencyFailed": "Could not confirm billing currency",
+				"currencyPending": "Confirming billing currency…",
+				"invalidRange": "Choose a valid start and end time.",
+				"modelsFor": "Models for {provider}"
+			}
 		},
 		"userUsage": {
 			"title": "User Usage",
-			"subtitle": "Usage and cost by request log email; budget columns come from users (JOIN on user_id)."
+			"subtitle": "View usage, costs, success rates and budget use by user.",
+			"feedback": {
+				"readFailed": "Could not load user usage",
+				"modelsFailed": "Could not load model usage",
+				"currencyFailed": "Could not confirm billing currency",
+				"currencyPending": "Confirming billing currency…",
+				"invalidRange": "Choose a valid start and end time.",
+				"modelsFor": "Models for {email}"
+			}
 		},
 		"reliability": {
 			"title": "Reliability",
@@ -1306,7 +1501,14 @@
 			"providerQuality": "Provider quality",
 			"perModelComparison": "Per-model provider comparison",
 			"recentErrors": "Recent errors",
-			"viewAllErrors": "View all error logs"
+			"viewAllErrors": "View all error logs",
+			"feedback": {
+				"readFailed": "Reliability data could not be read",
+				"currencyFailed": "Billing currency could not be confirmed",
+				"currencyPending": "Confirming billing currency; amounts are pending.",
+				"invalidRange": "Enter a valid start and end with start before end.",
+				"recentErrorsScope": "Recent errors show the latest records across all time. The selected range applies to the two reliability tables."
+			}
 		},
 		"columns": {
 			"model": "Model",
@@ -1417,7 +1619,14 @@
 			"description": "Default strategy when a model has no route_policy override (system_config.ROUTE_STRATEGY).",
 			"strategy": "Strategy"
 		},
-		"saveRouteStrategy": "Save route strategy"
+		"saveRouteStrategy": "Save route strategy",
+		"feedback": {
+			"readFailed": "Unable to read system config",
+			"savedKeys": "Confirmed saved: {keys}",
+			"readReplacesDrafts": "Reading again replaces these drafts with the current server values.",
+			"invalidStrategy": "Choose a supported route strategy.",
+			"keyRequired": "Enter a config key."
+		}
 	},
 	"tools": {
 		"catalog": {
@@ -1566,6 +1775,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "Filters",
+				"summary": "Inspect tool calls, charges and result summaries.",
+				"invalidQuery": "The link contains invalid filters. Clear the filters to start a new query.",
+				"currencyFailed": "Billing currency could not be read",
+				"readFailed": "Tool invocations could not be read",
+				"payloadInvalid": "The stored tool payload has an invalid format. Its original content remains available.",
+				"inspectRaw": "Open JSON to inspect the stored content.",
+				"unsafeResultUrl": "This result URL cannot be opened. Only HTTP and HTTPS links are supported."
+			},
 			"title": "Tool invocations",
 			"subtitle": "Calls billed as provider octafuse-tools (model_id tool:*). Click a row to inspect query and result summary. Same underlying rows as Request Logs.",
 			"configureTools": "Configure tools →",
@@ -1615,6 +1834,11 @@
 			"aiDetectionNotImplemented": "Cannot activate an engine that is not implemented yet.",
 			"noKeyCannotActivate": "Cannot activate a provider without an API key.",
 			"switchActiveBeforeClearingKey": "Switch Active to another engine that still has a key before clearing the current engine’s key, then save again to clear it."
+		},
+		"feedback": {
+			"readFailed": "Tools configuration could not be read",
+			"savedKeys": "Confirmed saved: {keys}",
+			"readReplacesDrafts": "Read the server configuration before saving again. Your drafts will be replaced by the server values."
 		}
 	},
 	"pricing": {
@@ -1678,5 +1902,22 @@
 		"cost": "Cost: {amount}",
 		"providerLabel": "Provider: {id}",
 		"stdMetered": "Standard {std} · Metered {metered}"
+	},
+	"shell": {
+		"retry": "Read again",
+		"sessionFailed": "Unable to check your session",
+		"timezoneFailed": "Unable to read the business timezone",
+		"localeFailed": "Language change was not confirmed",
+		"logoutFailed": "Logout was not confirmed",
+		"checkSession": "Check session",
+		"confirmWrite": "The request may have reached the server. Read the current state before trying again.",
+		"navigation": "Navigation",
+		"openNavigation": "Open navigation",
+		"skipContent": "Skip to content",
+		"loginIntro": "Sign in to manage gateway routing and operations.",
+		"NETWORK_ERROR": "The server connection failed.",
+		"REQUEST_TIMEOUT": "The response exceeded the 20-second limit.",
+		"INVALID_RESPONSE": "The server response is invalid.",
+		"HTTP_ERROR": "The server rejected the request."
 	}
 }

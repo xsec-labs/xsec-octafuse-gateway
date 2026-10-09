@@ -1,475 +1,322 @@
 'use client';
-
-import {
-	ChevronDownIcon,
-	ChevronRightIcon,
-	DocumentDuplicateIcon,
-	TrashIcon,
-} from '@heroicons/react/24/outline';
+import { ControlButton, Dialog, Field, Input, Textarea, Switch, ErrorState } from '@xsec/ui-react';
+import type { ComponentProps } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useId, useState } from 'react';
+import ShellError from '@/components/layout/ShellError';
+import type { ShellFailure } from '@/lib/shell-request';
 import { protocolFormHasOverrides } from '../provider-utils';
-import type { GatewayProvider, ProtocolEndpointForm, ProviderFormData } from '../types';
-import { ProviderProtocolIcon } from './provider-protocol-icon';
-
-type ProviderModalProps = {
+import type { GatewayProvider, ProviderFormData, ProtocolEndpointForm } from '../types';
+type Failure = { title: string; failure: ShellFailure; uncertain: boolean };
+type Props = {
 	open: boolean;
 	editingProvider: GatewayProvider | null;
 	duplicateSourceId: string | null;
 	formData: ProviderFormData;
-	saveError: string;
-	isSaving: boolean;
-	isDeleting: boolean;
+	validation: string;
+	actionFailure: Failure | null;
+	busy: boolean;
+	writeKind: string | null;
+	showDelete: boolean;
+	onShowDelete: (open: boolean) => void;
 	onClose: () => void;
-	onFormChange: (form: ProviderFormData) => void;
+	onFormChange: (value: ProviderFormData) => void;
 	onSave: () => void;
-	onDelete: (id: string) => void;
+	onDelete: () => void;
 	onDuplicate: (provider: GatewayProvider) => void;
+	onRead: () => void;
+	finalFocus: ComponentProps<typeof Dialog>['finalFocus'];
 };
-
-const inputClass =
-	'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500';
-
-function ProtocolFields(props: {
-	protocolLabel: string;
-	baseUrlLabel: string;
-	basePlaceholder: string;
-	baseHint?: string;
-	form: ProtocolEndpointForm;
+const capabilities: Record<
+	'openai' | 'anthropic' | 'gemini',
+	{ key: keyof ProtocolEndpointForm; label: string }[]
+> = {
+	openai: [
+		{ key: 'chat', label: 'capChat' },
+		{ key: 'images_generations', label: 'capImagesGenerations' },
+		{ key: 'images_edits', label: 'capImagesEdits' },
+		{ key: 'audio_transcriptions', label: 'capAudioTranscriptions' },
+	],
+	anthropic: [{ key: 'messages', label: 'capMessages' }],
+	gemini: [
+		{ key: 'generateContent', label: 'capGenerateContent' },
+		{ key: 'streamGenerateContent', label: 'capStreamGenerateContent' },
+	],
+};
+function ProtocolFields({
+	protocol,
+	form,
+	disabled,
+	onChange,
+}: {
 	protocol: 'openai' | 'anthropic' | 'gemini';
-	advancedToggle: string;
-	advancedHint: string;
-	capLabels: {
-		chat: string;
-		imagesGenerations: string;
-		imagesEdits: string;
-		audioTranscriptions: string;
-		messages: string;
-		generateContent: string;
-		streamGenerateContent: string;
-	};
-	onChange: (next: ProtocolEndpointForm) => void;
+	form: ProtocolEndpointForm;
+	disabled: boolean;
+	onChange: (value: ProtocolEndpointForm) => void;
 }) {
-	const {
-		protocolLabel,
-		baseUrlLabel,
-		basePlaceholder,
-		baseHint,
-		form,
-		protocol,
-		advancedToggle,
-		advancedHint,
-		capLabels,
-		onChange,
-	} = props;
-	const [advancedOpen, setAdvancedOpen] = useState(() => protocolFormHasOverrides(protocol, form));
-	const overridesPanelId = useId();
-
+	const t = useTranslations('providers.modal'),
+		label = t(protocol + 'Optional');
+	const [overridesOpen, setOverridesOpen] = useState(() => protocolFormHasOverrides(protocol, form));
 	return (
-		<div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-			<div className="mb-3 flex items-center gap-2">
-				<ProviderProtocolIcon protocol={protocol} />
-				<h4 className="text-sm font-semibold text-gray-900">{protocolLabel}</h4>
-			</div>
-
-			<div className="space-y-2">
-				<label className="mb-1 block text-xs font-medium text-gray-600">{baseUrlLabel}</label>
-				<input
-					type="url"
-					value={form.base}
-					onChange={(e) => onChange({ ...form, base: e.target.value })}
-					className={inputClass}
-					placeholder={basePlaceholder}
-					autoComplete="off"
-				/>
-				{baseHint ? <p className="text-xs text-gray-500">{baseHint}</p> : null}
-			</div>
-
-			<div className="mt-3">
-				<button
-					type="button"
-					className="flex w-full items-center gap-1.5 rounded-md px-1 py-1.5 text-left text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800"
-					onClick={() => setAdvancedOpen((v) => !v)}
-					aria-expanded={advancedOpen}
-					aria-controls={overridesPanelId}
-				>
-					{advancedOpen ? (
-						<ChevronDownIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-					) : (
-						<ChevronRightIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-					)}
-					<span>{advancedToggle}</span>
-				</button>
-				{advancedOpen ? (
-					<div
-						id={overridesPanelId}
-						className="mt-2 space-y-3 rounded-md border border-gray-100 bg-gray-50/80 p-3"
-					>
-						<p className="text-xs text-gray-500">{advancedHint}</p>
-						{protocol === 'openai' ? (
-							<>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">{capLabels.chat}</label>
-									<input
-										type="url"
-										value={form.chat}
-										onChange={(e) => onChange({ ...form, chat: e.target.value })}
-										className={inputClass}
-										autoComplete="off"
-									/>
-								</div>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">
-										{capLabels.imagesGenerations}
-									</label>
-									<input
-										type="url"
-										value={form.images_generations}
-										onChange={(e) =>
-											onChange({ ...form, images_generations: e.target.value })
-										}
-										className={inputClass}
-										autoComplete="off"
-									/>
-								</div>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">
-										{capLabels.imagesEdits}
-									</label>
-									<input
-										type="url"
-										value={form.images_edits}
-										onChange={(e) => onChange({ ...form, images_edits: e.target.value })}
-										className={inputClass}
-										autoComplete="off"
-									/>
-								</div>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">
-										{capLabels.audioTranscriptions}
-									</label>
-									<input
-										type="url"
-										value={form.audio_transcriptions}
-										onChange={(e) =>
-											onChange({ ...form, audio_transcriptions: e.target.value })
-										}
-										className={inputClass}
-										autoComplete="off"
-									/>
-								</div>
-							</>
-						) : null}
-						{protocol === 'anthropic' ? (
-							<div>
-								<label className="mb-1 block text-xs text-gray-600">{capLabels.messages}</label>
-								<input
-									type="url"
-									value={form.messages}
-									onChange={(e) => onChange({ ...form, messages: e.target.value })}
-									className={inputClass}
+		<section className="provider-protocol-form">
+			<h4>{label}</h4>
+			<Field label={t('baseUrl')} hint={protocol === 'gemini' ? t('geminiHint') : undefined}>
+				{(props) => (
+					<Input
+						{...props}
+						value={form.base}
+						disabled={disabled}
+						onChange={(event) => onChange({ ...form, base: event.target.value })}
+						placeholder={t(protocol + 'Placeholder')}
+						autoComplete="off"
+					/>
+				)}
+			</Field>
+			<details
+				open={overridesOpen}
+				onToggle={(event) => setOverridesOpen(event.currentTarget.open)}
+			>
+				<summary>{t('advancedToggle')}</summary>
+				<p className="provider-muted">{t('advancedHint')}</p>
+				<div className="provider-fields">
+					{capabilities[protocol].map((capability) => (
+						<Field label={t(capability.label)} key={capability.key}>
+							{(props) => (
+								<Input
+									{...props}
+									value={form[capability.key]}
+									disabled={disabled}
+									onChange={(event) => onChange({ ...form, [capability.key]: event.target.value })}
 									autoComplete="off"
 								/>
-							</div>
-						) : null}
-						{protocol === 'gemini' ? (
-							<>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">
-										{capLabels.generateContent}
-									</label>
-									<input
-										type="url"
-										value={form.generateContent}
-										onChange={(e) =>
-											onChange({ ...form, generateContent: e.target.value })
-										}
-										className={inputClass}
-										placeholder="https://…/models/{model}:generateContent"
-										autoComplete="off"
-									/>
-								</div>
-								<div>
-									<label className="mb-1 block text-xs text-gray-600">
-										{capLabels.streamGenerateContent}
-									</label>
-									<input
-										type="url"
-										value={form.streamGenerateContent}
-										onChange={(e) =>
-											onChange({ ...form, streamGenerateContent: e.target.value })
-										}
-										className={inputClass}
-										placeholder="https://…/models/{model}:streamGenerateContent"
-										autoComplete="off"
-									/>
-								</div>
-							</>
-						) : null}
-					</div>
-				) : null}
-			</div>
-		</div>
+							)}
+						</Field>
+					))}
+				</div>
+			</details>
+		</section>
 	);
 }
-
-export function ProviderModal(props: ProviderModalProps) {
+export default function ProviderModal(props: Props) {
 	const {
 		open,
 		editingProvider,
 		duplicateSourceId,
 		formData,
-		saveError,
-		isSaving,
-		isDeleting,
+		validation,
+		actionFailure,
+		busy,
+		writeKind,
+		showDelete,
+		onShowDelete,
 		onClose,
 		onFormChange,
 		onSave,
 		onDelete,
 		onDuplicate,
+		onRead,
+		finalFocus,
 	} = props;
-
-	const t = useTranslations('providers.modal');
-	const tCommon = useTranslations('common');
-	const titleId = useId();
-
-	if (!open) return null;
-
-	const capLabels = {
-		chat: t('capChat'),
-		imagesGenerations: t('capImagesGenerations'),
-		imagesEdits: t('capImagesEdits'),
-		audioTranscriptions: t('capAudioTranscriptions'),
-		messages: t('capMessages'),
-		generateContent: t('capGenerateContent'),
-		streamGenerateContent: t('capStreamGenerateContent'),
-	};
-
+	const t = useTranslations('providers.modal'),
+		common = useTranslations('common'),
+		feedback = useTranslations('providers.feedback');
 	return (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget && !isSaving && !isDeleting) {
-					onClose();
-				}
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next && !busy && !showDelete) onClose();
 			}}
-		>
-			<div
-				className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby={titleId}
-			>
-				<div className="flex shrink-0 items-center justify-between border-b px-6 py-4">
-					<div>
-						<h2 id={titleId} className="text-xl font-bold text-gray-900">
-							{editingProvider ? t('editTitle') : t('newTitle')}
-						</h2>
-						{!editingProvider && duplicateSourceId && (
-							<p className="mt-1 text-xs text-gray-500">
-								{t('prefilledFrom', { id: duplicateSourceId })}
-							</p>
-						)}
-					</div>
-					<button
-						type="button"
-						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600"
-						disabled={isSaving || isDeleting}
-						aria-label={tCommon('close')}
+			preventOutsideDismissal={busy}
+			title={editingProvider ? t('editTitle') : t('newTitle')}
+			description={
+				duplicateSourceId ? t('prefilledFrom', { id: duplicateSourceId }) : t('generalHint')
+			}
+			className="provider-dialog"
+			finalFocus={finalFocus}
+			footer={
+				<>
+					{editingProvider ? (
+						<ControlButton variant="danger" disabled={busy} onClick={() => onShowDelete(true)}>
+							{t('deleteProvider')}
+						</ControlButton>
+					) : null}
+					<span className="provider-footer-spacer" />
+					<ControlButton variant="outline" disabled={busy} onClick={onClose}>
+						{common('cancel')}
+					</ControlButton>
+					{editingProvider ? (
+						<ControlButton
+							variant="secondary"
+							disabled={busy}
+							onClick={() => onDuplicate(editingProvider)}
+						>
+							{common('duplicate')}
+						</ControlButton>
+					) : null}
+					<ControlButton
+						type="submit"
+						form="provider-form"
+						loading={writeKind === 'save'}
+						disabled={busy}
 					>
-						×
-					</button>
-				</div>
-
-				<div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-					{saveError && (
-						<div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-							{saveError}
-						</div>
-					)}
-
-					<div className="space-y-8">
-						<section className="space-y-3">
-							<div>
-								<h3 className="text-sm font-semibold text-gray-900">{t('general')}</h3>
-								<p className="mt-0.5 text-xs text-gray-500">{t('generalHint')}</p>
-							</div>
-							{!editingProvider && (
-								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">{t('id')}</label>
-									<input
-										type="text"
+						{editingProvider ? common('save') : common('create')}
+					</ControlButton>
+				</>
+			}
+		>
+			{actionFailure && !showDelete ? (
+				<ShellError
+					title={actionFailure.title}
+					failure={actionFailure.failure}
+					uncertainWrite={actionFailure.uncertain}
+					action={
+						<ControlButton variant="secondary" onClick={onRead}>
+							{feedback('readList')}
+						</ControlButton>
+					}
+				/>
+			) : null}
+			<form
+				id="provider-form"
+				className="provider-form"
+				onSubmit={(event) => {
+					event.preventDefault();
+					onSave();
+				}}
+				aria-busy={busy}
+			>
+				{validation ? <ErrorState title={validation} /> : null}
+				<section>
+					<h3>{t('general')}</h3>
+					<div className="provider-fields">
+						{!editingProvider ? (
+							<Field label={t('id')} hint={t('idHint')}>
+								{(field) => (
+									<Input
+										{...field}
 										value={formData.id}
-										onChange={(e) => onFormChange({ ...formData, id: e.target.value })}
-										className={`${inputClass} font-mono`}
+										onChange={(event) => onFormChange({ ...formData, id: event.target.value })}
+										disabled={busy}
 										placeholder={t('idPlaceholder')}
 										autoComplete="off"
 									/>
-									<p className="mt-1 text-xs text-gray-500">{t('idHint')}</p>
-								</div>
-							)}
-							<div>
-								<label className="mb-1 block text-sm font-medium text-gray-700">
-									{t('nameRequired')}
-								</label>
-								<input
-									type="text"
+								)}
+							</Field>
+						) : null}
+						<Field label={t('nameRequired')}>
+							{(field) => (
+								<Input
+									{...field}
 									value={formData.name}
-									onChange={(e) => onFormChange({ ...formData, name: e.target.value })}
-									className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+									onChange={(event) => onFormChange({ ...formData, name: event.target.value })}
+									disabled={busy}
 									placeholder={t('namePlaceholder')}
 									autoComplete="off"
 									required
 								/>
-							</div>
-							<div>
-								<label className="mb-1 block text-sm font-medium text-gray-700">
-									{editingProvider ? t('apiKeyOptional') : t('apiKeyRequired')}
-								</label>
-								<input
+							)}
+						</Field>
+						<Field
+							label={editingProvider ? t('apiKeyOptional') : t('apiKeyRequired')}
+							hint={editingProvider ? t('apiKeyEditHint') : t('apiKeyHint')}
+						>
+							{(field) => (
+								<Input
+									{...field}
 									type="password"
 									value={formData.api_key}
-									onChange={(e) => onFormChange({ ...formData, api_key: e.target.value })}
-									className={`${inputClass} font-mono`}
+									onChange={(event) => onFormChange({ ...formData, api_key: event.target.value })}
+									disabled={busy}
+									required={!editingProvider}
 									placeholder={
 										editingProvider ? t('apiKeyEditPlaceholder') : t('apiKeyPlaceholder')
 									}
 									autoComplete="new-password"
 								/>
-								<p className="mt-1 text-xs text-gray-500">
-									{editingProvider ? t('apiKeyEditHint') : t('apiKeyHint')}
-								</p>
-							</div>
-							<label className="flex items-start gap-2.5">
-								<input
-									type="checkbox"
-									checked={formData.status === 'active'}
-									onChange={(e) =>
-										onFormChange({
-											...formData,
-											status: e.target.checked ? 'active' : 'disabled',
-										})
-									}
-									className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-blue-500"
-								/>
-								<span className="text-sm text-gray-800">
-									<span className="font-medium">{t('statusEnabled')}</span>
-									<span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
-										{t('statusHint')}
-									</span>
+							)}
+						</Field>
+						<Switch
+							checked={formData.status === 'active'}
+							disabled={busy}
+							onCheckedChange={(checked) =>
+								onFormChange({ ...formData, status: checked ? 'active' : 'disabled' })
+							}
+							label={
+								<span>
+									{t('statusEnabled')}
+									<small className="provider-switch-hint">{t('statusHint')}</small>
 								</span>
-							</label>
-						</section>
-
-						<section className="space-y-4 border-t border-gray-100 pt-6">
-							<div>
-								<h3 className="text-sm font-semibold text-gray-900">{t('endpoints')}</h3>
-								<p className="mt-0.5 text-xs text-gray-500">{t('endpointsHint')}</p>
-							</div>
-							<div className="space-y-3">
-								<ProtocolFields
-									protocolLabel={t('openaiOptional')}
-									baseUrlLabel={t('baseUrl')}
-									basePlaceholder={t('openaiPlaceholder')}
-									form={formData.openai}
-									protocol="openai"
-									advancedToggle={t('advancedToggle')}
-									advancedHint={t('advancedHint')}
-									capLabels={capLabels}
-									onChange={(openai) => onFormChange({ ...formData, openai })}
-								/>
-								<ProtocolFields
-									protocolLabel={t('anthropicOptional')}
-									baseUrlLabel={t('baseUrl')}
-									basePlaceholder={t('anthropicPlaceholder')}
-									form={formData.anthropic}
-									protocol="anthropic"
-									advancedToggle={t('advancedToggle')}
-									advancedHint={t('advancedHint')}
-									capLabels={capLabels}
-									onChange={(anthropic) => onFormChange({ ...formData, anthropic })}
-								/>
-								<ProtocolFields
-									protocolLabel={t('geminiOptional')}
-									baseUrlLabel={t('baseUrl')}
-									basePlaceholder={t('geminiPlaceholder')}
-									baseHint={t('geminiHint')}
-									form={formData.gemini}
-									protocol="gemini"
-									advancedToggle={t('advancedToggle')}
-									advancedHint={t('advancedHint')}
-									capLabels={capLabels}
-									onChange={(gemini) => onFormChange({ ...formData, gemini })}
-								/>
-							</div>
-						</section>
-
-						<section className="space-y-3 border-t border-gray-100 pt-6">
-							<div>
-								<h3 id="provider-description-heading" className="text-sm font-semibold text-gray-900">
-									{t('description')}
-								</h3>
-								<p className="mt-0.5 text-xs text-gray-500">{t('descriptionHint')}</p>
-							</div>
-							<textarea
-								rows={3}
-								value={formData.description}
-								onChange={(e) => onFormChange({ ...formData, description: e.target.value })}
-								className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-								placeholder={t('descriptionPlaceholder')}
-								autoComplete="off"
-								aria-labelledby="provider-description-heading"
-							/>
-						</section>
+							}
+						/>
 					</div>
-				</div>
-
-				<div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-gray-50 px-6 py-4">
-					<div className="flex flex-wrap items-center gap-2">
-						{editingProvider && (
-							<button
-								type="button"
-								onClick={() => void onDelete(editingProvider.id)}
-								disabled={isSaving || isDeleting}
-								className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<TrashIcon className="h-4 w-4" aria-hidden />
-								{isDeleting ? tCommon('deleting') : t('deleteProvider')}
-							</button>
-						)}
-					</div>
-					<div className="ml-auto flex gap-3">
-						<button
-							type="button"
-							onClick={onClose}
-							className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
-							disabled={isSaving || isDeleting}
+				</section>
+				<section>
+					<h3>{t('endpoints')}</h3>
+					<p className="provider-muted">{t('endpointsHint')}</p>
+					{(['openai', 'anthropic', 'gemini'] as const).map((protocol) => (
+						<ProtocolFields
+							key={protocol}
+							protocol={protocol}
+							form={formData[protocol]}
+							disabled={busy}
+							onChange={(value) => onFormChange({ ...formData, [protocol]: value })}
+						/>
+					))}
+				</section>
+				<Field label={t('description')} hint={t('descriptionHint')}>
+					{(field) => (
+						<Textarea
+							{...field}
+							rows={3}
+							value={formData.description}
+							disabled={busy}
+							onChange={(event) => onFormChange({ ...formData, description: event.target.value })}
+							placeholder={t('descriptionPlaceholder')}
+							autoComplete="off"
+						/>
+					)}
+				</Field>
+			</form>
+			<Dialog
+				open={showDelete}
+				onOpenChange={(next) => {
+					if (!busy) onShowDelete(next);
+				}}
+				preventOutsideDismissal={busy}
+				title={feedback('deleteTitle')}
+				description={feedback('deleteDescription', { name: editingProvider?.name ?? '' })}
+				className="provider-confirmation"
+				footer={
+					<>
+						<ControlButton variant="outline" disabled={busy} onClick={() => onShowDelete(false)}>
+							{common('cancel')}
+						</ControlButton>
+						<ControlButton
+							variant="danger"
+							loading={writeKind === 'delete'}
+							disabled={busy}
+							onClick={onDelete}
 						>
-							{tCommon('cancel')}
-						</button>
-						{editingProvider && (
-							<button
-								type="button"
-								onClick={() => onDuplicate(editingProvider)}
-								disabled={isSaving || isDeleting}
-								className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<DocumentDuplicateIcon className="h-4 w-4" aria-hidden />
-								{tCommon('duplicate')}
-							</button>
-						)}
-						<button
-							type="button"
-							onClick={() => void onSave()}
-							disabled={isSaving || isDeleting}
-							className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							{isSaving ? tCommon('saving') : editingProvider ? tCommon('save') : tCommon('create')}
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+							{t('deleteProvider')}
+						</ControlButton>
+					</>
+				}
+			>
+				{showDelete && actionFailure ? (
+					<ShellError
+						title={actionFailure.title}
+						failure={actionFailure.failure}
+						uncertainWrite={actionFailure.uncertain}
+						action={
+							<ControlButton variant="secondary" onClick={onRead}>
+								{feedback('readList')}
+							</ControlButton>
+						}
+					/>
+				) : (
+					<p>{feedback('deleteHint')}</p>
+				)}
+			</Dialog>
+		</Dialog>
 	);
 }

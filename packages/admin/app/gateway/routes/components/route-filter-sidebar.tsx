@@ -1,10 +1,9 @@
 'use client';
-
-import { FilterNavButton, FilterNavSection } from '../../components/filter-nav';
-import type { GatewayProvider } from '@/lib/types';
+import { memo } from 'react';
+import { ControlButton, Field, RadioGroup, Select } from '@xsec/ui-react';
 import { useTranslations } from 'next-intl';
-import { type ModelKindFilter } from '../../models/types';
-
+import type { GatewayProvider } from '@/lib/types';
+import type { ModelKindFilter } from '../../models/types';
 type Props = {
 	visibleModelCount: number;
 	visibleRouteCount: number;
@@ -30,154 +29,118 @@ type Props = {
 	onClearAllFilters: () => void;
 };
 
-export function RouteFilterSidebar(props: Props) {
-	const {
-		visibleModelCount,
-		visibleRouteCount,
-		hasActiveFilters,
-		filterStatus,
-		filterKind,
-		filterRouteGroup,
-		filterVendor,
-		filterProviderId,
-		statusCounts,
-		kindCounts,
-		routesCount,
-		routeGroupFilterOptions,
-		routeGroupCounts,
-		vendorFilterOptions,
-		providers,
-		providerRouteCounts,
-		onFilterStatusChange,
-		onFilterKindChange,
-		onFilterRouteGroupChange,
-		onFilterVendorChange,
-		onFilterProviderIdChange,
-		onClearAllFilters,
-	} = props;
-
-	const t = useTranslations('filter');
-	const tCommon = useTranslations('common');
-
+export const RouteFilterSidebar = memo(function RouteFilterSidebar(props: Props) {
+	const t = useTranslations('filter'),
+		common = useTranslations('common');
+	const countLabel = (label: string, count: number) => label + ' · ' + count;
 	return (
-		<aside className="w-full shrink-0 border-b border-gray-200/80 bg-slate-50/80 lg:sticky lg:top-0 lg:w-60 lg:self-start lg:border-b-0 lg:border-r">
-			<div className="space-y-3 p-4">
-				<div>
-					<h2 className="text-sm font-semibold text-gray-900">{t('title')}</h2>
-					<p className="mt-0.5 text-xs text-gray-500">{t('narrowModelsRoutes')}</p>
-				</div>
-
-				<div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200/60 bg-white/60 px-3 py-2">
-					<span className="text-xs text-gray-600">
-						{t('modelsAndRoutes', { models: visibleModelCount, routes: visibleRouteCount })}
-					</span>
-					{hasActiveFilters ? (
-						<button
-							type="button"
-							onClick={onClearAllFilters}
-							className="shrink-0 text-xs font-medium text-blue-600 hover:text-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded"
-						>
-							{t('clear')}
-						</button>
-					) : null}
-				</div>
-
-				<FilterNavSection title={t('status')} ariaLabel={t('statusAria')}>
-					<FilterNavButton
-						label={t('all')}
-						count={statusCounts.all}
-						isActive={!filterStatus}
-						onClick={() => onFilterStatusChange('')}
-					/>
-					<FilterNavButton
-						label={tCommon('active')}
-						count={statusCounts.active}
-						isActive={filterStatus === 'active'}
-						onClick={() => onFilterStatusChange('active')}
-					/>
-					<FilterNavButton
-						label={tCommon('inactive')}
-						count={statusCounts.inactive}
-						isActive={filterStatus === 'inactive'}
-						onClick={() => onFilterStatusChange('inactive')}
-					/>
-				</FilterNavSection>
-
-				<FilterNavSection title={t('kind')} ariaLabel={t('kindAria')}>
-					<FilterNavButton
-						label={t('kindLlm')}
-						count={kindCounts.llm}
-						isActive={filterKind === 'llm'}
-						onClick={() => onFilterKindChange('llm')}
-					/>
-					<FilterNavButton
-						label={t('kindImage')}
-						count={kindCounts.image}
-						isActive={filterKind === 'image'}
-						onClick={() => onFilterKindChange('image')}
-					/>
-					<FilterNavButton
-						label={t('kindAudio')}
-						count={kindCounts.audio}
-						isActive={filterKind === 'audio'}
-						onClick={() => onFilterKindChange('audio')}
-					/>
-				</FilterNavSection>
-
-				<FilterNavSection title={t('routeGroup')} ariaLabel={t('routeGroupAria')}>
-					<FilterNavButton
-						label={t('all')}
-						count={routesCount}
-						isActive={!filterRouteGroup}
-						onClick={() => onFilterRouteGroupChange('')}
-					/>
-					{routeGroupFilterOptions.map((g) => (
-						<FilterNavButton
-							key={g}
-							label={g}
-							count={routeGroupCounts.get(g) ?? 0}
-							isActive={filterRouteGroup === g}
-							onClick={() => onFilterRouteGroupChange(g)}
-						/>
-					))}
-				</FilterNavSection>
-
-				<FilterNavSection title={t('vendor')} ariaLabel={t('vendorAria')}>
-					<FilterNavButton
-						label={t('all')}
-						count={routesCount}
-						isActive={!filterVendor}
-						onClick={() => onFilterVendorChange('')}
-					/>
-					{vendorFilterOptions.map(({ key, label, count }) => (
-						<FilterNavButton
-							key={key}
-							label={label}
-							count={count}
-							isActive={filterVendor === key}
-							onClick={() => onFilterVendorChange(key)}
-						/>
-					))}
-				</FilterNavSection>
-
-				<FilterNavSection title={t('provider')} ariaLabel={t('providerAria')}>
-					<FilterNavButton
-						label={t('all')}
-						count={routesCount}
-						isActive={!filterProviderId}
-						onClick={() => onFilterProviderIdChange('')}
-					/>
-					{providers.map((p) => (
-						<FilterNavButton
-							key={p.id}
-							label={p.name || p.id}
-							count={providerRouteCounts.get(p.id) ?? 0}
-							isActive={filterProviderId === p.id}
-							onClick={() => onFilterProviderIdChange(p.id)}
-						/>
-					))}
-				</FilterNavSection>
+		<section className="route-filters" aria-label={t('title')}>
+			<div className="route-filter-heading">
+				<h2>{t('title')}</h2>
+				<span>
+					{t('modelsAndRoutes', {
+						models: props.visibleModelCount,
+						routes: props.visibleRouteCount,
+					})}
+				</span>
+				{props.hasActiveFilters ? (
+					<ControlButton variant="ghost" size="sm" onClick={props.onClearAllFilters}>
+						{t('clear')}
+					</ControlButton>
+				) : null}
 			</div>
-		</aside>
+			<div className="route-filter-grid">
+				<Field label={t('kind')}>
+					{(field) => (
+						<RadioGroup
+							id={field.id}
+							aria-label={t('kindAria')}
+							value={props.filterKind}
+							onValueChange={(value) => props.onFilterKindChange(value as ModelKindFilter)}
+							options={(['llm', 'image', 'audio'] as const).map((value) => ({
+								value,
+								label: countLabel(
+									t(value === 'llm' ? 'kindLlm' : value === 'image' ? 'kindImage' : 'kindAudio'),
+									props.kindCounts[value]
+								),
+							}))}
+						/>
+					)}
+				</Field>
+				<Field label={t('status')}>
+					{(field) => (
+						<Select
+							{...field}
+							value={props.filterStatus}
+							onValueChange={(value) => props.onFilterStatusChange(value ?? '')}
+							options={[
+								{ value: '', label: countLabel(t('all'), props.statusCounts.all) },
+								{ value: 'active', label: countLabel(common('active'), props.statusCounts.active) },
+								{
+									value: 'inactive',
+									label: countLabel(common('inactive'), props.statusCounts.inactive),
+								},
+							]}
+						/>
+					)}
+				</Field>
+				<Field label={t('routeGroup')}>
+					{(field) => (
+						<Select
+							{...field}
+							value={props.filterRouteGroup}
+							onValueChange={(value) => props.onFilterRouteGroupChange(value ?? '')}
+							options={[
+								{ value: '', label: countLabel(t('all'), props.routesCount) },
+								...props.routeGroupFilterOptions.map((value) => ({
+									value,
+									label: countLabel(value, props.routeGroupCounts.get(value) ?? 0),
+								})),
+							]}
+						/>
+					)}
+				</Field>
+				<Field label={t('vendor')}>
+					{(field) => (
+						<Select
+							{...field}
+							value={props.filterVendor}
+							onValueChange={(value) => props.onFilterVendorChange(value ?? '')}
+							options={[
+								{ value: '', label: countLabel(t('all'), props.routesCount) },
+								...props.vendorFilterOptions.map((vendor) => ({
+									value: vendor.key,
+									label: countLabel(vendor.label, vendor.count),
+								})),
+								...(props.filterVendor &&
+								!props.vendorFilterOptions.some((vendor) => vendor.key === props.filterVendor)
+									? [{ value: props.filterVendor, label: props.filterVendor }]
+									: []),
+							]}
+						/>
+					)}
+				</Field>
+				<Field label={t('provider')}>
+					{(field) => (
+						<Select
+							{...field}
+							value={props.filterProviderId}
+							onValueChange={(value) => props.onFilterProviderIdChange(value ?? '')}
+							options={[
+								{ value: '', label: countLabel(t('all'), props.routesCount) },
+								...props.providers.map((provider) => ({
+									value: provider.id,
+									label: countLabel(provider.name, props.providerRouteCounts.get(provider.id) ?? 0),
+								})),
+								...(props.filterProviderId &&
+								!props.providers.some((provider) => provider.id === props.filterProviderId)
+									? [{ value: props.filterProviderId, label: props.filterProviderId }]
+									: []),
+							]}
+						/>
+					)}
+				</Field>
+			</div>
+		</section>
 	);
-}
+});

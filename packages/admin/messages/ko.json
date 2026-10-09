@@ -261,6 +261,12 @@
 			"today": "오늘",
 			"this_week": "이번 주",
 			"this_month": "이번 달"
+		},
+		"feedback": {
+			"readFailed": "대시보드 통계를 읽을 수 없습니다",
+			"currencyFailed": "청구 통화를 확인할 수 없습니다",
+			"currencyPending": "청구 통화를 확인하는 중…",
+			"invalidRange": "유효한 시작 및 종료 시간을 입력하고 종료 시간을 시작 시간 이후로 설정하세요."
 		}
 	},
 	"filter": {
@@ -396,6 +402,27 @@
 			"apiKeyEditHint": "비우면 현재 키를 유지하고, 새 값을 입력하면 교체합니다.",
 			"statusEnabled": "공급자 사용",
 			"statusHint": "비활성 공급자는 라우팅과 Playground에서 제외됩니다."
+		},
+		"feedback": {
+			"copyName": "{name} (복사본)",
+			"nameRequired": "공급자 이름을 입력하세요.",
+			"keyRequired": "새 공급자의 API 키를 입력하세요.",
+			"listFailed": "공급자를 불러올 수 없습니다",
+			"readList": "공급자 다시 읽기",
+			"saveFailed": "공급자 저장 결과가 확인되지 않았습니다",
+			"deleteFailed": "공급자 삭제 결과가 확인되지 않았습니다",
+			"statusFailed": "공급자 상태 변경이 확인되지 않았습니다",
+			"copyFailed": "공급자 키를 읽을 수 없습니다",
+			"clipboardFailed": "클립보드에 쓸 수 없습니다. 브라우저 권한을 확인한 후 다시 시도하세요.",
+			"catalogFailed": "템플릿을 불러올 수 없습니다",
+			"readCatalog": "템플릿 다시 읽기",
+			"importFailed": "공급자 가져오기 결과가 확인되지 않았습니다",
+			"importResult": "공급자 {count}개를 생성했습니다",
+			"importComplete": "가져온 공급자를 검토하고 활성화하기 전에 API 키를 설정하세요.",
+			"deleteTitle": "공급자를 삭제할까요?",
+			"deleteDescription": "게이트웨이에서 {name}을 삭제합니다.",
+			"deleteHint": "이 공급자를 참조하는 모델 경로를 먼저 삭제하거나 다시 할당하세요.",
+			"importRowFailed": "이 템플릿을 가져오지 못했습니다. 설정과 저장소 상태를 확인한 후 다시 선택하세요."
 		}
 	},
 	"models": {
@@ -537,6 +564,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "Metadata JSON 보기",
 			"kindAudio": "오디오"
+		},
+		"feedback": {
+			"listFailed": "모델을 불러올 수 없습니다",
+			"readList": "모델 읽기",
+			"detailFailed": "모델 상세 정보를 불러올 수 없습니다",
+			"saveFailed": "모델을 저장할 수 없습니다",
+			"deleteFailed": "모델을 삭제할 수 없습니다",
+			"currencyFailed": "결제 통화를 불러올 수 없습니다",
+			"readCurrency": "결제 통화 읽기",
+			"catalogFailed": "모델 카탈로그를 불러올 수 없습니다",
+			"importFailed": "모델을 가져올 수 없습니다",
+			"idRequired": "모델 ID를 입력하세요",
+			"tokenLimits": "토큰 한도는 양의 정수여야 합니다",
+			"search": "모델, ID 또는 태그 검색",
+			"deleteTitle": "모델 삭제",
+			"deleteDescription": "{id}을(를) 삭제할까요?",
+			"deleteHint": "연결된 경로와 태그도 삭제됩니다.",
+			"importTitle": "모델 가져오기",
+			"importDescription": "{currency} 카탈로그를 사용하여 모델 {count}개를 가져올까요?",
+			"importHint": "기존 모델 ID의 데이터는 유지됩니다.",
+			"importResult": "추가 {created} · 기존 {skipped} · 실패 {failed} · {currency}",
+			"failedTemplates": "가져오기에 실패한 템플릿",
+			"pricingPreview": "{id} 가격 미리보기",
+			"clipboardFailed": "가격 JSON을 복사할 수 없습니다",
+			"importHelp": "가져오기 안내",
+			"importSummary": "가져올 모델을 선택하세요. 기존 모델은 유지되며 가격은 {currency} 카탈로그를 사용합니다."
 		}
 	},
 	"routes": {
@@ -798,6 +851,20 @@
 			"inactiveExcluded": "비활성 Route 또는 Provider는 미리보기에서 제외됩니다.",
 			"hintCache": "affinity가 아니면 prompt cache 적중률이 낮아질 수 있습니다.",
 			"hintNoCache": "업스트림에 prompt cache가 없습니다. weighted_random 또는 round_robin을 권장합니다."
+		},
+		"feedback": {
+			"saveFailed": "경로 저장을 확인할 수 없습니다",
+			"deleteFailed": "경로 삭제를 확인할 수 없습니다",
+			"statusFailed": "경로 상태 변경을 확인할 수 없습니다",
+			"strategyFailed": "전략 저장을 확인할 수 없습니다",
+			"copyFailed": "모델 ID를 복사할 수 없습니다",
+			"validationFailed": "경로 입력 내용을 확인하세요",
+			"invalidFields": "모델과 공급자를 선택하고 업스트림 모델 이름, 정수 우선순위 및 가중치(가중치 ≥ 1)를 입력하세요.",
+			"deleteTitle": "경로 삭제",
+			"deleteDescription": "경로 {id}를 삭제할까요?",
+			"deleteHint": "경로 대상이 풀에서 제거됩니다.",
+			"invalidPricing": "유효한 음이 아닌 배율과 겹치지 않는 시간 구간을 입력하세요.",
+			"invalidParams": "사용자 지정 매개변수는 유효한 JSON 객체여야 합니다."
 		}
 	},
 	"playground": {
@@ -870,8 +937,29 @@
 		"engineProvider": "엔진 Provider",
 		"engineProviderHint": "Active에 제한되지 않으며, 구현된 catalog 항목을 테스트할 수 있습니다.",
 		"toolsBodyMustBeObject": "요청 본문은 JSON 객체여야 합니다.",
+		"toolsTimeoutHint": "전체 도구 응답에 적용됩니다. 기본값은 300초입니다.",
 		"toolsNeedProvider": "엔진 Provider를 선택하세요.",
-		"applyTemplate": "템플릿 적용"
+		"applyTemplate": "템플릿 적용",
+		"catalog": {
+			"readFailed": "라우트 카탈로그를 읽을 수 없습니다",
+			"empty": "필터에 맞는 라우트가 없습니다",
+			"operation": "업스트림 작업",
+			"pool": "라우팅 풀",
+			"surfaces": "공개 진입점",
+			"legacyPool": "기존 라우트",
+			"configuration": "라우트 설정"
+		},
+		"sendState": {
+			"cancelled": "요청이 취소되었습니다",
+			"timeout": "REQUEST_TIMEOUT: 요청의 전체 제한 시간을 초과했습니다",
+			"invalidTimeout": "1에서 3600 사이의 정수 초를 입력하세요",
+			"timeoutLabel": "전체 제한 시간(초)",
+			"timeoutHint": "파일 읽기와 전체 응답을 포함합니다. 기본값은 300초입니다."
+		},
+		"responseContent": {
+			"receiving": "수신 중…",
+			"unsupported": "이 응답에서 지원되는 어시스턴트 본문을 찾을 수 없습니다."
+		}
 	},
 	"simulator": {
 		"title": "Simulator",
@@ -966,7 +1054,32 @@
 		"toolProtocolHidden": "Tools는 항상 JSON POST /v1/tools/* 입니다. 프로토콜 선택은 적용되지 않습니다.",
 		"readyNeedTool": "도구를 선택하세요.",
 		"errSelectTool": "전송 전에 도구를 선택하세요.",
-		"openToolsInvocations": "Tools Invocations 열기"
+		"openToolsInvocations": "Tools Invocations 열기",
+		"setup": {
+			"emptyKeys": "필터와 일치하는 API 키가 없습니다",
+			"keyReady": "API 키가 준비되었습니다",
+			"settingsFailed": "저장된 설정을 사용할 수 없습니다",
+			"settingsReadFailed": "저장된 설정을 읽을 수 없거나 형식이 잘못되었습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
+			"settingsWriteFailed": "설정을 저장할 수 없습니다. 다시 시도하거나 기본 설정으로 복원하세요.",
+			"resetSettings": "기본 설정으로 복원"
+		},
+		"routing": {
+			"activeRoute": "활성 경로 있음",
+			"noActiveRoute": "활성 경로 없음",
+			"unavailableOption": "{id} · 사용할 수 없음",
+			"selectedOutsideFilter": "필터를 변경해도 선택한 모델을 유지합니다.",
+			"modelUnavailable": "선택한 모델을 사용할 수 없습니다. 사용 가능한 모델을 선택하세요.",
+			"groupUnavailable": "선택한 경로 그룹을 사용할 수 없습니다. 사용 가능한 그룹이나 기본 그룹을 선택하세요.",
+			"modelCount": "이 유형 총 {total}개 · {filtered}개 일치",
+			"noModels": "필터와 일치하는 모델이 없습니다",
+			"legacyPool": "이전 형식의 경로 풀"
+		},
+		"exchange": {
+			"timeoutLabel": "요청 전체 제한 시간(초)",
+			"timeoutHint": "1–3600초. 응답 헤더와 전체 본문 읽기를 포함합니다. 기본값은 300초입니다.",
+			"invalidTimeout": "1부터 3600 사이의 정수를 입력하세요.",
+			"timeout": "요청 전체 제한 시간이 지나 연결을 취소했습니다. 다시 전송할 수 있습니다."
+		}
 	},
 	"users": {
 		"title": "사용자",
@@ -1066,6 +1179,33 @@
 			"updateFailed": "업데이트 실패",
 			"deleteFailed": "삭제 실패",
 			"createFailed": "생성 실패"
+		},
+		"feedback": {
+			"emailRequired": "이메일을 입력하세요.",
+			"externalPair": "외부 시스템과 외부 사용자 ID를 모두 입력하거나 모두 비워 두세요.",
+			"budgetInvalid": "예산 금액은 유한한 숫자여야 합니다.",
+			"metadataInvalid": "메타데이터는 유효한 JSON이어야 합니다.",
+			"sortBy": "{label} 기준 정렬",
+			"detail": "사용자 상세: {name}",
+			"metadataFor": "{name} 메타데이터",
+			"pagination": "사용자 목록 페이지"
+		},
+		"detailFeedback": {
+			"userFailed": "사용자를 읽을 수 없습니다",
+			"keysFailed": "API 키를 읽을 수 없습니다",
+			"logsFailed": "요청 로그를 읽을 수 없습니다",
+			"auditsFailed": "사용자 감사 로그를 읽을 수 없습니다",
+			"dateInvalid": "예산 초기화 시간은 유효한 날짜여야 합니다.",
+			"readRequired": "현재 상태를 확인하고 계속하기",
+			"readRequiredHint": "다시 변경하기 전에 현재 사용자와 관련 기록을 읽어 주세요.",
+			"copyKey": "API 키 복사: {name}",
+			"copyNewKey": "새 API 키 복사",
+			"metadataFor": "{name}의 메타데이터",
+			"deleteKey": "API 키 삭제: {name}",
+			"standard": "표준 비용",
+			"charged": "청구 비용",
+			"metered": "측정 비용",
+			"currencyFailed": "청구 통화를 불러올 수 없습니다"
 		}
 	},
 	"keysPage": {
@@ -1139,9 +1279,31 @@
 		"copyKey": "Key 복사",
 		"copyId": "ID 복사",
 		"copySecret": "Secret 복사",
-		"confirmDelete": "이 API Key를 영구 삭제하시겠습니까?"
+		"confirmDelete": "이 API Key를 영구 삭제하시겠습니까?",
+		"feedback": {
+			"sortCreated": "생성 시간순 정렬",
+			"editKey": "키 편집: {name}",
+			"pagination": "API 키 페이지 이동",
+			"metadataInvalid": "메타데이터는 유효한 JSON이어야 합니다",
+			"userRequired": "게이트웨이 사용자 ID가 필요합니다",
+			"externalRequired": "외부 시스템과 외부 사용자 ID가 모두 필요합니다",
+			"emailRequired": "외부 ID에는 이메일이 필요합니다",
+			"deleteFailed": "키 삭제 실패",
+			"copyFailed": "복사에 실패했습니다. 다시 시도하세요.",
+			"budgetBase": "기본 예산: {amount}",
+			"deleteWarning": "이 키의 게이트웨이 접근 권한을 영구적으로 삭제합니다. 사용자와 예산은 유지됩니다.",
+			"keyId": "키 ID"
+		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "유효한 시작과 종료 시간을 시간순으로 입력하세요.",
+			"invalidJson": "기록된 페이로드의 JSON이 유효하지 않습니다. 원본 텍스트를 표시합니다.",
+			"resourceFailed": "{resource} 항목을 읽을 수 없습니다",
+			"currency": "청구 통화",
+			"unlisted": "{id} (현재 카탈로그에 없음)",
+			"readFailed": "요청 로그를 읽을 수 없습니다"
+		},
 		"title": "요청 로그",
 		"subtitle": "Gateway 요청 기록을 확인합니다",
 		"filters": {
@@ -1227,7 +1389,7 @@
 	},
 	"auditLogs": {
 		"title": "감사 로그",
-		"subtitle": "사용자 감사 기록(user_audit_logs) — spent / budget_max는 변경 전후 사용자 Snapshot에서 계산됩니다. change_payload에 레거시 / 추가 JSON이 있으면 아래에 함께 표시되며 별도의 Metadata 열은 없습니다.",
+		"subtitle": "사용자 변경, 예산 조정, 작업한 담당자 또는 서비스를 확인하세요.",
 		"empty": "필터와 일치하는 감사 로그가 없습니다.",
 		"filters": {
 			"eventType": "이벤트 유형",
@@ -1285,20 +1447,53 @@
 			"noChangeDetail": "펼쳐 볼 변경 세부 정보가 없습니다.",
 			"more": "+{count}개 더 보기"
 		},
-		"userRemovedTitle": "사용자가 삭제되었습니다. snapshot / change_payload를 확인하세요"
+		"userRemovedTitle": "사용자가 삭제되었습니다. snapshot / change_payload를 확인하세요",
+		"feedback": {
+			"reasonsFailed": "감사 사유를 읽을 수 없습니다",
+			"logsFailed": "감사 로그를 읽을 수 없습니다",
+			"invalidJson": "저장된 감사 JSON이 유효하지 않습니다. 원본 기록을 확인하세요.",
+			"rawRecord": "원본 감사 기록",
+			"invalidRange": "유효한 시작 시간과 종료 시간을 순서대로 입력하세요.",
+			"moreFilters": "추가 필터",
+			"currencyFailed": "결제 통화를 읽을 수 없습니다"
+		}
 	},
 	"analytics": {
 		"modelUsage": {
 			"title": "모델 사용량",
-			"subtitle": "모델 및 Route 그룹별 사용량과 비용"
+			"subtitle": "모델 및 Route 그룹별 사용량과 비용",
+			"feedback": {
+				"readFailed": "모델 사용량을 읽을 수 없습니다",
+				"providersFailed": "공급자 세부 정보를 읽을 수 없습니다",
+				"currencyFailed": "청구 통화를 확인할 수 없습니다",
+				"currencyPending": "청구 통화를 확인하는 동안 금액 표시가 보류됩니다",
+				"invalidRange": "시작 및 종료 시간을 올바른 순서로 입력하세요",
+				"providersFor": "{model} / {group} 공급자"
+			}
 		},
 		"providerUsage": {
 			"title": "Provider 사용량",
-			"subtitle": "업스트림 Provider별 사용량과 비용"
+			"subtitle": "업스트림 Provider별 사용량과 비용",
+			"feedback": {
+				"readFailed": "공급자 사용량을 불러오지 못했습니다",
+				"modelsFailed": "모델 사용량을 불러오지 못했습니다",
+				"currencyFailed": "청구 통화를 확인하지 못했습니다",
+				"currencyPending": "청구 통화를 확인하는 중…",
+				"invalidRange": "유효한 시작 시간과 종료 시간을 선택하세요.",
+				"modelsFor": "{provider}의 모델 사용량"
+			}
 		},
 		"userUsage": {
 			"title": "사용자 사용량",
-			"subtitle": "요청 로그 이메일별 사용량과 비용입니다. 예산 열은 users에서 가져옵니다(user_id로 JOIN)."
+			"subtitle": "사용자별 사용량, 비용, 성공률 및 예산 사용 현황을 확인하세요.",
+			"feedback": {
+				"readFailed": "사용자 사용량을 불러오지 못했습니다",
+				"modelsFailed": "모델 사용량을 불러오지 못했습니다",
+				"currencyFailed": "청구 통화를 확인하지 못했습니다",
+				"currencyPending": "청구 통화를 확인하는 중…",
+				"invalidRange": "유효한 시작 시간과 종료 시간을 선택하세요.",
+				"modelsFor": "{email}의 모델 사용량"
+			}
 		},
 		"reliability": {
 			"title": "안정성",
@@ -1306,7 +1501,14 @@
 			"providerQuality": "Provider 품질",
 			"perModelComparison": "모델별 Provider 비교",
 			"recentErrors": "최근 오류",
-			"viewAllErrors": "모든 오류 로그 보기"
+			"viewAllErrors": "모든 오류 로그 보기",
+			"feedback": {
+				"readFailed": "신뢰성 데이터를 읽지 못했습니다",
+				"currencyFailed": "청구 통화를 확인하지 못했습니다",
+				"currencyPending": "청구 통화를 확인하고 있습니다. 금액은 확인 후 표시됩니다.",
+				"invalidRange": "유효한 시작 및 종료 시간을 입력하세요. 시작은 종료보다 빨라야 합니다.",
+				"recentErrorsScope": "최근 오류는 전체 기간의 최신 기록을 표시합니다. 선택한 기간은 위의 두 신뢰성 표에 적용됩니다."
+			}
 		},
 		"columns": {
 			"model": "모델",
@@ -1417,7 +1619,14 @@
 			"description": "모델에 route_policy가 없을 때 기본 전략(system_config.ROUTE_STRATEGY).",
 			"strategy": "전략"
 		},
-		"saveRouteStrategy": "라우트 전략 저장"
+		"saveRouteStrategy": "라우트 전략 저장",
+		"feedback": {
+			"readFailed": "시스템 설정을 읽을 수 없습니다",
+			"savedKeys": "저장 확인: {keys}",
+			"readReplacesDrafts": "다시 읽으면 초안이 서버의 현재 값으로 바뀝니다.",
+			"invalidStrategy": "지원되는 라우팅 전략을 선택하세요.",
+			"keyRequired": "설정 키를 입력하세요."
+		}
 	},
 	"tools": {
 		"catalog": {
@@ -1558,6 +1767,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "필터",
+				"summary": "도구 호출, 요금 및 결과 요약을 확인합니다.",
+				"invalidQuery": "링크의 필터가 유효하지 않습니다. 필터를 지우고 새 조회를 시작하세요.",
+				"currencyFailed": "청구 통화를 읽을 수 없습니다",
+				"readFailed": "도구 호출 기록을 읽을 수 없습니다",
+				"payloadInvalid": "저장된 도구 내용 형식이 유효하지 않습니다. 원본 내용은 확인할 수 있습니다.",
+				"inspectRaw": "JSON으로 전환하여 저장된 내용을 확인하세요.",
+				"unsafeResultUrl": "이 결과 링크를 열 수 없습니다. HTTP와 HTTPS 링크만 지원합니다."
+			},
 			"title": "Tool 호출 내역",
 			"subtitle": "provider=octafuse-tools, model_id=tool:*로 청구된 호출입니다. 행을 클릭하면 Query와 결과 요약을 확인할 수 있습니다. 요청 로그와 동일한 기본 행을 사용합니다.",
 			"configureTools": "Tools 설정 →",
@@ -1615,6 +1834,11 @@
 			"charged": "사용자 과금",
 			"metered": "공급",
 			"lossHint": "사용자 과금이 공급 단가보다 낮습니다(적자)"
+		},
+		"feedback": {
+			"readFailed": "도구 설정을 읽을 수 없습니다",
+			"savedKeys": "저장 확인: {keys}",
+			"readReplacesDrafts": "다시 저장하기 전에 서버 설정을 읽으세요. 현재 초안은 서버 값으로 대체됩니다."
 		}
 	},
 	"pricing": {
@@ -1678,5 +1902,22 @@
 		"cost": "비용: {amount}",
 		"providerLabel": "Provider: {id}",
 		"stdMetered": "표준 {std} · 계측 {metered}"
+	},
+	"shell": {
+		"retry": "다시 읽기",
+		"sessionFailed": "세션을 확인할 수 없습니다",
+		"timezoneFailed": "업무 시간대를 읽을 수 없습니다",
+		"localeFailed": "언어 변경이 확인되지 않았습니다",
+		"logoutFailed": "로그아웃이 확인되지 않았습니다",
+		"checkSession": "세션 확인",
+		"confirmWrite": "요청이 서버에 도달했을 수 있습니다. 다시 시도하기 전에 현재 상태를 확인하세요.",
+		"navigation": "탐색",
+		"openNavigation": "탐색 열기",
+		"skipContent": "본문으로 이동",
+		"loginIntro": "로그인하여 게이트웨이 라우팅과 운영 설정을 관리하세요.",
+		"NETWORK_ERROR": "서버 연결에 실패했습니다.",
+		"REQUEST_TIMEOUT": "응답이 20초 제한을 초과했습니다.",
+		"INVALID_RESPONSE": "서버 응답이 올바르지 않습니다.",
+		"HTTP_ERROR": "서버가 요청을 거부했습니다."
 	}
 }

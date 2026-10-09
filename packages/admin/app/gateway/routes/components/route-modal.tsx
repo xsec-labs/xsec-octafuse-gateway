@@ -1,28 +1,28 @@
 'use client';
+import { ControlButton, Dialog, Field, Input, Select, Textarea, ErrorState } from '@xsec/ui-react';
 
-import { DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useTranslations } from 'next-intl';
 import { ReadOnlyImagePricing } from '@/components/read-only-image-pricing';
 import { ReadOnlyPricingTiersTable } from '@/components/read-only-pricing-tiers-table';
-import {
-	type CatalogAudioPricingDisplay,
-} from '@/lib/audio-transcriptions';
+import { type CatalogAudioPricingDisplay } from '@/lib/audio-transcriptions';
 import type { CatalogImagePricingDisplay, CatalogPricingTierDisplayRow } from '@/lib/pricing-ui';
 import type { GatewayModel, GatewayProvider } from '@/lib/types';
-import {
-	UPSTREAM_PROTOCOLS,
-	type UpstreamProtocol,
-} from '@/lib/upstream-protocol';
-import {
-	requestOperationsForModel,
-	upstreamOperationsForProviderModel,
-} from '../route-utils';
+import { UPSTREAM_PROTOCOLS, type UpstreamProtocol } from '@/lib/upstream-protocol';
+import { requestOperationsForModel, upstreamOperationsForProviderModel } from '../route-utils';
 import type { RouteFormData, RouteListRow } from '../types';
+import ShellError from '@/components/layout/ShellError';
+import type { useRoutesPageState } from '../use-routes-page-state';
+import '../routes.css';
 import { DailyScheduleEditor } from './daily-schedule-editor';
 import { RoutePricePanel } from './route-price-panel';
 
 type Props = {
 	open: boolean;
+	feedback: Pick<
+		ReturnType<typeof useRoutesPageState>,
+		'actionFailure' | 'showDelete' | 'returnFocus' | 'deleteReturnFocus' | 'closeDelete'
+	>;
 	editingRoute: RouteListRow | null;
 	duplicateSourceRouteId: string | null;
 	formData: RouteFormData;
@@ -45,12 +45,14 @@ type Props = {
 	onFormChange: (form: RouteFormData) => void;
 	onSave: () => void;
 	onDelete: () => void;
+	onConfirmDelete: () => void;
 	onDuplicate: () => void;
 };
 
 export function RouteModal(props: Props) {
 	const {
 		open,
+		feedback,
 		editingRoute,
 		duplicateSourceRouteId,
 		formData,
@@ -77,16 +79,15 @@ export function RouteModal(props: Props) {
 	} = props;
 
 	const t = useTranslations('routes.modal');
+	const f = useTranslations('routes.feedback');
+	const busy = isSaving || isDeleting;
 	const tModels = useTranslations('models.modal');
 	const tCommon = useTranslations('common');
 	const lockOpenaiProtocol = selectedModelIsImage || selectedModelIsAudio;
 	const requestProtocols = UPSTREAM_PROTOCOLS.filter(
 		(protocol) => requestOperationsForModel(selectedModel, protocol).length > 0
 	);
-	const requestOperations = requestOperationsForModel(
-		selectedModel,
-		formData.request_protocol
-	);
+	const requestOperations = requestOperationsForModel(selectedModel, formData.request_protocol);
 	const upstreamOperations = upstreamOperationsForProviderModel(
 		selectedProvider,
 		selectedModel,
@@ -94,8 +95,7 @@ export function RouteModal(props: Props) {
 	);
 	const selectableProviders = providers.filter(
 		(provider) =>
-			(Boolean(editingRoute || duplicateSourceRouteId) &&
-				provider.id === formData.provider_id) ||
+			(Boolean(editingRoute || duplicateSourceRouteId) && provider.id === formData.provider_id) ||
 			UPSTREAM_PROTOCOLS.some(
 				(protocol) =>
 					upstreamOperationsForProviderModel(provider, selectedModel, protocol).length > 0
@@ -109,256 +109,254 @@ export function RouteModal(props: Props) {
 	if (!open) return null;
 
 	return (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget && !isSaving && !isDeleting) {
-					onClose();
-				}
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next && !busy && !feedback.showDelete) onClose();
 			}}
+			preventOutsideDismissal={busy}
+			title={editingRoute ? t('editTitle') : t('newTitle')}
+			description={
+				!editingRoute && duplicateSourceRouteId
+					? t('prefilledFrom', { id: duplicateSourceRouteId })
+					: editingRoute?.id
+			}
+			finalFocus={feedback.returnFocus}
+			className="route-dialog route-editor"
+			footer={
+				<>
+					{editingRoute ? (
+						<ControlButton variant="danger" disabled={busy} onClick={onDelete}>
+							{t('deleteRoute')}
+						</ControlButton>
+					) : null}
+					<span className="route-spacer" />
+					<ControlButton variant="outline" onClick={onClose} disabled={busy}>
+						{tCommon('cancel')}
+					</ControlButton>
+					{editingRoute ? (
+						<ControlButton variant="outline" onClick={onDuplicate} disabled={busy}>
+							<DocumentDuplicateIcon className="h-4 w-4" aria-hidden />
+							{tCommon('duplicate')}
+						</ControlButton>
+					) : null}
+					<ControlButton type="submit" form="route-editor-form" disabled={busy} loading={isSaving}>
+						{tCommon('save')}
+					</ControlButton>
+				</>
+			}
 		>
-			<div
-				className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="route-modal-title"
+			{feedback.actionFailure && !feedback.showDelete ? (
+				<ShellError
+					title={feedback.actionFailure.title}
+					failure={feedback.actionFailure.failure}
+					uncertainWrite={feedback.actionFailure.uncertain}
+				/>
+			) : null}
+			{saveError ? <ErrorState title={f('validationFailed')} description={saveError} /> : null}
+			<form
+				id="route-editor-form"
+				onSubmit={(event) => {
+					event.preventDefault();
+					if (!busy) onSave();
+				}}
 			>
-				<div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4">
-					<div>
-						<h2 id="route-modal-title" className="text-lg font-semibold text-gray-900">
-							{editingRoute ? t('editTitle') : t('newTitle')}
-						</h2>
-						{!editingRoute && duplicateSourceRouteId && (
-							<p className="mt-1 text-xs text-gray-500">
-								{t('prefilledFrom', { id: duplicateSourceRouteId })}
-							</p>
-						)}
-					</div>
-					<button
-						type="button"
-						onClick={onClose}
-						className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-						disabled={isSaving || isDeleting}
-						aria-label={tCommon('close')}
-					>
-						<span className="block text-xl leading-none" aria-hidden>
-							×
-						</span>
-					</button>
-				</div>
-
-				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-					{saveError && (
-						<div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-							{saveError}
-						</div>
-					)}
-
+				<fieldset disabled={busy}>
 					<div className="space-y-4">
-						<section className="rounded-lg border border-gray-200 bg-gray-50/80 p-3.5">
-							<h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<section className="rounded-lg border route-border route-subtle p-3.5">
+							<h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wide route-muted">
 								{t('basicMapping')}
 							</h3>
 							<div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
 								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">{t('modelRequired')}</label>
-									<select
-										value={formData.model_id}
-										onChange={(e) => {
-											const nextModelId = e.target.value;
-											const nextModel = models.find((m) => m.id === nextModelId);
-											const nextRequestProtocols = UPSTREAM_PROTOCOLS.filter(
-												(protocol) =>
-													requestOperationsForModel(nextModel, protocol).length > 0
-											);
-											const requestProtocol = nextRequestProtocols.includes(
-												formData.request_protocol
-											)
-												? formData.request_protocol
-												: nextRequestProtocols[0] ?? formData.request_protocol;
-											const nextRequestOperations = requestOperationsForModel(
-												nextModel,
-												requestProtocol
-											);
-											const requestOperation = nextRequestOperations.includes(
-												formData.request_operation
-											)
-												? formData.request_operation
-												: nextRequestOperations[0] ?? formData.request_operation;
-											const nextUpstreamProtocols = selectedProvider
-												? UPSTREAM_PROTOCOLS.filter(
-														(protocol) =>
+									<Field label={<> {t('modelRequired')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												disabled={busy}
+												value={formData.model_id}
+												required
+												options={[
+													{ value: '', label: t('selectModel') },
+													...models.map((m) => ({ value: m.id, label: m.display_name || m.id })),
+												]}
+												onValueChange={(value) => {
+													const nextModelId = value ?? '';
+													const nextModel = models.find((m) => m.id === nextModelId);
+													const nextRequestProtocols = UPSTREAM_PROTOCOLS.filter(
+														(protocol) => requestOperationsForModel(nextModel, protocol).length > 0
+													);
+													const requestProtocol = nextRequestProtocols.includes(
+														formData.request_protocol
+													)
+														? formData.request_protocol
+														: nextRequestProtocols[0] ?? formData.request_protocol;
+													const nextRequestOperations = requestOperationsForModel(
+														nextModel,
+														requestProtocol
+													);
+													const requestOperation = nextRequestOperations.includes(
+														formData.request_operation
+													)
+														? formData.request_operation
+														: nextRequestOperations[0] ?? formData.request_operation;
+													const nextUpstreamProtocols = selectedProvider
+														? UPSTREAM_PROTOCOLS.filter(
+																(protocol) =>
+																	upstreamOperationsForProviderModel(
+																		selectedProvider,
+																		nextModel,
+																		protocol
+																	).length > 0
+														  )
+														: [];
+													const upstreamProtocol = nextUpstreamProtocols.includes(
+														formData.upstream_protocol
+													)
+														? formData.upstream_protocol
+														: nextUpstreamProtocols[0] ?? requestProtocol;
+													const nextUpstreamOperations = upstreamOperationsForProviderModel(
+														selectedProvider,
+														nextModel,
+														upstreamProtocol
+													);
+													const upstreamOperation = nextUpstreamOperations.includes(
+														formData.upstream_operation
+													)
+														? formData.upstream_operation
+														: nextUpstreamOperations[0] ?? requestOperation;
+													onFormChange({
+														...formData,
+														model_id: nextModelId,
+														request_protocol: requestProtocol,
+														request_operation: requestOperation,
+														upstream_protocol: upstreamProtocol,
+														upstream_operation: upstreamOperation,
+													});
+												}}
+											/>
+										)}
+									</Field>
+								</div>
+								<div>
+									<Field label={<> {t('requestProtocol')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												value={formData.request_protocol}
+												disabled={busy || lockOpenaiProtocol}
+												options={requestProtocols.map((p) => ({ value: p, label: p }))}
+												onValueChange={(value) => {
+													const requestProtocol = (value ?? '') as UpstreamProtocol;
+													const requestOperation =
+														requestOperationsForModel(selectedModel, requestProtocol)[0] ??
+														formData.request_operation;
+													onFormChange({
+														...formData,
+														request_protocol: requestProtocol,
+														request_operation: requestOperation,
+													});
+												}}
+											/>
+										)}
+									</Field>
+								</div>
+								<div>
+									<Field label={<> {t('requestOperation')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												disabled={busy}
+												value={formData.request_operation}
+												options={[
+													...requestOperations,
+													...(formData.request_operation === '*' ? ['*'] : []),
+												].map((operation) => ({ value: operation, label: operation }))}
+												onValueChange={(value) =>
+													onFormChange({ ...formData, request_operation: value ?? '' })
+												}
+											/>
+										)}
+									</Field>
+								</div>
+								<div>
+									<Field label={<> {t('providerRequired')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												disabled={busy}
+												value={formData.provider_id}
+												required
+												options={[
+													{ value: '', label: t('selectProvider') },
+													...selectableProviders.map((p) => ({
+														value: p.id,
+														label: p.name || p.id,
+													})),
+												]}
+												onValueChange={(value) => {
+													const nextId = value ?? '';
+													const nextProvider = providers.find((p) => p.id === nextId);
+													const allowed =
+														nextProvider != null
+															? UPSTREAM_PROTOCOLS.filter(
+																	(proto) =>
+																		upstreamOperationsForProviderModel(
+																			nextProvider,
+																			selectedModel,
+																			proto
+																		).length > 0
+															  )
+															: [];
+													let nextProto = formData.upstream_protocol;
+													if (allowed.length > 0 && !allowed.includes(nextProto)) {
+														nextProto = allowed[0]!;
+													}
+													const supportedOperations = upstreamOperationsForProviderModel(
+														nextProvider,
+														selectedModel,
+														nextProto
+													);
+													const nextOperation = supportedOperations.includes(
+														formData.upstream_operation
+													)
+														? formData.upstream_operation
+														: supportedOperations[0] ?? formData.upstream_operation;
+													onFormChange({
+														...formData,
+														provider_id: nextId,
+														upstream_protocol: nextProto,
+														upstream_operation: nextOperation,
+													});
+												}}
+											/>
+										)}
+									</Field>
+								</div>
+								<div>
+									<Field label={<> {t('upstreamProtocol')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												value={formData.upstream_protocol}
+												disabled={busy || lockOpenaiProtocol || !selectedProvider}
+												options={allowedProtocolsForProvider.map((p) => ({ value: p, label: p }))}
+												onValueChange={(value) => {
+													const upstreamProtocol = (value ?? '') as UpstreamProtocol;
+													onFormChange({
+														...formData,
+														upstream_protocol: upstreamProtocol,
+														upstream_operation:
 															upstreamOperationsForProviderModel(
 																selectedProvider,
-																nextModel,
-																protocol
-															).length > 0
-													)
-												: [];
-											const upstreamProtocol = nextUpstreamProtocols.includes(
-												formData.upstream_protocol
-											)
-												? formData.upstream_protocol
-												: nextUpstreamProtocols[0] ?? requestProtocol;
-											const nextUpstreamOperations =
-												upstreamOperationsForProviderModel(
-													selectedProvider,
-													nextModel,
-													upstreamProtocol
-												);
-											const upstreamOperation = nextUpstreamOperations.includes(
-												formData.upstream_operation
-											)
-												? formData.upstream_operation
-												: nextUpstreamOperations[0] ?? requestOperation;
-											onFormChange({
-												...formData,
-												model_id: nextModelId,
-												request_protocol: requestProtocol,
-												request_operation: requestOperation,
-												upstream_protocol: upstreamProtocol,
-												upstream_operation: upstreamOperation,
-											});
-										}}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										required
-									>
-										<option value="">{t('selectModel')}</option>
-										{models.map((m) => (
-											<option key={m.id} value={m.id}>
-												{m.display_name || m.id}
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">
-										{t('requestProtocol')}
-									</label>
-									<select
-										value={formData.request_protocol}
-										onChange={(e) => {
-											const requestProtocol = e.target.value as UpstreamProtocol;
-											const requestOperation =
-												requestOperationsForModel(selectedModel, requestProtocol)[0] ??
-												formData.request_operation;
-											onFormChange({
-												...formData,
-												request_protocol: requestProtocol,
-												request_operation: requestOperation,
-											});
-										}}
-										disabled={lockOpenaiProtocol}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-gray-100"
-									>
-										{requestProtocols.map((p) => (
-											<option key={p} value={p}>{p}</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">
-										{t('requestOperation')}
-									</label>
-									<select
-										value={formData.request_operation}
-										onChange={(e) => onFormChange({ ...formData, request_operation: e.target.value })}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-									>
-										{requestOperations.map((operation) => (
-											<option key={operation} value={operation}>{operation}</option>
-										))}
-										{formData.request_operation === '*' ? <option value="*">*</option> : null}
-									</select>
-								</div>
-								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">{t('providerRequired')}</label>
-									<select
-										value={formData.provider_id}
-										onChange={(e) => {
-											const nextId = e.target.value;
-											const nextProvider = providers.find((p) => p.id === nextId);
-											const allowed =
-												nextProvider != null
-													? UPSTREAM_PROTOCOLS.filter(
-															(proto) =>
-																upstreamOperationsForProviderModel(
-																	nextProvider,
-																	selectedModel,
-																	proto
-																).length > 0
-														)
-													: [];
-											let nextProto = formData.upstream_protocol;
-											if (allowed.length > 0 && !allowed.includes(nextProto)) {
-												nextProto = allowed[0]!;
-											}
-											const supportedOperations =
-												upstreamOperationsForProviderModel(
-													nextProvider,
-													selectedModel,
-													nextProto
-												);
-											const nextOperation = supportedOperations.includes(
-												formData.upstream_operation
-											)
-												? formData.upstream_operation
-												: supportedOperations[0] ?? formData.upstream_operation;
-											onFormChange({
-												...formData,
-												provider_id: nextId,
-												upstream_protocol: nextProto,
-												upstream_operation: nextOperation,
-											});
-										}}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										required
-									>
-										<option value="">{t('selectProvider')}</option>
-										{selectableProviders.map((p) => (
-											<option key={p.id} value={p.id}>
-												{p.name || p.id}
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">
-										{t('upstreamProtocol')}
-									</label>
-									<select
-										value={formData.upstream_protocol}
-										onChange={(e) => {
-											const upstreamProtocol = e.target.value as UpstreamProtocol;
-											onFormChange({
-												...formData,
-												upstream_protocol: upstreamProtocol,
-												upstream_operation:
-													upstreamOperationsForProviderModel(
-														selectedProvider,
-														selectedModel,
-														upstreamProtocol
-													)[0] ?? formData.upstream_operation,
-											});
-										}}
-										disabled={lockOpenaiProtocol || !selectedProvider}
-										title={
-											selectedModelIsAudio
-												? t('protocolHintAudioOpenaiOnly')
-												: selectedModelIsImage
-													? t('protocolHintImageOpenaiOnly')
-													: selectedProvider
-														? t('protocolHintConfigured')
-														: t('protocolHintSelectProvider')
-										}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600"
-									>
-										{allowedProtocolsForProvider.map((p) => (
-											<option key={p} value={p}>
-												{p}
-											</option>
-										))}
-									</select>
+																selectedModel,
+																upstreamProtocol
+															)[0] ?? formData.upstream_operation,
+													});
+												}}
+											/>
+										)}
+									</Field>
 									{selectedModelIsAudio ? (
 										<p className="mt-1 text-[11px] text-amber-700">
 											{t('protocolHintAudioOpenaiOnly')}
@@ -370,102 +368,108 @@ export function RouteModal(props: Props) {
 									) : null}
 								</div>
 								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">
-										{t('upstreamOperation')}
-									</label>
-									<select
-										value={formData.upstream_operation}
-										onChange={(e) => onFormChange({ ...formData, upstream_operation: e.target.value })}
-										disabled={!selectedProvider || upstreamOperations.length === 0}
-										className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600"
-									>
-										{upstreamOperations.map((operation) => (
-											<option key={operation} value={operation}>{operation}</option>
-										))}
-										{showCurrentUpstreamOperation ? (
-											<option value={formData.upstream_operation}>
-												{formData.upstream_operation} · {t('currentLegacyValue')}
-											</option>
-										) : null}
-									</select>
-									<p className="mt-1 text-[11px] text-gray-500">
+									<Field label={<> {t('upstreamOperation')} </>}>
+										{(field) => (
+											<Select
+												{...field}
+												value={formData.upstream_operation}
+												disabled={busy || !selectedProvider || upstreamOperations.length === 0}
+												options={[
+													...upstreamOperations.map((operation) => ({
+														value: operation,
+														label: operation,
+													})),
+													...(showCurrentUpstreamOperation
+														? [
+																{
+																	value: formData.upstream_operation,
+																	label:
+																		formData.upstream_operation + ' · ' + t('currentLegacyValue'),
+																},
+														  ]
+														: []),
+												]}
+												onValueChange={(value) =>
+													onFormChange({ ...formData, upstream_operation: value ?? '' })
+												}
+											/>
+										)}
+									</Field>
+									<p className="mt-1 text-[11px] route-muted">
 										{selectedProvider
 											? t('upstreamOperationHintConfigured')
 											: t('protocolHintSelectProvider')}
 									</p>
 								</div>
 								<div>
-									<label className="mb-1 block text-sm font-medium text-gray-700">
-										{t('providerModelName')}
-									</label>
-									<input
-										type="text"
-										value={formData.provider_model_name}
-										onChange={(e) =>
-											onFormChange({ ...formData, provider_model_name: e.target.value })
-										}
-										className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										placeholder={t('providerModelPlaceholder')}
-										required
-									/>
+									<Field label={<> {t('providerModelName')} </>}>
+										{(field) => (
+											<Input
+												{...field}
+												type="text"
+												value={formData.provider_model_name}
+												onChange={(e) =>
+													onFormChange({ ...formData, provider_model_name: e.target.value })
+												}
+												placeholder={t('providerModelPlaceholder')}
+												required
+											/>
+										)}
+									</Field>
 								</div>
 								<div>
-									<label
-										className="mb-1 block text-sm font-medium text-gray-700"
-										title={t('routeGroupHint')}
-									>
-										{t('routeGroup')}
-									</label>
-									<input
-										type="text"
-										value={formData.route_group}
-										onChange={(e) => onFormChange({ ...formData, route_group: e.target.value })}
-										className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										placeholder={t('routeGroupPlaceholder')}
-										title={t('routeGroupHint')}
-									/>
+									<Field label={<> {t('routeGroup')} </>} hint={t('routeGroupHint')}>
+										{(field) => (
+											<Input
+												{...field}
+												type="text"
+												value={formData.route_group}
+												onChange={(e) => onFormChange({ ...formData, route_group: e.target.value })}
+												placeholder={t('routeGroupPlaceholder')}
+												title={t('routeGroupHint')}
+											/>
+										)}
+									</Field>
 								</div>
 								<div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2 xl:col-span-3 xl:max-w-[66%]">
 									<div>
-										<label
-											className="mb-1 block text-sm font-medium text-gray-700"
-											title={t('priorityHint')}
-										>
-											{t('priority')}
-										</label>
-										<input
-											type="number"
-											value={formData.priority}
-											onChange={(e) =>
-												onFormChange({
-													...formData,
-													priority: parseInt(e.target.value, 10) || 0,
-												})
-											}
-											title={t('priorityHint')}
-											className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										/>
+										<Field label={<> {t('priority')} </>} hint={t('priorityHint')}>
+											{(field) => (
+												<Input
+													{...field}
+													type="number"
+													required
+													value={formData.priority}
+													onChange={(e) =>
+														onFormChange({
+															...formData,
+															priority: e.target.value,
+														})
+													}
+													title={t('priorityHint')}
+												/>
+											)}
+										</Field>
 									</div>
 									<div>
-										<label
-											className="mb-1 block text-sm font-medium text-gray-700"
-											title={t('weightHint')}
-										>
-											{t('weight')}
-										</label>
-										<input
-											type="number"
-											min={1}
-											value={formData.weight}
-											onChange={(e) =>
-												onFormChange({
-													...formData,
-													weight: Math.max(1, parseInt(e.target.value, 10) || 1),
-												})
-											}
-											title={t('weightHint')}
-											className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-										/>
+										<Field label={<> {t('weight')} </>} hint={t('weightHint')}>
+											{(field) => (
+												<Input
+													{...field}
+													type="number"
+													required
+													min={1}
+													value={formData.weight}
+													onChange={(e) =>
+														onFormChange({
+															...formData,
+															weight: e.target.value,
+														})
+													}
+													title={t('weightHint')}
+												/>
+											)}
+										</Field>
 									</div>
 								</div>
 							</div>
@@ -479,65 +483,59 @@ export function RouteModal(props: Props) {
 									selectedModelIsAudio
 										? t('standardCatalogHintAudio')
 										: selectedModelIsImage
-											? t('standardCatalogHintImage')
-											: t('standardCatalogHint')
+										? t('standardCatalogHintImage')
+										: t('standardCatalogHint')
 								}
 							>
 								{selectedModelIsAudio ? (
 									catalogAudioPricingDisplay ? (
 										catalogAudioPricingDisplay.mode === 'token' ? (
-											<ul className="divide-y divide-gray-100 rounded-md border border-gray-200 text-sm tabular-nums">
+											<ul className="divide-y divide-gray-100 rounded-md border route-border text-sm tabular-nums">
 												<li className="flex items-baseline justify-between gap-3 px-3 py-2">
-													<span className="text-xs text-gray-500">
+													<span className="text-xs route-muted">
 														{tModels('audioInputPricePerM')}
 													</span>
-													<span className="font-medium text-gray-900">
+													<span className="font-medium route-text">
 														{catalogAudioPricingDisplay.inputPrice}
-														<span className="ml-1 text-[10px] font-normal text-gray-400">
+														<span className="ml-1 text-[10px] font-normal route-muted">
 															{catalogAudioPricingDisplay.unit}
 														</span>
 													</span>
 												</li>
 												<li className="flex items-baseline justify-between gap-3 px-3 py-2">
-													<span className="text-xs text-gray-500">
+													<span className="text-xs route-muted">
 														{tModels('audioOutputPricePerM')}
 													</span>
-													<span className="font-medium text-gray-900">
+													<span className="font-medium route-text">
 														{catalogAudioPricingDisplay.outputPrice}
-														<span className="ml-1 text-[10px] font-normal text-gray-400">
+														<span className="ml-1 text-[10px] font-normal route-muted">
 															{catalogAudioPricingDisplay.unit}
 														</span>
 													</span>
 												</li>
 											</ul>
 										) : (
-											<ul className="divide-y divide-gray-100 rounded-md border border-gray-200 text-sm tabular-nums">
+											<ul className="divide-y divide-gray-100 rounded-md border route-border text-sm tabular-nums">
 												<li className="flex items-baseline justify-between gap-3 px-3 py-2">
-													<span className="text-xs text-gray-500">
-														{t('audioPricePerSecond')}
-													</span>
-													<span className="font-medium text-gray-900">
+													<span className="text-xs route-muted">{t('audioPricePerSecond')}</span>
+													<span className="font-medium route-text">
 														{catalogAudioPricingDisplay.pricePerSecond}
-														<span className="ml-1 text-[10px] font-normal text-gray-400">
+														<span className="ml-1 text-[10px] font-normal route-muted">
 															{catalogAudioPricingDisplay.unit}
 														</span>
 													</span>
 												</li>
 												<li className="flex items-baseline justify-between gap-3 px-3 py-2">
-													<span className="text-xs text-gray-500">
-														{t('audioMinimumSeconds')}
-													</span>
-													<span className="font-medium text-gray-900">
+													<span className="text-xs route-muted">{t('audioMinimumSeconds')}</span>
+													<span className="font-medium route-text">
 														{catalogAudioPricingDisplay.minimumSeconds}
 													</span>
 												</li>
 											</ul>
 										)
 									) : (
-										<p className="text-sm text-gray-500">
-											{formData.model_id
-												? t('noCatalogAudioPricing')
-												: t('selectModelForTiers')}
+										<p className="text-sm route-muted">
+											{formData.model_id ? t('noCatalogAudioPricing') : t('selectModelForTiers')}
 										</p>
 									)
 								) : selectedModelIsImage ? (
@@ -546,9 +544,7 @@ export function RouteModal(props: Props) {
 										tokenRatesLayout="grid"
 										display={catalogImagePricingDisplay}
 										emptyLabel={
-											formData.model_id
-												? t('noCatalogImagePricing')
-												: t('selectModelForTiers')
+											formData.model_id ? t('noCatalogImagePricing') : t('selectModelForTiers')
 										}
 										tokenRatesTitle={t('imageTokenRates')}
 									/>
@@ -556,9 +552,7 @@ export function RouteModal(props: Props) {
 									<ReadOnlyPricingTiersTable
 										rows={catalogStandardTierRows}
 										emptyLabel={
-											formData.model_id
-												? t('noCatalogPricing')
-												: t('selectModelForTiers')
+											formData.model_id ? t('noCatalogPricing') : t('selectModelForTiers')
 										}
 										tableTitle={t('readOnlyCatalogRates')}
 										billingCurrencyCode={billingCurrency}
@@ -566,7 +560,7 @@ export function RouteModal(props: Props) {
 								)}
 							</RoutePricePanel>
 
-							<p className="text-[11px] text-gray-500">
+							<p className="text-[11px] route-muted">
 								{t('billingTimezoneHint', { timezone: businessTimezone })}
 							</p>
 
@@ -579,29 +573,26 @@ export function RouteModal(props: Props) {
 										subtitle={t('chargedCostHint')}
 										headerEnd={
 											<div className="flex flex-col items-end gap-1">
-												<label
-													htmlFor="user-cost-charged-factor"
-													className="whitespace-nowrap text-[11px] font-medium text-gray-600"
-												>
-													{t('chargedFactor')}
-												</label>
-												<input
-													id="user-cost-charged-factor"
-													type="text"
-													inputMode="decimal"
-													value={formData.charged_factor}
-													title={t('chargedFactorTitle')}
-													onChange={(e) =>
-														onFormChange({ ...formData, charged_factor: e.target.value })
-													}
-													className="w-[4.25rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-xs tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
-													placeholder="1"
-												/>
+												<Field label={<> {t('chargedFactor')} </>}>
+													{(field) => (
+														<Input
+															{...field}
+															type="text"
+															inputMode="decimal"
+															value={formData.charged_factor}
+															title={t('chargedFactorTitle')}
+															onChange={(e) =>
+																onFormChange({ ...formData, charged_factor: e.target.value })
+															}
+															placeholder="1"
+														/>
+													)}
+												</Field>
 											</div>
 										}
 									>
 										<div>
-											<p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+											<p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide route-muted">
 												{t('dailySchedule')}
 											</p>
 											<DailyScheduleEditor
@@ -628,29 +619,26 @@ export function RouteModal(props: Props) {
 										subtitle={t('meteredCostHint')}
 										headerEnd={
 											<div className="flex flex-col items-end gap-1">
-												<label
-													htmlFor="gateway-route-metered-factor"
-													className="whitespace-nowrap text-[11px] font-medium text-gray-600"
-												>
-													{t('meteredFactor')}
-												</label>
-												<input
-													id="gateway-route-metered-factor"
-													type="text"
-													inputMode="decimal"
-													value={formData.metered_factor}
-													title={t('meteredFactorTitle')}
-													onChange={(e) =>
-														onFormChange({ ...formData, metered_factor: e.target.value })
-													}
-													className="w-[4.25rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-xs tabular-nums focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
-													placeholder="1"
-												/>
+												<Field label={<> {t('meteredFactor')} </>}>
+													{(field) => (
+														<Input
+															{...field}
+															type="text"
+															inputMode="decimal"
+															value={formData.metered_factor}
+															title={t('meteredFactorTitle')}
+															onChange={(e) =>
+																onFormChange({ ...formData, metered_factor: e.target.value })
+															}
+															placeholder="1"
+														/>
+													)}
+												</Field>
 											</div>
 										}
 									>
 										<div>
-											<p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+											<p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide route-muted">
 												{t('dailySchedule')}
 											</p>
 											<DailyScheduleEditor
@@ -671,104 +659,102 @@ export function RouteModal(props: Props) {
 							</div>
 						</div>
 
-						<section className="rounded-lg border border-gray-200 bg-white p-3.5">
+						<section className="rounded-lg border route-border route-surface p-3.5">
 							<div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-								<h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+								<h3 className="text-xs font-semibold uppercase tracking-wide route-muted">
 									{t('requestDefaults')}
 								</h3>
-								<p className="text-[11px] text-gray-500">{t('requestDefaultsHint')}</p>
+								<p className="text-[11px] route-muted">{t('requestDefaultsHint')}</p>
 							</div>
-							<label className="mb-1 block text-sm font-medium text-gray-700">{t('customParams')}</label>
-							<textarea
-								rows={4}
-								value={formData.custom_params_json}
-								onChange={(e) =>
-									onFormChange({ ...formData, custom_params_json: e.target.value })
-								}
-								className="min-h-[96px] w-full resize-y rounded-md border border-gray-300 px-3 py-2 font-mono text-xs leading-relaxed focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-								placeholder={t('customParamsPlaceholder')}
-								spellCheck={false}
-							/>
+							<Field label={<> {t('customParams')} </>}>
+								{(field) => (
+									<Textarea
+										{...field}
+										rows={4}
+										value={formData.custom_params_json}
+										onChange={(e) =>
+											onFormChange({ ...formData, custom_params_json: e.target.value })
+										}
+										placeholder={t('customParamsPlaceholder')}
+										spellCheck={false}
+									/>
+								)}
+							</Field>
 						</section>
 
-						<section className="rounded-lg border border-gray-200 bg-white p-4">
-							<h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<section className="rounded-lg border route-border route-surface p-4">
+							<h3 className="mb-2 text-xs font-semibold uppercase tracking-wide route-muted">
 								{t('summary')}
 							</h3>
-							<div className="grid grid-cols-1 gap-2 text-xs text-gray-600 md:grid-cols-2">
+							<div className="grid grid-cols-1 gap-2 text-xs route-muted md:grid-cols-2">
 								<p>
-									<span className="font-medium text-gray-700">{t('summaryRoute')}</span>{' '}
+									<span className="font-medium route-text">{t('summaryRoute')}</span>{' '}
 									<span className="font-mono">{formData.model_id || '—'}</span> →{' '}
 									<span className="font-mono">{formData.provider_id || '—'}</span> /{' '}
 									<span className="font-mono">{formData.provider_model_name || '—'}</span>
 								</p>
 								<p>
-									<span className="font-medium text-gray-700">{t('summaryRouting')}</span>{' '}
-									<span className="font-mono">{formData.upstream_protocol}</span> · {t('summaryGroup')}{' '}
+									<span className="font-medium route-text">{t('summaryRouting')}</span>{' '}
+									<span className="font-mono">{formData.upstream_protocol}</span> ·{' '}
+									{t('summaryGroup')}{' '}
 									<span className="font-mono">{formData.route_group.trim() || 'default'}</span> ·{' '}
-									{t('summaryPriority')}{' '}
-									<span className="font-mono">{formData.priority}</span> · {t('summaryStatus')}{' '}
-									<span className="font-mono">{editingRoute ? editingRoute.status : 'inactive'}</span>
-									{!editingRoute && <span className="text-gray-500"> {t('summaryEnableFromList')}</span>}
+									{t('summaryPriority')} <span className="font-mono">{formData.priority}</span> ·{' '}
+									{t('summaryStatus')}{' '}
+									<span className="font-mono">
+										{editingRoute ? editingRoute.status : 'inactive'}
+									</span>
+									{!editingRoute && (
+										<span className="route-muted"> {t('summaryEnableFromList')}</span>
+									)}
 								</p>
 								<p>
-									<span className="font-medium text-gray-700">{t('summaryUserBilling')}</span>{' '}
+									<span className="font-medium route-text">{t('summaryUserBilling')}</span>{' '}
 									<span className="font-mono">{t('summaryUserBillingDetail')}</span>
 								</p>
 								<p>
-									<span className="font-medium text-gray-700">{t('summaryMeteredCost')}</span>{' '}
+									<span className="font-medium route-text">{t('summaryMeteredCost')}</span>{' '}
 									<span className="font-mono">{t('summaryMeteredCostDetail')}</span>
 								</p>
 							</div>
 						</section>
 					</div>
-				</div>
-
-				<div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50/50 px-5 py-4">
-					<div className="flex flex-wrap items-center gap-2">
-						{editingRoute && (
-							<button
-								type="button"
-								onClick={onDelete}
-								disabled={isSaving || isDeleting}
-								className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<TrashIcon className="h-4 w-4" aria-hidden />
-								{isDeleting ? tCommon('deleting') : t('deleteRoute')}
-							</button>
-						)}
-					</div>
-					<div className="ml-auto flex gap-2 sm:gap-3">
-						<button
-							type="button"
-							onClick={onClose}
-							className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-							disabled={isSaving || isDeleting}
-						>
+				</fieldset>
+			</form>
+			<Dialog
+				open={feedback.showDelete}
+				onOpenChange={(next) => {
+					if (!next && !busy) feedback.closeDelete();
+				}}
+				preventOutsideDismissal={busy}
+				title={f('deleteTitle')}
+				description={f('deleteDescription', { id: editingRoute?.id ?? '' })}
+				finalFocus={feedback.deleteReturnFocus}
+				footer={
+					<>
+						<ControlButton variant="outline" disabled={busy} onClick={feedback.closeDelete}>
 							{tCommon('cancel')}
-						</button>
-						{editingRoute && (
-							<button
-								type="button"
-								onClick={onDuplicate}
-								disabled={isSaving || isDeleting}
-								className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<DocumentDuplicateIcon className="h-4 w-4" aria-hidden />
-								{tCommon('duplicate')}
-							</button>
-						)}
-						<button
-							type="button"
-							onClick={onSave}
-							disabled={isSaving || isDeleting}
-							className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+						</ControlButton>
+						<ControlButton
+							variant="danger"
+							disabled={busy}
+							loading={isDeleting}
+							onClick={props.onConfirmDelete}
 						>
-							{isSaving ? tCommon('savingDots') : tCommon('save')}
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
+							{t('deleteRoute')}
+						</ControlButton>
+					</>
+				}
+			>
+				{feedback.actionFailure ? (
+					<ShellError
+						title={feedback.actionFailure.title}
+						failure={feedback.actionFailure.failure}
+						uncertainWrite={feedback.actionFailure.uncertain}
+					/>
+				) : (
+					<p>{f('deleteHint')}</p>
+				)}
+			</Dialog>
+		</Dialog>
 	);
 }

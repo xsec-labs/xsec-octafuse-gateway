@@ -1,15 +1,18 @@
 'use client';
-
-/**
- * 左侧导航：Dashboard、推理与路由、Tools、分析、系统（含 Config 与 Logout）；底部外链与版本号。
- */
 import Link from 'next/link';
-import BrandExternalLinks from '@/components/layout/BrandExternalLinks';
-import LocaleSwitcher from '@/components/layout/LocaleSwitcher';
-import { usePathname, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useState, useEffect, useRef } from 'react';
+import { ControlButton, ControlIconButton } from '@xsec/ui-react';
+import BrandExternalLinks from './BrandExternalLinks';
+import LocaleSwitcher from './LocaleSwitcher';
+import ShellError from './ShellError';
+import { adminAppVersion } from '@/lib/app-version';
+import { parseShellSuccess, useShellRequest, type ShellFailure } from '@/lib/shell-request';
 import {
   ArrowLeftStartOnRectangleIcon,
+  Bars3Icon,
   HomeIcon,
   KeyIcon,
   CpuChipIcon,
@@ -27,9 +30,6 @@ import {
   WrenchScrewdriverIcon,
   QueueListIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
-import { adminAppVersion } from '@/lib/app-version';
-
 interface MenuItem {
   nameKey: string;
   href: string;
@@ -91,101 +91,42 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
-export default function Sidebar() {
-  const t = useTranslations('sidebar');
-  const tBrand = useTranslations('brand');
-  const tAuth = useTranslations('auth');
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-
-    setIsLoggingOut(true);
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
-  return (
-    <aside className="sticky top-0 h-dvh w-64 shrink-0 bg-gray-900">
-      <div className="flex h-full flex-col">
-      {/* Logo / Brand */}
-      <div className="flex h-16 flex-col justify-center px-6 bg-gray-950 leading-tight">
-        <Link href="/dashboard" className="block hover:opacity-90">
-          <span className="block text-lg font-bold tracking-tight text-white">{tBrand('wordmark')}</span>
-          <span className="block text-[11px] font-medium uppercase tracking-wider text-gray-400">
-            {tBrand('sidebarSubtitle')}
-          </span>
-        </Link>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
-        {menuGroups.map((group) => (
-          <div key={group.groupKey}>
-            <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              {t(`groups.${group.groupKey}`)}
-            </h3>
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href === '/gateway/users' &&
-                    (pathname === '/gateway/users' || pathname?.startsWith('/gateway/users/'))) ||
-                  (item.href === '/gateway/tools' && pathname === '/gateway/tools');
-                const Icon = item.icon;
-
-                return (
-                  <Link
-                    key={item.nameKey}
-                    href={item.href}
-                    className={`
-                      group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg
-                      ${isActive
-                        ? 'bg-gray-800 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                      }
-                    `}
-                  >
-                    <Icon className={`
-                      mr-3 h-5 w-5 flex-shrink-0
-                      ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}
-                    `} />
-                    {t(`nav.${item.nameKey}`)}
-                  </Link>
-                );
-              })}
-              {group.groupKey === 'system' && (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="group w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ArrowLeftStartOnRectangleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-white" />
-                  {isLoggingOut ? tAuth('loggingOut') : tAuth('logout')}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      {/* Footer: links + version */}
-      <div className="p-4 border-t border-gray-800 space-y-3">
-        <LocaleSwitcher variant="sidebar" />
-        <BrandExternalLinks variant="sidebar" />
-        <p className="text-xs text-gray-500 text-center">{t('version', { version: adminAppVersion })}</p>
-      </div>
-      </div>
-    </aside>
-  );
+const MobileNavigation = dynamic(() => import('./MobileNavigation'));
+export default function Sidebar({ onLoggedOut, onCheckSession }: { onLoggedOut: () => void; onCheckSession: () => void }) {
+ const t = useTranslations('sidebar'), tBrand = useTranslations('brand'), tAuth = useTranslations('auth'), tShell = useTranslations('shell');
+ const pathname = usePathname(), [mobile, setMobile] = useState(false), [open, setOpen] = useState(false);
+ const [loggingOut, setLoggingOut] = useState(false), [failure, setFailure] = useState<ShellFailure | null>(null);
+ const trigger = useRef<HTMLButtonElement>(null), busy = useRef(false), { run } = useShellRequest();
+ useEffect(() => {
+  const query = matchMedia('(max-width: 767px)');
+  const update = () => { setMobile(query.matches); if (!query.matches) setOpen(false); };
+  update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update);
+ }, []);
+ const logout = () => {
+  if (busy.current) return; busy.current = true; setLoggingOut(true); setFailure(null);
+  void run('/api/auth/logout', { method: 'POST' }, parseShellSuccess, () => { busy.current = false; setLoggingOut(false); onLoggedOut(); }, error => { busy.current = false; setLoggingOut(false); setFailure(error); });
+ };
+ const navigation = <>
+  <nav aria-label={tShell('navigation')} className="octafuse-nav">
+   {menuGroups.map(group => <section key={group.groupKey}>
+    <h2>{t(`groups.${group.groupKey}`)}</h2>
+    {group.items.map(item => {
+     const active = pathname === item.href || (item.href === '/gateway/users' && pathname.startsWith('/gateway/users/'));
+     const Icon = item.icon;
+     return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className="octafuse-nav-link" onClick={() => setOpen(false)}><Icon aria-hidden className="octafuse-nav-icon" /><span>{t(`nav.${item.nameKey}`)}</span></Link>;
+    })}
+   </section>)}
+  </nav>
+  <footer className="octafuse-nav-footer"><LocaleSwitcher variant="sidebar" /><ControlButton variant="ghost" loading={loggingOut} onClick={logout}><ArrowLeftStartOnRectangleIcon className="octafuse-nav-icon" aria-hidden />{loggingOut ? tAuth('loggingOut') : tAuth('logout')}</ControlButton>
+   {failure ? <ShellError title={tShell('logoutFailed')} failure={failure} uncertainWrite action={<ControlButton variant="secondary" onClick={onCheckSession}>{tShell('checkSession')}</ControlButton>} /> : null}
+   <BrandExternalLinks variant="sidebar" /><p className="octafuse-version">{t('version', { version: adminAppVersion })}</p>
+  </footer>
+ </>;
+ return <>
+  <a className="octafuse-skip" href="#octafuse-main">{tShell('skipContent')}</a>
+  {mobile ? <><header className="octafuse-mobile-bar"><Link href="/dashboard">{tBrand('wordmark')}</Link><ControlIconButton ref={trigger} label={tShell('openNavigation')} aria-expanded={open} onClick={() => setOpen(true)}><Bars3Icon className="octafuse-nav-icon" /></ControlIconButton></header>
+   {open ? <MobileNavigation open={open} onOpenChange={setOpen} title={tShell('navigation')} finalFocus={trigger}>{navigation}</MobileNavigation> : null}
+  </> : <aside className="octafuse-sidebar"><Link className="octafuse-brand" href="/dashboard"><strong>{tBrand('wordmark')}</strong><span>{tBrand('sidebarSubtitle')}</span></Link>{navigation}</aside>}
+ </>;
 }

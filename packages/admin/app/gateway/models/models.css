@@ -1,0 +1,340 @@
+.model-page {
+	max-width: 1600px;
+	margin: auto;
+	padding: 32px;
+	color: var(--xui-text);
+}
+.model-page .xui-page-header > div:first-child {
+	min-width: 0;
+	flex: 1;
+}
+.model-page .xui-page-header h1 {
+	overflow-wrap: anywhere;
+}
+.model-filters {
+	display: grid;
+	gap: 16px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	background: var(--xui-surface);
+	padding: 16px;
+}
+.model-vendors,
+.model-choices,
+.model-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.model-filters .xui-radio-group {
+	flex-wrap: wrap;
+}
+.model-toolbar {
+	gap: 12px;
+	padding: 16px 0;
+}
+.model-toolbar .xui-input {
+	max-width: 640px;
+	min-width: 0;
+}
+.model-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+.model-card {
+	padding: 18px;
+	background: var(--xui-surface);
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	min-width: 0;
+}
+.model-text {
+	color: var(--xui-text);
+}
+.model-muted,
+.model-hint {
+	color: var(--xui-muted);
+}
+.model-border {
+	border-color: var(--xui-border);
+}
+.model-subtle {
+	background: var(--xui-subtle);
+}
+.model-name {
+	padding: 0;
+	justify-content: flex-start;
+	text-align: left;
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+.model-name.xui-button {
+	color: var(--xui-text);
+}
+.model-card .xui-badge {
+	font-size: 11px;
+}
+.model-card .xui-button {
+	min-height: 44px;
+}
+.model-card .xui-button[title] {
+	max-width: 100%;
+	white-space: normal;
+}
+.model-dialog {
+	width: min(860px, calc(100vw - 32px));
+	max-height: calc(100dvh - 32px);
+	display: flex;
+	flex-direction: column;
+}
+.model-dialog .xui-dialog-content {
+	min-height: 0;
+	overflow: auto;
+}
+.model-dialog .xui-dialog-header,
+.model-dialog .xui-dialog-footer {
+	flex-shrink: 0;
+}
+.model-dialog .xui-dialog-footer {
+	flex-wrap: wrap;
+}
+.model-dialog .xui-input,
+.model-dialog .xui-button {
+	min-height: 44px;
+}
+.model-spacer {
+	flex: 1;
+}
+.model-form fieldset {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+}
+.model-fields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 20px;
+}
+.model-full {
+	grid-column: 1/-1;
+}
+.model-form h3 {
+	font-size: 13px;
+	font-weight: 600;
+	margin: 0 0 12px;
+}
+.model-hint {
+	font-size: 12px;
+	line-height: 1.6;
+}
+.model-modalities {
+	display: grid;
+	gap: 20px;
+}
+.model-pricing {
+	padding: 16px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	min-width: 0;
+}
+.model-search {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+.model-search .xui-input {
+	min-width: 0;
+}
+.model-tags {
+	margin-bottom: 12px;
+}
+.model-tags .xui-button {
+	min-height: 32px;
+	padding: 2px 8px;
+}
+.model-json {
+	font-family: ui-monospace, monospace;
+}
+.model-json-preview {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	background: var(--xui-subtle);
+	padding: 16px;
+	border-radius: var(--xui-radius-control);
+	font: 12px/1.6 ui-monospace, monospace;
+}
+.model-import-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+.model-import-toolbar > .xui-input {
+	flex: 1;
+	min-width: 160px;
+}
+.model-import-dialog .xui-radio-group {
+	flex-wrap: wrap;
+	margin-bottom: 16px;
+}
+.model-template-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+}
+.model-template-list li {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 16px;
+	min-width: 0;
+}
+.model-template-list li + li {
+	border-top: 1px solid var(--xui-border);
+}
+.model-template-list .xui-choice {
+	flex: 1;
+	min-width: 0;
+	align-items: flex-start;
+}
+.model-template-list .xui-choice > span {
+	min-width: 0;
+}
+.model-template-list .xui-checkbox {
+	flex-shrink: 0;
+	margin-top: 3px;
+}
+.model-template {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-wrap: anywhere;
+}
+.model-template code {
+	font-size: 11px;
+	color: var(--xui-muted);
+}
+.model-template-list li > .xui-button {
+	max-width: 180px;
+	white-space: normal;
+}
+.model-pricing-tip {
+	white-space: pre-wrap;
+}
+.model-import-result {
+	background: var(--xui-subtle);
+	padding: 16px;
+	border-radius: var(--xui-radius-control);
+	font-size: 13px;
+	margin-bottom: 16px;
+}
+.model-import-result li {
+	overflow-wrap: anywhere;
+}
+.model-pricing-editor {
+	color: var(--xui-text);
+	min-width: 0;
+}
+.model-pricing-editor .xui-table {
+	font-size: 12px;
+}
+.model-pricing-editor .xui-table-cell {
+	padding: 8px;
+}
+.model-pricing-editor .xui-input {
+	min-width: 88px;
+}
+.model-pricing-editor .xui-field {
+	min-width: 0;
+}
+.model-pricing-editor .xui-select-trigger {
+	width: 100%;
+}
+.model-pricing-editor .xui-table-scroll {
+	max-width: 100%;
+}
+@media (min-width: 1500px) {
+	.model-list {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+@media (max-width: 1200px) {
+	.model-page {
+		padding: 24px;
+	}
+	.model-page .xui-page-header {
+		flex-wrap: wrap;
+		align-items: flex-start;
+	}
+}
+@media (max-width: 700px) {
+	.model-list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.model-page {
+		padding: 20px 16px;
+	}
+	.model-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.model-dialog .xui-dialog-header,
+	.model-dialog .xui-dialog-content,
+	.model-dialog .xui-dialog-footer {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+	.model-pricing {
+		padding: 12px;
+	}
+	.model-template-list li {
+		flex-direction: column;
+	}
+	.model-template-list li > .xui-button {
+		align-self: flex-end;
+		max-width: 100%;
+	}
+	.model-dialog .xui-dialog-footer > .xui-button {
+		flex: 1;
+	}
+	.model-spacer {
+		display: none;
+	}
+}
+
+.model-surface {
+	background: var(--xui-surface);
+}
+.model-divide > :not([hidden]) ~ :not([hidden]) {
+	border-color: var(--xui-border);
+}
+.model-filters .xui-radio-group {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.model-dialog .xui-radio-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.model-dialog .xui-radio-choice {
+	flex: 1;
+	min-width: 80px;
+}
+.model-dialog .xui-radio-choice .xui-choice > span {
+	min-width: 0;
+}
+.model-pricing-editor .xui-radio-group {
+	display: flex;
+	flex-wrap: wrap;
+	margin-bottom: 16px;
+}
+
+.model-import-help { color: var(--xui-muted); margin-bottom: 16px; }
+.model-import-help summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.model-import-help summary:focus-visible { outline: 2px solid var(--xui-focus); outline-offset: 2px; }
+.model-import-help p { margin: 8px 0; }

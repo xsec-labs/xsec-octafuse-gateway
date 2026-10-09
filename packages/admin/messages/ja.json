@@ -261,6 +261,12 @@
 			"today": "今日",
 			"this_week": "今週",
 			"this_month": "今月"
+		},
+		"feedback": {
+			"readFailed": "ダッシュボードの統計を読み取れません",
+			"currencyFailed": "請求通貨を確認できません",
+			"currencyPending": "請求通貨を確認中…",
+			"invalidRange": "有効な開始日時と終了日時を入力し、終了を開始以降にしてください。"
 		}
 	},
 	"filter": {
@@ -396,6 +402,27 @@
 			"apiKeyEditHint": "空欄で現行キーを維持。新しい値を入力すると置換します。",
 			"statusEnabled": "プロバイダーを有効化",
 			"statusHint": "無効なプロバイダーはルーティングと Playground から除外されます。"
+		},
+		"feedback": {
+			"copyName": "{name}（コピー）",
+			"nameRequired": "プロバイダー名を入力してください。",
+			"keyRequired": "新しいプロバイダーの API キーを入力してください。",
+			"listFailed": "プロバイダーを読み込めません",
+			"readList": "プロバイダーを再読み込み",
+			"saveFailed": "保存結果を確認できませんでした",
+			"deleteFailed": "削除結果を確認できませんでした",
+			"statusFailed": "状態変更を確認できませんでした",
+			"copyFailed": "プロバイダーキーを読み込めません",
+			"clipboardFailed": "クリップボードに書き込めません。ブラウザーの権限を確認して再試行してください。",
+			"catalogFailed": "テンプレートを読み込めません",
+			"readCatalog": "テンプレートを再読み込み",
+			"importFailed": "インポート結果を確認できませんでした",
+			"importResult": "{count} 件のプロバイダーを作成しました",
+			"importComplete": "プロバイダーを確認し、有効にする前に API キーを設定してください。",
+			"deleteTitle": "プロバイダーを削除しますか？",
+			"deleteDescription": "ゲートウェイから {name} を削除します。",
+			"deleteHint": "このプロバイダーを参照するモデルルートを先に削除または再割り当てしてください。",
+			"importRowFailed": "このテンプレートをインポートできませんでした。設定とストレージの状態を確認してから、もう一度選択してください。"
 		}
 	},
 	"models": {
@@ -537,6 +564,32 @@
 			"metadata": "Metadata",
 			"viewMetadataJson": "Metadata JSON を表示",
 			"kindAudio": "音声"
+		},
+		"feedback": {
+			"listFailed": "モデルを読み込めませんでした",
+			"readList": "モデルを読み込む",
+			"detailFailed": "モデル詳細を読み込めませんでした",
+			"saveFailed": "モデルを保存できませんでした",
+			"deleteFailed": "モデルを削除できませんでした",
+			"currencyFailed": "請求通貨を読み込めませんでした",
+			"readCurrency": "請求通貨を読み込む",
+			"catalogFailed": "モデルカタログを読み込めませんでした",
+			"importFailed": "モデルをインポートできませんでした",
+			"idRequired": "モデル ID を入力してください",
+			"tokenLimits": "トークン上限は正の整数にしてください",
+			"search": "モデル、ID、タグを検索",
+			"deleteTitle": "モデルを削除",
+			"deleteDescription": "{id} を削除しますか？",
+			"deleteHint": "関連ルートとタグも削除されます。",
+			"importTitle": "モデルをインポート",
+			"importDescription": "{currency} カタログを使って {count} 件のモデルをインポートしますか？",
+			"importHint": "既存のモデル ID は現在のデータを保持します。",
+			"importResult": "追加 {created} · 既存 {skipped} · 失敗 {failed} · {currency}",
+			"failedTemplates": "インポートに失敗したテンプレート",
+			"pricingPreview": "{id} の料金プレビュー",
+			"clipboardFailed": "料金 JSON をコピーできませんでした",
+			"importHelp": "インポートの詳細",
+			"importSummary": "インポートするモデルを選択します。既存モデルは保持され、価格は {currency} カタログに基づきます。"
 		}
 	},
 	"routes": {
@@ -798,6 +851,20 @@
 			"inactiveExcluded": "無効な Route または Provider はプレビューから除外されます。",
 			"hintCache": "affinity 以外は prompt cache のヒット率が下がる可能性があります。",
 			"hintNoCache": "上流に prompt cache はありません。weighted_random または round_robin を推奨。"
+		},
+		"feedback": {
+			"saveFailed": "ルートの保存を確認できません",
+			"deleteFailed": "ルートの削除を確認できません",
+			"statusFailed": "ルート状態の変更を確認できません",
+			"strategyFailed": "戦略の保存を確認できません",
+			"copyFailed": "モデル ID をコピーできません",
+			"validationFailed": "ルートの入力内容を確認してください",
+			"invalidFields": "モデルとプロバイダーを選択し、上流モデル名と整数の優先度・重み（重み ≥ 1）を入力してください。",
+			"deleteTitle": "ルートを削除",
+			"deleteDescription": "ルート {id} を削除しますか？",
+			"deleteHint": "ルートの対象がプールから削除されます。",
+			"invalidPricing": "有効な非負の係数と重複しない時間帯を入力してください。",
+			"invalidParams": "カスタムパラメーターには有効な JSON オブジェクトを入力してください。"
 		}
 	},
 	"playground": {
@@ -870,8 +937,29 @@
 		"engineProvider": "エンジン Provider",
 		"engineProviderHint": "Active 以外でも、実装済み catalog エントリを検証できます。",
 		"toolsBodyMustBeObject": "リクエストボディは JSON オブジェクトである必要があります。",
+		"toolsTimeoutHint": "ツールの完全な応答までを含みます。既定値は300秒です。",
 		"toolsNeedProvider": "エンジン Provider を選択してください。",
-		"applyTemplate": "テンプレートを適用"
+		"applyTemplate": "テンプレートを適用",
+		"catalog": {
+			"readFailed": "ルートカタログを読み込めません",
+			"empty": "フィルターに一致するルートがありません",
+			"operation": "上流操作",
+			"pool": "ルーティングプール",
+			"surfaces": "公開エントリー",
+			"legacyPool": "従来のルート",
+			"configuration": "ルート設定"
+		},
+		"sendState": {
+			"cancelled": "リクエストをキャンセルしました",
+			"timeout": "REQUEST_TIMEOUT：リクエストの総制限時間を超えました",
+			"invalidTimeout": "1〜3600 の整数秒を入力してください",
+			"timeoutLabel": "総制限時間（秒）",
+			"timeoutHint": "ファイル読み込みと応答全体を含みます。既定値は 300 秒です。"
+		},
+		"responseContent": {
+			"receiving": "受信中…",
+			"unsupported": "この応答に対応するアシスタントの本文が見つかりませんでした。"
+		}
 	},
 	"simulator": {
 		"title": "Simulator",
@@ -966,7 +1054,32 @@
 		"toolProtocolHidden": "Tools は常に JSON POST /v1/tools/* です。プロトコル選択は不要です。",
 		"readyNeedTool": "ツールを選択してください。",
 		"errSelectTool": "送信前にツールを選択してください。",
-		"openToolsInvocations": "Tools Invocations を開く"
+		"openToolsInvocations": "Tools Invocations を開く",
+		"setup": {
+			"emptyKeys": "このフィルターに一致する API キーはありません",
+			"keyReady": "API キーの準備が完了しました",
+			"settingsFailed": "保存した設定を使用できません",
+			"settingsReadFailed": "保存した設定を読み取れないか、形式が無効です。再試行するか初期設定に戻してください。",
+			"settingsWriteFailed": "設定を保存できません。再試行するか初期設定に戻してください。",
+			"resetSettings": "初期設定に戻す"
+		},
+		"routing": {
+			"activeRoute": "有効なルートあり",
+			"noActiveRoute": "有効なルートなし",
+			"unavailableOption": "{id} · 利用不可",
+			"selectedOutsideFilter": "絞り込み中も選択したモデルを維持します。",
+			"modelUnavailable": "選択したモデルは利用できません。利用可能なモデルを選択してください。",
+			"groupUnavailable": "選択したルートグループは利用できません。利用可能なグループまたはデフォルトを選択してください。",
+			"modelCount": "この種類は {total} 件 · {filtered} 件が一致",
+			"noModels": "条件に一致するモデルはありません",
+			"legacyPool": "旧形式のルートプール"
+		},
+		"exchange": {
+			"timeoutLabel": "リクエストの合計タイムアウト（秒）",
+			"timeoutHint": "1～3600秒。応答ヘッダーと本文全体の読み取りを含みます。初期値は300秒です。",
+			"invalidTimeout": "1～3600の整数を入力してください。",
+			"timeout": "リクエストの合計タイムアウトに達し、接続をキャンセルしました。再送信できます。"
+		}
 	},
 	"users": {
 		"title": "ユーザー",
@@ -1066,6 +1179,33 @@
 			"updateFailed": "更新に失敗しました",
 			"deleteFailed": "削除に失敗しました",
 			"createFailed": "作成に失敗しました"
+		},
+		"feedback": {
+			"emailRequired": "メールアドレスを入力してください。",
+			"externalPair": "外部システムと外部ユーザー ID は両方入力するか、両方空にしてください。",
+			"budgetInvalid": "予算額は有限の数値で指定してください。",
+			"metadataInvalid": "メタデータは有効な JSON で指定してください。",
+			"sortBy": "{label}で並べ替え",
+			"detail": "ユーザー詳細：{name}",
+			"metadataFor": "{name}のメタデータ",
+			"pagination": "ユーザー一覧のページ"
+		},
+		"detailFeedback": {
+			"userFailed": "ユーザーを読み込めません",
+			"keysFailed": "API キーを読み込めません",
+			"logsFailed": "リクエストログを読み込めません",
+			"auditsFailed": "ユーザー監査ログを読み込めません",
+			"dateInvalid": "予算リセット日時に有効な日付を入力してください。",
+			"readRequired": "現在の状態を確認して続行",
+			"readRequiredHint": "次の変更を行う前に、現在のユーザーと関連する記録を読み込んでください。",
+			"copyKey": "API キーをコピー: {name}",
+			"copyNewKey": "新しい API キーをコピー",
+			"metadataFor": "{name} のメタデータ",
+			"deleteKey": "API キーを削除: {name}",
+			"standard": "標準料金",
+			"charged": "請求料金",
+			"metered": "計測料金",
+			"currencyFailed": "請求通貨を読み込めませんでした"
 		}
 	},
 	"keysPage": {
@@ -1139,9 +1279,31 @@
 		"copyKey": "Key をコピー",
 		"copyId": "ID をコピー",
 		"copySecret": "Secret をコピー",
-		"confirmDelete": "この API Key を完全に削除しますか？"
+		"confirmDelete": "この API Key を完全に削除しますか？",
+		"feedback": {
+			"sortCreated": "作成日時で並べ替え",
+			"editKey": "キーを編集：{name}",
+			"pagination": "API キーのページ切り替え",
+			"metadataInvalid": "メタデータには有効な JSON を入力してください",
+			"userRequired": "ゲートウェイのユーザー ID が必要です",
+			"externalRequired": "外部システムと外部ユーザー ID の両方が必要です",
+			"emailRequired": "外部 ID にはメールアドレスが必要です",
+			"deleteFailed": "キーの削除に失敗しました",
+			"copyFailed": "コピーに失敗しました。もう一度お試しください。",
+			"budgetBase": "基本予算：{amount}",
+			"deleteWarning": "このキーのゲートウェイアクセスを完全に削除します。ユーザーと予算は保持されます。",
+			"keyId": "キー ID"
+		}
 	},
 	"requestLogs": {
+		"feedback": {
+			"invalidRange": "有効な開始日時と終了日時を時系列順に入力してください。",
+			"invalidJson": "記録されたペイロードの JSON が無効です。元のテキストを表示しています。",
+			"resourceFailed": "{resource} を読み込めませんでした",
+			"currency": "請求通貨",
+			"unlisted": "{id}（現在のカタログにありません）",
+			"readFailed": "リクエストログを読み込めませんでした"
+		},
 		"title": "リクエストログ",
 		"subtitle": "Gateway のリクエスト履歴を表示",
 		"filters": {
@@ -1227,7 +1389,7 @@
 	},
 	"auditLogs": {
 		"title": "監査ログ",
-		"subtitle": "ユーザー監査証跡（user_audit_logs）— spent / budget_max は変更前後のユーザースナップショットから算出されます。change_payload に旧形式 / 追加の JSON がある場合は下部に追記されます（独立した Metadata 列はありません）。",
+		"subtitle": "ユーザーの変更、予算の調整、実行した担当者やサービスを確認します。",
 		"empty": "フィルターに一致する監査ログはありません。",
 		"filters": {
 			"eventType": "イベント種別",
@@ -1285,20 +1447,53 @@
 			"noChangeDetail": "展開可能な変更詳細はありません。",
 			"more": "他 {count} 件"
 		},
-		"userRemovedTitle": "ユーザーは削除済みです。snapshot / change_payload を確認してください"
+		"userRemovedTitle": "ユーザーは削除済みです。snapshot / change_payload を確認してください",
+		"feedback": {
+			"reasonsFailed": "監査理由を読み取れません",
+			"logsFailed": "監査ログを読み取れません",
+			"invalidJson": "保存された監査 JSON が無効です。元の記録を確認してください。",
+			"rawRecord": "元の監査記録",
+			"invalidRange": "有効な開始時刻と終了時刻を順番に入力してください。",
+			"moreFilters": "その他の絞り込み",
+			"currencyFailed": "請求通貨を読み取れません"
+		}
 	},
 	"analytics": {
 		"modelUsage": {
 			"title": "モデル使用量",
-			"subtitle": "モデルおよび Route Group 別の使用量とコスト"
+			"subtitle": "モデルおよび Route Group 別の使用量とコスト",
+			"feedback": {
+				"readFailed": "モデル使用量を読み込めませんでした",
+				"providersFailed": "プロバイダー内訳を読み込めませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認中です。金額の表示を保留しています",
+				"invalidRange": "有効な開始日時と終了日時を時系列順に入力してください",
+				"providersFor": "{model} / {group} のプロバイダー"
+			}
 		},
 		"providerUsage": {
 			"title": "Provider 使用量",
-			"subtitle": "アップストリーム Provider 別の使用量とコスト"
+			"subtitle": "アップストリーム Provider 別の使用量とコスト",
+			"feedback": {
+				"readFailed": "プロバイダー使用量を取得できませんでした",
+				"modelsFailed": "モデル使用量を取得できませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています…",
+				"invalidRange": "有効な開始時刻と終了時刻を選択してください。",
+				"modelsFor": "{provider} のモデル使用量"
+			}
 		},
 		"userUsage": {
 			"title": "ユーザー使用量",
-			"subtitle": "リクエストログのメールアドレス別の使用量とコスト。予算列は users から取得します（user_id で JOIN）。"
+			"subtitle": "ユーザー別の使用量、コスト、成功率、予算使用状況を確認します。",
+			"feedback": {
+				"readFailed": "ユーザー使用量を取得できませんでした",
+				"modelsFailed": "モデル使用量を取得できませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています…",
+				"invalidRange": "有効な開始時刻と終了時刻を選択してください。",
+				"modelsFor": "{email} のモデル使用量"
+			}
 		},
 		"reliability": {
 			"title": "信頼性",
@@ -1306,7 +1501,14 @@
 			"providerQuality": "Provider 品質",
 			"perModelComparison": "モデル別 Provider 比較",
 			"recentErrors": "最近のエラー",
-			"viewAllErrors": "すべてのエラーログを表示"
+			"viewAllErrors": "すべてのエラーログを表示",
+			"feedback": {
+				"readFailed": "信頼性データを読み込めませんでした",
+				"currencyFailed": "請求通貨を確認できませんでした",
+				"currencyPending": "請求通貨を確認しています。金額は確認後に表示されます。",
+				"invalidRange": "有効な開始日時と終了日時を入力してください。開始は終了より前にしてください。",
+				"recentErrorsScope": "最近のエラーは全期間の最新記録を表示します。選択した期間は上の2つの信頼性テーブルに適用されます。"
+			}
 		},
 		"columns": {
 			"model": "モデル",
@@ -1417,7 +1619,14 @@
 			"description": "モデルに route_policy がない場合の既定戦略（system_config.ROUTE_STRATEGY）。",
 			"strategy": "戦略"
 		},
-		"saveRouteStrategy": "ルート戦略を保存"
+		"saveRouteStrategy": "ルート戦略を保存",
+		"feedback": {
+			"readFailed": "システム設定を読み込めません",
+			"savedKeys": "保存を確認済み: {keys}",
+			"readReplacesDrafts": "再読み込みすると、下書きはサーバーの現在値に置き換わります。",
+			"invalidStrategy": "対応するルーティング戦略を選択してください。",
+			"keyRequired": "設定キーを入力してください。"
+		}
 	},
 	"tools": {
 		"catalog": {
@@ -1558,6 +1767,16 @@
 			}
 		},
 		"invocations": {
+			"feedback": {
+				"filters": "絞り込み",
+				"summary": "ツール呼び出し、料金、結果の要約を確認します。",
+				"invalidQuery": "リンクの絞り込み条件が無効です。条件をクリアして新しい検索を開始してください。",
+				"currencyFailed": "課金通貨を読み取れませんでした",
+				"readFailed": "ツール呼び出し履歴を読み取れませんでした",
+				"payloadInvalid": "保存されたツール内容の形式が無効です。元の内容は確認できます。",
+				"inspectRaw": "JSONに切り替えて保存内容を確認してください。",
+				"unsafeResultUrl": "この結果リンクは開けません。HTTPとHTTPSのリンクのみ対応しています。"
+			},
 			"title": "Tool 呼び出し履歴",
 			"subtitle": "provider octafuse-tools（model_id tool:*）として課金された呼び出しです。行をクリックするとクエリと結果概要を確認できます。リクエストログと同じ元データです。",
 			"configureTools": "Tools を設定 →",
@@ -1615,6 +1834,11 @@
 			"charged": "ユーザー課金",
 			"metered": "供給",
 			"lossHint": "ユーザー課金が供給単価を下回っています（赤字）"
+		},
+		"feedback": {
+			"readFailed": "ツール設定を読み取れませんでした",
+			"savedKeys": "保存を確認済み: {keys}",
+			"readReplacesDrafts": "再保存の前にサーバー設定を読み取ってください。下書きはサーバーの値に置き換わります。"
 		}
 	},
 	"pricing": {
@@ -1678,5 +1902,22 @@
 		"cost": "コスト：{amount}",
 		"providerLabel": "Provider：{id}",
 		"stdMetered": "標準 {std} · 計量 {metered}"
+	},
+	"shell": {
+		"retry": "再読み込み",
+		"sessionFailed": "セッションを確認できません",
+		"timezoneFailed": "業務タイムゾーンを取得できません",
+		"localeFailed": "言語の変更を確認できません",
+		"logoutFailed": "ログアウトを確認できません",
+		"checkSession": "セッションを確認",
+		"confirmWrite": "リクエストがサーバーに届いている可能性があります。再操作する前に現在の状態を確認してください。",
+		"navigation": "ナビゲーション",
+		"openNavigation": "ナビゲーションを開く",
+		"skipContent": "本文へ移動",
+		"loginIntro": "ログインしてゲートウェイのルーティングと運用設定を管理します。",
+		"NETWORK_ERROR": "サーバーへの接続に失敗しました。",
+		"REQUEST_TIMEOUT": "応答が20秒の制限を超えました。",
+		"INVALID_RESPONSE": "サーバーの応答が無効です。",
+		"HTTP_ERROR": "サーバーがリクエストを拒否しました。"
 	}
 }

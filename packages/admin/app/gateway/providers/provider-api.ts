@@ -1,108 +1,146 @@
-import { readApiJson } from '@/lib/api-json';
-import type { GatewayProvider } from '@/lib/types';
+import { validateAndNormalizeProviderEndpoints } from '@octafuse/core/provider-endpoints';
+import { isRecord, ShellRequestError } from '@/lib/shell-request';
 import { formDataToEndpointsMap } from './provider-utils';
-import type { ProviderFormData, ProviderImportCatalogRow, ProviderImportResult } from './types';
+import type {
+	GatewayProvider,
+	ProviderFormData,
+	ProviderImportCatalogRow,
+	ProviderImportResult,
+} from './types';
 
-export async function fetchProvidersList(): Promise<GatewayProvider[]> {
-	const response = await fetch('/api/admin/providers');
-	const data = await readApiJson<GatewayProvider[]>(response);
-	if (data.success && data.data) {
-		return [...data.data].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-	}
-	throw new Error(data.message || 'Failed to load providers');
+function invalid(): never {
+	throw new ShellRequestError('INVALID_RESPONSE');
 }
-
-export async function saveProvider(
-	formData: ProviderFormData,
-	editingProviderId: string | null
-): Promise<{ success: true } | { success: false; message: string }> {
-	const payload: Record<string, unknown> = {
-		name: formData.name,
-		description: formData.description,
-		endpoints: formDataToEndpointsMap(formData),
-		status: formData.status === 'disabled' ? 'disabled' : 'active',
+function data(body: unknown): unknown {
+	if (!isRecord(body) || body.success !== true) invalid();
+	return body.data;
+}
+function nullableString(value: unknown): value is string | null {
+	return value === null || typeof value === 'string';
+}
+function endpoints(value: unknown): string | null {
+	if (!nullableString(value)) invalid();
+	if (value !== null) {
+		try {
+			validateAndNormalizeProviderEndpoints(JSON.parse(value));
+		} catch {
+			invalid();
+		}
+	}
+	return value;
+}
+export function parseProviders(body: unknown): GatewayProvider[] {
+	const rows = data(body);
+	if (!Array.isArray(rows)) invalid();
+	const ids = new Set<string>();
+	return rows
+		.map((row) => {
+			if (
+				!isRecord(row) ||
+				typeof row.id !== 'string' ||
+				!row.id ||
+				ids.has(row.id) ||
+				typeof row.name !== 'string' ||
+				!nullableString(row.description) ||
+				typeof row.created_at !== 'string' ||
+				typeof row.api_key !== 'string' ||
+				!['active', 'disabled'].includes(String(row.status)) ||
+				typeof row.has_pending_key !== 'boolean' ||
+				typeof row.vendor_key !== 'string' ||
+				typeof row.icon_key !== 'string'
+			)
+				invalid();
+			ids.add(row.id);
+			return {
+				id: row.id,
+				name: row.name,
+				description: row.description,
+				created_at: row.created_at,
+				api_key: row.api_key,
+				status: String(row.status),
+				has_pending_key: row.has_pending_key,
+				vendor_key: row.vendor_key,
+				icon_key: row.icon_key,
+				endpoints: endpoints(row.endpoints),
+			};
+		})
+		.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+export function parseImportCatalog(body: unknown): ProviderImportCatalogRow[] {
+	const rows = data(body);
+	if (!Array.isArray(rows)) invalid();
+	const ids = new Set<string>();
+	return rows.map((row) => {
+		if (
+			!isRecord(row) ||
+			typeof row.id !== 'string' ||
+			!row.id ||
+			ids.has(row.id) ||
+			typeof row.name !== 'string' ||
+			typeof row.vendor_key !== 'string' ||
+			typeof row.icon_key !== 'string' ||
+			typeof row.vendor_label !== 'string' ||
+			!nullableString(row.description) ||
+			!Array.isArray(row.protocols) ||
+			!row.protocols.every((p) => p === 'openai' || p === 'anthropic' || p === 'gemini')
+		)
+			invalid();
+		ids.add(row.id);
+		return {
+			id: row.id,
+			name: row.name,
+			vendor_key: row.vendor_key,
+			icon_key: row.icon_key,
+			vendor_label: row.vendor_label,
+			description: row.description,
+			endpoints: endpoints(row.endpoints),
+			protocols: row.protocols as ProviderImportCatalogRow['protocols'],
+		};
+	});
+}
+export function parseImportResult(body: unknown): ProviderImportResult {
+	const value = data(body);
+	if (
+		!isRecord(value) ||
+		!Number.isSafeInteger(value.created) ||
+		Number(value.created) < 0 ||
+		!Array.isArray(value.failed)
+	)
+		invalid();
+	return {
+		created: Number(value.created),
+		failed: value.failed.map((row) => {
+			if (!isRecord(row) || typeof row.id !== 'string' || typeof row.message !== 'string')
+				invalid();
+			return { id: row.id, message: row.message.slice(0, 300) };
+		}),
 	};
-
-	const apiKey = formData.api_key.trim();
-	if (apiKey) {
-		payload.api_key = apiKey;
-	}
-
-	let response: Response;
-	if (editingProviderId) {
-		response = await fetch(`/api/admin/providers/${encodeURIComponent(editingProviderId)}`, {
-			method: 'PATCH',
+}
+export function parseProviderKey(body: unknown): string {
+	const value = data(body);
+	if (!isRecord(value) || typeof value.api_key !== 'string' || !value.api_key) invalid();
+	return value.api_key;
+}
+export function providerWrite(
+	form: ProviderFormData,
+	editingId: string | null,
+): { path: string; init: RequestInit } {
+	const payload: Record<string, unknown> = {
+		name: form.name.trim(),
+		description: form.description,
+		endpoints: formDataToEndpointsMap(form),
+		status: form.status,
+	};
+	if (form.api_key.trim()) payload.api_key = form.api_key.trim();
+	if (!editingId && form.id.trim()) payload.id = form.id.trim();
+	return {
+		path: editingId
+			? '/api/admin/providers/' + encodeURIComponent(editingId)
+			: '/api/admin/providers',
+		init: {
+			method: editingId ? 'PATCH' : 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload),
-		});
-	} else {
-		if (!apiKey) {
-			return { success: false, message: 'api_key is required' };
-		}
-		payload.api_key = apiKey;
-		if (formData.id.trim()) {
-			payload.id = formData.id.trim();
-		}
-		response = await fetch('/api/admin/providers', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload),
-		});
-	}
-
-	const data = await readApiJson(response);
-	if (data.success) return { success: true };
-	return { success: false, message: data.message || 'Save failed' };
-}
-
-export async function deleteProvider(
-	id: string
-): Promise<{ success: true } | { success: false; message: string }> {
-	const response = await fetch(`/api/admin/providers/${encodeURIComponent(id)}`, { method: 'DELETE' });
-	const data = await readApiJson(response);
-	if (data.success) return { success: true };
-	return { success: false, message: data.message || 'Delete failed' };
-}
-
-export async function fetchImportCatalog(): Promise<ProviderImportCatalogRow[]> {
-	const response = await fetch('/api/admin/providers/import/catalog');
-	const data = await readApiJson<ProviderImportCatalogRow[]>(response);
-	if (data.success && data.data) return data.data;
-	throw new Error(data.message || 'Failed to load catalog');
-}
-
-export async function importProviderPresets(
-	ids: string[]
-): Promise<{ success: true; data: ProviderImportResult } | { success: false; message: string }> {
-	const response = await fetch('/api/admin/providers/import', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ ids }),
-	});
-	const data = await readApiJson<ProviderImportResult>(response);
-	if (data.success && data.data) return { success: true, data: data.data };
-	return { success: false, message: data.message || 'Import failed' };
-}
-
-export async function fetchProviderApiKeyPlaintext(providerId: string): Promise<string> {
-	const response = await fetch(
-		`/api/admin/providers/${encodeURIComponent(providerId)}/api-key`
-	);
-	const data = await readApiJson<{ api_key: string }>(response);
-	if (data.success && data.data?.api_key) return data.data.api_key;
-	throw new Error(data.message || 'Failed to reveal API key');
-}
-
-export async function toggleProviderStatus(
-	providerId: string,
-	nextStatus: 'active' | 'disabled'
-): Promise<{ success: true } | { success: false; message: string }> {
-	const response = await fetch(`/api/admin/providers/${encodeURIComponent(providerId)}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ status: nextStatus }),
-	});
-	const data = await readApiJson(response);
-	if (data.success) return { success: true };
-	return { success: false, message: data.message || 'Update failed' };
+		},
+	};
 }

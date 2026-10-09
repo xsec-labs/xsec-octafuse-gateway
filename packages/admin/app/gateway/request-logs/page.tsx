@@ -1,13 +1,29 @@
 'use client';
 
 /**
- * 全站请求日志表：多维筛选、分页；Model / Route 分列展示模型与上游路由；展开行为四栏（pricing audit + 三份 JSON）；数据来自 `/api/admin/request-logs`。
+ * 全站请求日志表：多维筛选、分页；Model / Route 分列展示模型与上游路由；抽屉展示计费审计和三份报文；数据来自 `/api/admin/request-logs`。
  */
 import { useTranslations } from 'next-intl';
-import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronRightIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
+import {
+  ControlButton,
+  ControlIconButton,
+  Dialog,
+  Drawer,
+  EmptyState,
+  Field,
+  Input,
+  PageHeader,
+  Select,
+  Spinner,
+  Table,
+} from '@xsec/ui-react';
 import { readApiJson } from '@/lib/api-json';
-import type { GatewayModel, GatewayModelRoute, GatewayProvider, GatewayRequestLog } from '@/lib/types';
+import ShellError from '@/components/layout/ShellError';
+import { CopyControl } from '@/components/GatewayCopyControl';
+import { ShellRequestError, shellFailure, type ShellFailure } from '@/lib/shell-request';
+import type { GatewayRequestLog } from '@/lib/types';
 import {
   compareRouteGroupsForDisplay,
   normalizeRouteGroup,
@@ -15,7 +31,7 @@ import {
 } from '@/lib/route-group-ui';
 import { UPSTREAM_PROTOCOLS } from '@/lib/upstream-protocol';
 import { UpstreamProtocolBrandIcon } from '@/components/upstream-brand-logo';
-import { GatewayTimeRangePicker } from '@/components/GatewayTimeRangePicker';
+import { RequestLogRange } from './request-log-range';
 import {
   createRangeValue,
   DEFAULT_GATEWAY_TIME_RANGE_PRESET,
@@ -24,72 +40,47 @@ import {
 } from '@/lib/analytics-range';
 import { formatGatewayMoneyCode, formatGatewayMoneyCodeSigned, getGatewayCurrencySymbol } from '@/lib/format-gateway-currency';
 import { summarizePricingAuditJson } from '@/lib/pricing-ui';
-import { useReplaceListPageQuery } from '@/lib/use-replace-list-query';
-import { useBillingCurrency } from '@/lib/use-billing-currency';
+import { parseModels, parseProviders, parseRoutes, parseCurrency, parseLogs } from '@/lib/gateway-log-api';
+import { useLogResource } from './use-log-resource';
 import { useGatewayDateTime } from '@/lib/use-gateway-datetime';
+import './request-logs.css';
 
-/** `/api/admin/models` 列表项（tags 解析为数组） */
-type ModelListItem = Omit<GatewayModel, 'tags'> & { tags: string[] };
 
 export default function GatewayRequestLogsPage() {
   const t = useTranslations('requestLogs');
   const tCommon = useTranslations('common');
   const tOptions = useTranslations('options');
+  const tShell = useTranslations('shell');
   const [logs, setLogs] = useState<GatewayRequestLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [readFailure, setReadFailure] = useState<ShellFailure | null>(null);
+  const requestOwner = useRef<{ controller: AbortController; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  /** 展开四栏详情：pricing audit / 入口请求体 / 上游请求体 / raw usage */
+  /** 详情抽屉：pricing audit / 入口请求体 / 上游请求体 / raw usage */
   const [detailLogId, setDetailLogId] = useState<string | null>(null);
   const [timingHelpLog, setTimingHelpLog] = useState<GatewayRequestLog | null>(null);
-  const [copiedColumn, setCopiedColumn] = useState<
-    'audit' | 'entry' | 'upstream' | 'usage' | 'timing' | 'upstream_request_id' | 'upstream_message_id' | null
-  >(null);
+  const detailReturnFocus = useRef<HTMLElement | null>(null);
+  const timingReturnFocus = useRef<HTMLElement | null>(null);
+  const [queryReady, setQueryReady] = useState(false);
   const pageSize = 50;
-  const { currency: billingCurrency } = useBillingCurrency();
-  const { formatDateTime } = useGatewayDateTime();
-  const billingCurrencySym = getGatewayCurrencySymbol(billingCurrency);
+  const currency = useLogResource('/api/admin/config', parseCurrency);
+  const billingCurrency = currency.value;
+  const models = useLogResource('/api/admin/models', parseModels);
+  const providers = useLogResource('/api/admin/providers', parseProviders);
+  const routes = useLogResource('/api/admin/routes', parseRoutes);
+  const { formatDateTime, businessTimezone } = useGatewayDateTime();
+  const billingCurrencySym = billingCurrency ? getGatewayCurrencySymbol(billingCurrency) : '—';
 
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
   const [filterModel, setFilterModel] = useState('');
   const [filterUserEmail, setFilterUserEmail] = useState('');
   const [filterApiKeyId, setFilterApiKeyId] = useState('');
-  const [rangeValue, setRangeValue] = useState<GatewayTimeRangeValue>(() => createRangeValue(DEFAULT_GATEWAY_TIME_RANGE_PRESET));
+  const [rangeValue, setRangeValue] = useState<GatewayTimeRangeValue>(() => createRangeValue(DEFAULT_GATEWAY_TIME_RANGE_PRESET, businessTimezone));
   const [filterProviderId, setFilterProviderId] = useState('');
   const [filterRouteGroup, setFilterRouteGroup] = useState('');
   const [filterProtocol, setFilterProtocol] = useState('');
-
-  const [modelCatalog, setModelCatalog] = useState<ModelListItem[]>([]);
-  const [providerCatalog, setProviderCatalog] = useState<GatewayProvider[]>([]);
-  const [routesCatalog, setRoutesCatalog] = useState<GatewayModelRoute[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [mr, pr, rr] = await Promise.all([
-          fetch('/api/admin/models'),
-          fetch('/api/admin/providers'),
-          fetch('/api/admin/routes'),
-        ]);
-        const [md, pd, rd] = await Promise.all([
-          readApiJson<ModelListItem[]>(mr),
-          readApiJson<GatewayProvider[]>(pr),
-          readApiJson<GatewayModelRoute[]>(rr),
-        ]);
-        if (cancelled) return;
-        if (md.success && md.data) setModelCatalog(md.data);
-        if (pd.success && pd.data) setProviderCatalog(pd.data);
-        if (rd.success && rd.data) setRoutesCatalog(rd.data);
-      } catch (e) {
-        console.error('Fetch gateway catalog for filters:', e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     // Read filters from URL on mount (e.g. from Model / Provider Usage drill-down)
@@ -120,7 +111,9 @@ export default function GatewayRequestLogsPage() {
         end_date: e,
       });
     } else if (startDate == null && endDate == null) {
-      setRangeValue(createRangeValue(DEFAULT_GATEWAY_TIME_RANGE_PRESET));
+      setRangeValue(createRangeValue(DEFAULT_GATEWAY_TIME_RANGE_PRESET, businessTimezone));
+    } else {
+      setRangeValue({ preset: 'custom', start_date: '', end_date: '' });
     }
     if (routeGroup != null) setFilterRouteGroup(routeGroup);
     if (protocol != null) setFilterProtocol(protocol);
@@ -128,10 +121,12 @@ export default function GatewayRequestLogsPage() {
       const n = parseInt(pageParam, 10);
       if (!Number.isNaN(n) && n >= 1) setPage(n);
     }
-  }, []);
+    setQueryReady(true);
+  }, [businessTimezone]);
 
-  useReplaceListPageQuery(
+  useEffect(
     () => {
+      if (!queryReady) return;
       const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
@@ -141,14 +136,15 @@ export default function GatewayRequestLogsPage() {
       if (filterProviderId) params.append('provider_id', filterProviderId);
       if (filterUserEmail) params.append('user_email', filterUserEmail);
       if (filterApiKeyId) params.append('api_key_id', filterApiKeyId);
-      if (rangeValue.start_date) params.append('start_date', rangeValue.start_date);
-      if (rangeValue.end_date) params.append('end_date', rangeValue.end_date);
+      params.append('start_date', rangeValue.start_date);
+      params.append('end_date', rangeValue.end_date);
       if (filterRouteGroup) params.append('route_group', filterRouteGroup);
       if (filterProtocol) params.append('protocol', filterProtocol);
-      return params;
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`);
     },
     [
       page,
+      queryReady,
       pageSize,
       filterStatus,
       filterModel,
@@ -163,7 +159,7 @@ export default function GatewayRequestLogsPage() {
   );
 
   const modelSelectOptions = useMemo(() => {
-    const rows = [...modelCatalog]
+    const rows = [...(models.value ?? [])]
       .sort((a, b) =>
         (a.display_name?.trim() || a.id).localeCompare(b.display_name?.trim() || b.id, undefined, {
           sensitivity: 'base',
@@ -175,42 +171,54 @@ export default function GatewayRequestLogsPage() {
       }));
     const ids = new Set(rows.map((r) => r.id));
     if (filterModel && !ids.has(filterModel)) {
-      rows.unshift({ id: filterModel, label: `${filterModel} (not in catalog)` });
+      rows.unshift({ id: filterModel, label: t('feedback.unlisted', { id: filterModel }) });
     }
     return rows;
-  }, [modelCatalog, filterModel]);
+  }, [models.value, filterModel, t]);
 
   const providerSelectOptions = useMemo(() => {
-    const rows = [...providerCatalog]
+    const rows = [...(providers.value ?? [])]
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
       .map((p) => ({ id: p.id, label: p.name }));
     const ids = new Set(rows.map((r) => r.id));
     if (filterProviderId && !ids.has(filterProviderId)) {
       rows.unshift({
         id: filterProviderId,
-        label: `${filterProviderId} (not in catalog)`,
+        label: t('feedback.unlisted', { id: filterProviderId }),
       });
     }
     return rows;
-  }, [providerCatalog, filterProviderId]);
+  }, [providers.value, filterProviderId, t]);
 
   /** option 的 value 与展示文案均为规范化后的 route_group（与目录一致） */
   const routeGroupSelectOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const r of routesCatalog) {
+    for (const r of routes.value ?? []) {
       set.add(normalizeRouteGroup(r.route_group));
     }
     const sorted = [...set].sort(compareRouteGroupsForDisplay);
     const rows = sorted.map((g) => ({ value: g, label: g }));
     const fg = filterRouteGroup;
     if (fg && !set.has(fg) && !set.has(normalizeRouteGroup(fg))) {
-      rows.unshift({ value: fg, label: `${fg} (not in routes)` });
+      rows.unshift({ value: fg, label: t('feedback.unlisted', { id: fg }) });
     }
     return rows;
-  }, [routesCatalog, filterRouteGroup]);
+  }, [routes.value, filterRouteGroup, t]);
 
   const fetchLogs = useCallback(async () => {
+    if (!queryReady) return;
+    if (requestOwner.current) {
+      clearTimeout(requestOwner.current.timer);
+      requestOwner.current.controller.abort();
+    }
+    const controller = new AbortController();
+    const operation = {
+      controller,
+      timer: setTimeout(() => controller.abort(new ShellRequestError('REQUEST_TIMEOUT')), 20_000),
+    };
+    requestOwner.current = operation;
     setIsLoading(true);
+    setReadFailure(null);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -221,24 +229,43 @@ export default function GatewayRequestLogsPage() {
       if (filterProviderId) params.append('provider_id', filterProviderId);
       if (filterUserEmail) params.append('user_email', filterUserEmail);
       if (filterApiKeyId) params.append('api_key_id', filterApiKeyId);
-      if (rangeValue.start_date) params.append('start_date', rangeValue.start_date);
-      if (rangeValue.end_date) params.append('end_date', rangeValue.end_date);
+      params.append('start_date', rangeValue.start_date);
+      params.append('end_date', rangeValue.end_date);
       if (filterRouteGroup) params.append('route_group', filterRouteGroup);
       if (filterProtocol) params.append('protocol', filterProtocol);
 
-      const response = await fetch(`/api/admin/request-logs?${params.toString()}`);
-      const data = await readApiJson<GatewayRequestLog[]>(response);
-      if (data.success) {
-        setLogs(data.data || []);
-        setTotal(data.total || 0);
+      const response = await fetch(`/api/admin/request-logs?${params.toString()}`, {
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      let data;
+      try { data = await readApiJson<GatewayRequestLog[]>(response); }
+      catch { throw controller.signal.aborted ? controller.signal.reason : new ShellRequestError('INVALID_RESPONSE', response.status); }
+      if (!response.ok) {
+        const message = typeof data.message === 'string' ? data.message.slice(0, 300) : undefined;
+        throw new ShellRequestError('HTTP_ERROR', response.status, undefined, message);
+      }
+      const result = parseLogs(data, page);
+      if (requestOwner.current === operation) {
+        setLogs(result.logs);
+        setTotal(result.total);
       }
     } catch (error) {
-      console.error('Fetch logs error:', error);
+      if (requestOwner.current === operation) {
+        setReadFailure(shellFailure(controller.signal.aborted ? controller.signal.reason : error));
+        setLogs([]);
+        setTotal(0);
+      }
     } finally {
-      setIsLoading(false);
+      clearTimeout(operation.timer);
+      if (requestOwner.current === operation) {
+        requestOwner.current = null;
+        setIsLoading(false);
+      }
     }
   }, [
     page,
+    queryReady,
     pageSize,
     filterStatus,
     filterModel,
@@ -253,6 +280,13 @@ export default function GatewayRequestLogsPage() {
 
   useEffect(() => {
     fetchLogs();
+    return () => {
+      if (requestOwner.current) {
+        clearTimeout(requestOwner.current.timer);
+        requestOwner.current.controller.abort();
+        requestOwner.current = null;
+      }
+    };
   }, [fetchLogs]);
 
   const totalPages = Math.ceil(total / pageSize);
@@ -333,12 +367,13 @@ export default function GatewayRequestLogsPage() {
     return { text: '\u00A0' };
   };
 
-  const prettifyLogJson = (raw: string | null | undefined): string => {
-    if (raw == null || raw === '') return '';
+  const prettifyLogJson = (raw: string | null | undefined): { text: string; invalid: boolean } => {
+    if (raw == null || raw === '') return { text: '', invalid: false };
     try {
-      return JSON.stringify(JSON.parse(raw), null, 2);
+      return { text: JSON.stringify(JSON.parse(raw), null, 2), invalid: false };
     } catch {
-      return raw;
+      // Retain the recorded bytes for inspection while exposing the parse failure.
+      return { text: raw, invalid: true };
     }
   };
 
@@ -410,14 +445,14 @@ export default function GatewayRequestLogsPage() {
     const costLine = (label: 'C' | 'M', amount: number, multiplier: string | null) => (
       <div className="inline-flex items-baseline gap-1 tabular-nums">
         <span className="w-3 text-[10px] font-semibold text-gray-400">{label}</span>
-        <span>{formatGatewayMoneyCode(amount, billingCurrency, 6)}</span>
+        <span>{billingCurrency ? formatGatewayMoneyCode(amount, billingCurrency, 6) : '—'}</span>
         {multiplier ? <span className="text-[10px] text-gray-400">{multiplier}</span> : null}
       </div>
     );
     return (
       <div
         className="leading-tight space-y-0.5"
-        title={`${t('titles.standardCatalogPrice')}: ${formatGatewayMoneyCode(standardCost, billingCurrency, 6)}`}
+        title={billingCurrency ? `${t('titles.standardCatalogPrice')}: ${formatGatewayMoneyCode(standardCost, billingCurrency, 6)}` : undefined}
       >
         <div className="text-gray-900" title={t('titles.chargedUserBudget')}>
           {costLine('C', chargedCost, chargedMultiplier)}
@@ -432,37 +467,6 @@ export default function GatewayRequestLogsPage() {
   const toggleDetail = (logId: string) => {
     setDetailLogId((prev) => (prev === logId ? null : logId));
     setTimingHelpLog(null);
-    setCopiedColumn(null);
-  };
-
-  const copyPlainText = async (
-    raw: string | null | undefined,
-    col: 'upstream_request_id' | 'upstream_message_id'
-  ) => {
-    const text = raw?.trim();
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedColumn(col);
-      setTimeout(() => setCopiedColumn(null), 1500);
-    } catch (error) {
-      console.error('Copy plain text failed:', error);
-    }
-  };
-
-  const copyColumn = async (
-    raw: string | null | undefined,
-    col: 'audit' | 'entry' | 'upstream' | 'usage' | 'timing'
-  ) => {
-    const text = prettifyLogJson(raw);
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedColumn(col);
-      setTimeout(() => setCopiedColumn(null), 1500);
-    } catch (error) {
-      console.error('Copy column failed:', error);
-    }
   };
 
   /** 客户端接入的 Gateway API 协议；旧行缺省时用路由快照 upstream_protocol */
@@ -572,23 +576,20 @@ export default function GatewayRequestLogsPage() {
 
   /** 首列状态色块（实心）；悬停色块见完整 status 文案 */
   const statusSwatchClass = (status: string) => {
-    if (status === 'success') return 'bg-emerald-500';
-    if (status === 'error') return 'bg-red-500';
-    if (status === 'incomplete') return 'bg-amber-500';
-    if (status === 'cancelled') return 'bg-violet-500';
-    return 'bg-gray-400';
+    if (status === 'success') return 'request-log-status-success';
+    if (status === 'error') return 'request-log-status-error';
+    if (status === 'incomplete') return 'request-log-status-incomplete';
+    if (status === 'cancelled') return 'request-log-status-cancelled';
+    return 'request-log-status-other';
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-        <p className="text-sm text-gray-500 mt-1">{t('subtitle')}</p>
-      </div>
+    <div className="request-logs-page p-8">
+      <PageHeader title={t('title')} description={t('subtitle')} />
 
       {/* Filters — time range first row */}
       <div className="mb-4 w-full min-w-0">
-        <GatewayTimeRangePicker
+        <RequestLogRange
           value={rangeValue}
           onChange={(v) => {
             setRangeValue(v);
@@ -597,143 +598,55 @@ export default function GatewayRequestLogsPage() {
         />
       </div>
 
-      <div className="mb-4 flex gap-4 flex-wrap">
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{tCommon('status')}</label>
-          <select
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            <option value="">{tCommon('all')}</option>
-            <option value="success">{tOptions('requestStatus.success')}</option>
-            <option value="error">{tOptions('requestStatus.error')}</option>
-            <option value="incomplete">{tOptions('requestStatus.incomplete')}</option>
-            <option value="cancelled">{tOptions('requestStatus.cancelled')}</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{tCommon('model')}</label>
-          <select
-            value={filterModel}
-            onChange={(e) => { setFilterModel(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[12rem] max-w-xs"
-          >
-            <option value="">{tCommon('all')}</option>
-            {modelSelectOptions.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{tCommon('provider')}</label>
-          <select
-            value={filterProviderId}
-            onChange={(e) => { setFilterProviderId(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[12rem] max-w-xs"
-          >
-            <option value="">{tCommon('all')}</option>
-            {providerSelectOptions.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{t('filters.protocol')}</label>
-          <select
-            value={filterProtocol}
-            onChange={(e) => { setFilterProtocol(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[9rem]"
-          >
-            <option value="">{tCommon('all')}</option>
-            {UPSTREAM_PROTOCOLS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{t('filters.routeGroup')}</label>
-          <select
-            value={filterRouteGroup}
-            onChange={(e) => { setFilterRouteGroup(e.target.value); setPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[10rem] max-w-xs"
-          >
-            <option value="">{tCommon('all')}</option>
-            {routeGroupSelectOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{t('filters.userEmail')}</label>
-          <input
-            type="text"
-            value={filterUserEmail}
-            onChange={(e) => { setFilterUserEmail(e.target.value); setPage(1); }}
-            placeholder={t('filters.emailPlaceholder')}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-500 mb-1">{t('filters.apiKeyId')}</label>
-          <input
-            type="text"
-            value={filterApiKeyId}
-            onChange={(e) => { setFilterApiKeyId(e.target.value); setPage(1); }}
-            placeholder={t('filters.apiKeyPlaceholder')}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={() => { setFilterStatus(''); setFilterModel(''); setFilterProviderId(''); setFilterUserEmail(''); setFilterApiKeyId(''); setRangeValue({ preset: 'custom', start_date: '', end_date: '' }); setFilterRouteGroup(''); setFilterProtocol(''); setPage(1); }}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-          >
-            {tCommon('clearFilters')}
-          </button>
-        </div>
+      <div className="request-logs-filters mb-4 flex gap-4 flex-wrap">
+        <Field label={tCommon('status')}>{(props) => <Select {...props} value={filterStatus} onValueChange={(v) => { setFilterStatus(v ?? ''); setPage(1); }} options={[{ value: '', label: tCommon('all') }, ...(['success', 'error', 'incomplete', 'cancelled'] as const).map((value) => ({ value, label: tOptions(`requestStatus.${value}`) }))]} />}</Field>
+        <Field label={tCommon('model')}>{(props) => <Select {...props} disabled={models.loading || !!models.failure} value={filterModel} onValueChange={(v) => { setFilterModel(v ?? ''); setPage(1); }} options={[{ value: '', label: tCommon('all') }, ...modelSelectOptions.map((o) => ({ value: o.id, label: o.label }))]} />}</Field>
+        <Field label={tCommon('provider')}>{(props) => <Select {...props} disabled={providers.loading || !!providers.failure} value={filterProviderId} onValueChange={(v) => { setFilterProviderId(v ?? ''); setPage(1); }} options={[{ value: '', label: tCommon('all') }, ...providerSelectOptions.map((o) => ({ value: o.id, label: o.label }))]} />}</Field>
+        <Field label={t('filters.protocol')}>{(props) => <Select {...props} value={filterProtocol} onValueChange={(v) => { setFilterProtocol(v ?? ''); setPage(1); }} options={[{ value: '', label: tCommon('all') }, ...UPSTREAM_PROTOCOLS.map((value) => ({ value, label: value }))]} />}</Field>
+        <Field label={t('filters.routeGroup')}>{(props) => <Select {...props} disabled={routes.loading || !!routes.failure} value={filterRouteGroup} onValueChange={(v) => { setFilterRouteGroup(v ?? ''); setPage(1); }} options={[{ value: '', label: tCommon('all') }, ...routeGroupSelectOptions]} />}</Field>
+        <Field label={t('filters.userEmail')}>{(props) => <Input {...props} value={filterUserEmail} placeholder={t('filters.emailPlaceholder')} onChange={(e) => { setFilterUserEmail(e.target.value); setPage(1); }} />}</Field>
+        <Field label={t('filters.apiKeyId')}>{(props) => <Input {...props} value={filterApiKeyId} placeholder={t('filters.apiKeyPlaceholder')} onChange={(e) => { setFilterApiKeyId(e.target.value); setPage(1); }} />}</Field>
+        <ControlButton variant="outline" onClick={() => { setFilterStatus(''); setFilterModel(''); setFilterProviderId(''); setFilterUserEmail(''); setFilterApiKeyId(''); setRangeValue({ preset: 'custom', start_date: '', end_date: '' }); setFilterRouteGroup(''); setFilterProtocol(''); setPage(1); }}>{tCommon('clearFilters')}</ControlButton>
       </div>
+
+      {readFailure ? <ShellError title={t('feedback.readFailed')} failure={readFailure} action={<ControlButton variant="outline" onClick={() => void fetchLogs()}>{tShell('retry')}</ControlButton>} /> : null}
+
+      {([{ resource: models, label: tCommon('model') }, { resource: providers, label: tCommon('provider') }, { resource: routes, label: t('filters.routeGroup') }, { resource: currency, label: t('feedback.currency') }]).map(({resource, label}) => resource.failure ? <ShellError key={label} title={t('feedback.resourceFailed', { resource: label })} failure={resource.failure} action={<ControlButton variant="outline" onClick={() => void resource.refresh()}>{tShell('retry')}</ControlButton>} /> : null)}
 
       {/* Stats + status swatch legend */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-        <span className="text-sm">{t('totalRequests', { count: total })}</span>
-        <span className="hidden sm:inline h-3 w-px bg-gray-200" aria-hidden />
+        {!isLoading && !readFailure ? <>
+          <span className="text-sm">{t('totalRequests', { count: total })}</span>
+          <span className="hidden sm:inline h-3 w-px bg-gray-200" aria-hidden />
+        </> : null}
         <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 shrink-0" aria-hidden />
+            <span className="inline-block w-2.5 h-2.5 rounded-sm request-log-status-success shrink-0" aria-hidden />
             {tOptions('requestStatus.success')}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500 shrink-0" aria-hidden />
+            <span className="inline-block w-2.5 h-2.5 rounded-sm request-log-status-error shrink-0" aria-hidden />
             {tOptions('requestStatus.error')}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500 shrink-0" aria-hidden />
+            <span className="inline-block w-2.5 h-2.5 rounded-sm request-log-status-incomplete shrink-0" aria-hidden />
             {tOptions('requestStatus.incomplete')}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-violet-500 shrink-0" aria-hidden />
+            <span className="inline-block w-2.5 h-2.5 rounded-sm request-log-status-cancelled shrink-0" aria-hidden />
             {tOptions('requestStatus.cancelled')}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-gray-400 shrink-0" aria-hidden />
+            <span className="inline-block w-2.5 h-2.5 rounded-sm request-log-status-other shrink-0" aria-hidden />
             {t('statusOther')}
           </span>
         </span>
       </div>
 
       {/* Logs Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="request-log-list">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <Table className="request-log-table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('headers.statusTime')}</th>
@@ -770,23 +683,24 @@ export default function GatewayRequestLogsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {logs.map((log) => {
+              {(!isLoading && !readFailure ? logs : []).map((log) => {
                 const standardCost = Number(log.standard_cost ?? 0);
                 const chargedCost = Number(log.charged_cost ?? 0);
                 const meteredCost = Number(log.metered_cost ?? 0);
                 const profit = chargedCost - meteredCost;
                 const profitToneClass =
-                  profit > 0 ? 'text-emerald-700' : profit < 0 ? 'text-red-600' : 'text-gray-600';
+                  profit > 0 ? 'request-log-profit-positive' : profit < 0 ? 'request-log-profit-negative' : 'request-log-profit-neutral';
                 return (
                   <Fragment key={log.id}>
                   <tr
                     className={`align-middle cursor-pointer transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500 ${
                       detailLogId === log.id ? 'bg-slate-50' : ''
                     }`}
-                    onClick={() => toggleDetail(log.id)}
+                    onClick={(event) => { detailReturnFocus.current = event.currentTarget; toggleDetail(log.id); }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
+                        detailReturnFocus.current = e.currentTarget;
                         toggleDetail(log.id);
                       }
                     }}
@@ -813,12 +727,14 @@ export default function GatewayRequestLogsPage() {
                             <span>{formatTtftListLine(log).text}</span>
                           </div>
                         </div>
+                        <ControlIconButton label={t('titles.rowDetail')} aria-expanded={detailLogId === log.id} onClick={(event) => { event.stopPropagation(); detailReturnFocus.current = event.currentTarget; toggleDetail(log.id); }}>
                         <ChevronRightIcon
                           className={`h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform ${
                             detailLogId === log.id ? 'rotate-90 text-blue-500' : ''
                           }`}
                           aria-hidden
                         />
+                        </ControlIconButton>
                       </div>
                       {log.status === 'error' && log.error_message?.trim() ? (
                         <div
@@ -858,19 +774,20 @@ export default function GatewayRequestLogsPage() {
                       className={`px-3 py-2 text-xs whitespace-nowrap tabular-nums font-medium ${profitToneClass}`}
                       title={t('titles.profit')}
                     >
-                      {formatGatewayMoneyCodeSigned(profit, billingCurrency, 6)}
+                      {billingCurrency ? formatGatewayMoneyCodeSigned(profit, billingCurrency, 6) : '—'}
                     </td>
                   </tr>
                   {detailLogId === log.id && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={7} className="px-3 py-2">
-                        <div className="rounded-md border border-gray-200 bg-white overflow-x-auto">
+                    <Drawer open onOpenChange={(open) => { if (!open) setDetailLogId(null); }} title={t('detail.requestId')} description={log.id} className="request-log-detail-drawer" finalFocus={() => detailReturnFocus.current}>
+                        <div className="request-log-detail-content">
                           {(() => {
                             const auditLine = summarizePricingAuditJson(log.pricing_audit ?? null);
                             const auditRaw = log.pricing_audit?.trim();
-                            const auditDisplay = auditRaw ? prettifyLogJson(auditRaw) : '';
+                            const auditJson = prettifyLogJson(auditRaw);
+                            const auditDisplay = auditJson.text;
                             const auditEmpty = !auditDisplay;
-                            const timingDisplay = prettifyLogJson(log.timing_metadata ?? null);
+                            const timingJson = prettifyLogJson(log.timing_metadata ?? null);
+                            const timingDisplay = timingJson.text;
                             const timingRows = [
                               ['Gateway', log.gateway_overhead_ms],
                               ['Upstream', log.upstream_response_ms],
@@ -917,9 +834,9 @@ export default function GatewayRequestLogsPage() {
                               { label: t('detail.routeTarget'), value: routeTarget },
                             ];
                             return (
-                              <div className="min-w-[110rem]">
+                              <div className="request-logs-page request-log-detail">
                                 <div className="border-b border-gray-200 bg-slate-50/70 p-3">
-                                  <div className="grid grid-cols-4 gap-x-4 gap-y-2">
+                                  <div className="request-log-summary">
                                     {summaryFields.map(({ label, value }) => (
                                       <div key={label} className="min-w-0">
                                         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
@@ -946,28 +863,22 @@ export default function GatewayRequestLogsPage() {
                                   ) : null}
                                 </div>
                                 {upstreamMessageId || upstreamRequestId ? (
-                                  <div className="grid grid-cols-2 gap-3 border-b border-gray-200 bg-gray-50/70 p-3">
+                                  <div className="request-log-identifiers grid grid-cols-2 gap-3 border-b border-gray-200 bg-gray-50/70 p-3">
                                     {[
                                       {
                                         id: 'upstream_message_id' as const,
                                         label: t('detail.upstreamMessageId'),
                                         value: upstreamMessageId,
-                                        tone: 'emerald',
                                       },
                                       {
                                         id: 'upstream_request_id' as const,
                                         label: t('detail.upstreamRequestId'),
                                         value: upstreamRequestId,
-                                        tone: 'sky',
                                       },
-                                    ].map(({ id, label, value, tone }) => (
+                                    ].map(({ id, label, value }) => (
                                       <div
                                         key={id}
-                                        className={`min-w-0 rounded border px-3 py-2 ${
-                                          tone === 'emerald'
-                                            ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
-                                            : 'border-sky-200 bg-sky-50/70 text-sky-950'
-                                        }`}
+                                        className="request-log-identifier min-w-0 rounded border px-3 py-2"
                                       >
                                         <div className="flex items-center justify-between gap-3">
                                           <div className="min-w-0">
@@ -979,45 +890,21 @@ export default function GatewayRequestLogsPage() {
                                               {value || '-'}
                                             </div>
                                           </div>
-                                          <button
-                                            type="button"
-                                            disabled={!value}
-                                            onClick={() => copyPlainText(value, id)}
-                                            className={`px-2 py-0.5 text-[10px] border rounded hover:bg-white/80 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
-                                              tone === 'emerald'
-                                                ? 'border-emerald-300 text-emerald-950'
-                                                : 'border-sky-300 text-sky-950'
-                                            }`}
-                                          >
-                                            {copiedColumn === id ? tCommon('copied') : tCommon('copy')}
-                                          </button>
+                                          {value ? <CopyControl value={value} label={`${tCommon('copy')} · ${label}`} /> : null}
                                         </div>
                                       </div>
                                     ))}
                                   </div>
                                 ) : null}
-                              <div className="grid min-w-[110rem] grid-cols-5 items-stretch gap-3 p-3">
+                              <div className="request-log-payloads">
                                 <div className="min-w-0 flex h-full min-h-[22rem] flex-col border border-sky-200 rounded-md overflow-hidden bg-sky-50/50">
                                   <div className="px-2 py-1.5 border-b border-sky-200 bg-sky-100/50 flex items-center justify-between gap-2 shrink-0">
                                     <span className="text-xs font-medium text-sky-950">{t('detail.timing')}</span>
                                     <div className="flex items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => setTimingHelpLog(log)}
-                                        title={t('timing.explain')}
-                                        className="inline-flex h-5 w-5 items-center justify-center rounded border border-sky-300 text-sky-900 hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-500"
-                                      >
-                                        <QuestionMarkCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                                        <span className="sr-only">{t('timing.explain')}</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={!timingDisplay}
-                                        onClick={() => copyColumn(log.timing_metadata, 'timing')}
-                                        className="px-2 py-0.5 text-[10px] border border-sky-300 rounded text-sky-950 hover:bg-white/80 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                      >
-                                        {copiedColumn === 'timing' ? tCommon('copied') : tCommon('copy')}
-                                      </button>
+                                      <ControlIconButton label={t('timing.explain')} onClick={(event) => { timingReturnFocus.current = event.currentTarget; setTimingHelpLog(log); }}>
+                                        <QuestionMarkCircleIcon className="h-4 w-4" aria-hidden />
+                                      </ControlIconButton>
+                                      {timingDisplay ? <CopyControl value={timingDisplay} label={`${tCommon('copy')} · ${t('detail.timing')}`} /> : null}
                                     </div>
                                   </div>
                                   <div className="p-2 text-[11px] text-sky-950 space-y-1 shrink-0">
@@ -1034,6 +921,7 @@ export default function GatewayRequestLogsPage() {
                                       </span>
                                     </div>
                                   </div>
+                                  {timingJson.invalid ? <p role="alert" className="request-log-json-error">{t('feedback.invalidJson')}</p> : null}
                                   <pre className="mx-2 mb-2 flex-1 min-h-0 overflow-auto rounded border border-sky-100 bg-white/90 p-2 font-mono text-[11px] leading-snug text-gray-800 whitespace-pre-wrap break-words">
                                     {timingDisplay || tCommon('noDataFound')}
                                   </pre>
@@ -1041,16 +929,10 @@ export default function GatewayRequestLogsPage() {
                                 <div className="min-w-0 flex h-full min-h-[22rem] flex-col border border-violet-200 rounded-md overflow-hidden bg-violet-50/50">
                                   <div className="px-2 py-1.5 border-b border-violet-200 bg-violet-100/40 flex items-center justify-between gap-2 shrink-0">
                                     <span className="text-xs font-medium text-violet-950">{t('detail.pricingAudit')}</span>
-                                    <button
-                                      type="button"
-                                      disabled={auditEmpty}
-                                      onClick={() => copyColumn(log.pricing_audit, 'audit')}
-                                      className="px-2 py-0.5 text-[10px] border border-violet-300 rounded text-violet-950 hover:bg-white/80 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                    >
-                                      {copiedColumn === 'audit' ? tCommon('copied') : tCommon('copy')}
-                                    </button>
+                                    {!auditEmpty ? <CopyControl value={auditDisplay} label={`${tCommon('copy')} · ${t('detail.pricingAudit')}`} /> : null}
                                   </div>
                                   <div className="flex flex-col flex-1 min-h-0 p-2 gap-2">
+                                    {auditJson.invalid ? <p role="alert" className="request-log-json-error">{t('feedback.invalidJson')}</p> : null}
                                     {auditLine ? (
                                       <div className="text-[11px] text-violet-950/95 shrink-0">{auditLine}</div>
                                     ) : null}
@@ -1078,7 +960,8 @@ export default function GatewayRequestLogsPage() {
                                     },
                                   ] as const
                                 ).map(({ col, title, raw }) => {
-                                  const display = prettifyLogJson(raw);
+                                  const parsed = prettifyLogJson(raw);
+                                  const display = parsed.text;
                                   const empty = !display;
                                   return (
                                     <div
@@ -1087,15 +970,9 @@ export default function GatewayRequestLogsPage() {
                                     >
                                       <div className="px-2 py-1.5 border-b border-gray-200 bg-gray-50 flex items-center justify-between gap-2 shrink-0">
                                         <span className="text-xs font-medium text-gray-700">{title}</span>
-                                        <button
-                                          type="button"
-                                          disabled={empty}
-                                          onClick={() => copyColumn(raw, col)}
-                                          className="px-2 py-0.5 text-[10px] border border-gray-300 rounded text-gray-700 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                        >
-                                          {copiedColumn === col ? tCommon('copied') : tCommon('copy')}
-                                        </button>
+                                        {!empty ? <CopyControl value={display} label={`${tCommon('copy')} · ${title}`} /> : null}
                                       </div>
+                                      {parsed.invalid ? <p role="alert" className="request-log-json-error">{t('feedback.invalidJson')}</p> : null}
                                       <pre className="p-2 text-xs text-gray-800 whitespace-pre-wrap break-words min-h-0 overflow-auto font-mono flex-1">
                                         {empty ? tCommon('noDataFound') : display}
                                       </pre>
@@ -1107,50 +984,8 @@ export default function GatewayRequestLogsPage() {
                             );
                           })()}
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {logs.length === 0 && !isLoading && (
-          <div className="text-center py-12 text-gray-500">{tCommon('noLogsFound')}</div>
-        )}
-
-        {isLoading && (
-          <div className="text-center py-12 text-gray-500">{tCommon('loading')}</div>
-        )}
-      </div>
-
-      {timingHelpLog ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="timing-help-title"
-          onClick={() => setTimingHelpLog(null)}
-        >
-          <div
-            className="w-full max-w-3xl overflow-hidden rounded-lg border border-sky-200 bg-white shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-sky-100 bg-sky-50 px-4 py-3">
-              <h2 id="timing-help-title" className="text-sm font-semibold text-sky-950">
-                {t('timing.helpTitle')}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setTimingHelpLog(null)}
-                className="rounded border border-sky-300 px-2 py-1 text-xs text-sky-950 hover:bg-white"
-              >
-                {tCommon('close')}
-              </button>
-            </div>
-            <div className="max-h-[80vh] overflow-auto p-4">
+      <Dialog open={timingHelpLog !== null} onOpenChange={(open) => { if (!open) setTimingHelpLog(null); }} title={t('timing.helpTitle')} className="request-log-timing-dialog" finalFocus={() => timingReturnFocus.current}>
+        {timingHelpLog ? <div className="request-log-timing-help">
               <div className="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
                 <div><span className="font-medium text-gray-950">{t('timing.gateway')}</span>: {t('timing.gatewayDesc')}</div>
                 <div><span className="font-medium text-gray-950">{t('timing.upstream')}</span>: {t('timing.upstreamDesc')}</div>
@@ -1163,31 +998,47 @@ export default function GatewayRequestLogsPage() {
               <pre className="mt-4 overflow-auto rounded-md border border-slate-800 bg-slate-950 p-4 font-mono text-xs leading-relaxed text-sky-50 whitespace-pre">
                 {timingDiagram(timingHelpLog)}
               </pre>
-            </div>
-          </div>
+        </div> : null}
+      </Dialog>
+
+                    </Drawer>
+                  )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </Table>
         </div>
-      ) : null}
+
+        {logs.length === 0 && !isLoading && !readFailure && (
+          <EmptyState title={tCommon('noLogsFound')} />
+        )}
+
+        {isLoading && (
+          <Spinner label={tCommon('loading')} />
+        )}
+      </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages > 1 && !isLoading && !readFailure && (
         <div className="mt-4 flex justify-center gap-2">
-          <button
+          <ControlButton variant="outline"
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {tCommon('previous')}
-          </button>
+          </ControlButton>
           <span className="px-4 py-2 text-sm text-gray-600">
             {tCommon('pageOf', { page, totalPages })}
           </span>
-          <button
+          <ControlButton variant="outline"
             onClick={() => setPage(Math.min(totalPages, page + 1))}
             disabled={page === totalPages}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {tCommon('next')}
-          </button>
+          </ControlButton>
         </div>
       )}
 

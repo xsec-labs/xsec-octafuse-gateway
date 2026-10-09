@@ -1,4 +1,5 @@
 'use client';
+import { memo } from 'react';
 
 import { ModelVendorIcon } from '@/components/model-vendor-icon';
 import { getModelVendorLabel } from '@/lib/model-vendor';
@@ -19,7 +20,10 @@ type Props = {
 	copiedModelId: string | null;
 	togglingId: string | null;
 	onCopyModelId: (modelId: string) => void;
-	onCreate: (modelId: string, preset?: { protocol?: string; operation?: string; group?: string }) => void;
+	onCreate: (
+		modelId: string,
+		preset?: { protocol?: string; operation?: string; group?: string }
+	) => void;
 	onEdit: (route: RouteListRow) => void;
 	onEditModel: (modelId: string) => void;
 	onToggleStatus: (route: RouteListRow) => void;
@@ -35,7 +39,7 @@ type Props = {
 	) => void;
 };
 
-export function RouteVendorGroup(props: Props) {
+export const RouteVendorGroup = memo(function RouteVendorGroup(props: Props) {
 	const {
 		vendor,
 		cards,
@@ -61,20 +65,20 @@ export function RouteVendorGroup(props: Props) {
 			{showHeader ? (
 				<div
 					className={
-						(vendorGroupIdx > 0 ? 'border-t border-gray-200/80 pt-5 ' : '') +
+						(vendorGroupIdx > 0 ? 'border-t route-border pt-5 ' : '') +
 						'mb-3 flex items-center justify-between gap-3'
 					}
 				>
 					<div className="flex min-w-0 items-center gap-2.5">
 						<ModelVendorIcon vendor={vendor} size="default" />
 						<div className="min-w-0">
-							<h3 className="truncate text-sm font-semibold text-gray-900">
+							<h3 className="truncate text-sm font-semibold route-text">
 								{getModelVendorLabel(vendor)}
 							</h3>
-							<p className="text-xs text-gray-500">{t('label')}</p>
+							<p className="text-xs route-muted">{t('label')}</p>
 						</div>
 					</div>
-					<span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium tabular-nums text-gray-600 ring-1 ring-inset ring-gray-200">
+					<span className="shrink-0 rounded-full route-subtle px-2.5 py-1 text-xs font-medium tabular-nums route-muted ring-1 ring-inset ring-gray-200">
 						{cards.length === 1
 							? t('modelCount', { count: cards.length })
 							: t('modelCountPlural', { count: cards.length })}
@@ -102,4 +106,4 @@ export function RouteVendorGroup(props: Props) {
 			</div>
 		</section>
 	);
-}
+});

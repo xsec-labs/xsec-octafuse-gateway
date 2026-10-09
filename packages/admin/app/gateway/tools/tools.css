@@ -1,0 +1,45 @@
+.tools-page { max-width:1440px; min-width:0; margin:auto; color:var(--xui-text); }
+.tools-fieldset { display:grid; gap:24px; border:0; padding:0; margin:0; min-width:0; }
+.tools-section { min-width:0; padding:24px; border:1px solid var(--xui-border); border-radius:var(--xui-radius-panel); background:var(--xui-surface); }
+.tools-description,.tools-note { color:var(--xui-muted); line-height:1.65; overflow-wrap:anywhere; }
+.tools-description { margin:8px 0 24px; max-width:90ch; }
+.tools-section-toolbar { display:flex; align-items:flex-end; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+.tools-section-toolbar > .xui-field { flex:0 1 320px; min-width:0; }
+.tools-page .xui-select-trigger,.tools-page .xui-input,.tools-page .xui-button { min-height:44px; }
+.tools-page .xui-select-trigger>span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tools-provider-list { display:grid; border:1px solid var(--xui-border); border-radius:var(--xui-radius-panel); overflow:hidden; }
+.tools-provider { display:grid; grid-template-columns:minmax(140px,.7fr) minmax(260px,1.2fr) minmax(220px,1fr); gap:24px; padding:24px; min-width:0; }
+.tools-provider + .tools-provider { border-top:1px solid var(--xui-border); }
+.tools-provider[data-active=true] { background:var(--xui-subtle); }
+.tools-provider-heading,.tools-pricing,.tools-credentials { min-width:0; }
+.tools-provider-heading h3 { font-size:15px; font-weight:600; line-height:1.5; margin:0 0 8px; overflow-wrap:anywhere; }
+.tools-provider-links { display:flex; flex-direction:column; align-items:flex-start; }
+.tools-link { display:inline-flex; align-items:center; min-height:44px; color:var(--xui-text); text-decoration:underline; text-underline-offset:4px; line-height:1.5; overflow-wrap:anywhere; }
+.tools-link:focus-visible { outline:2px solid var(--xui-focus); outline-offset:3px; border-radius:4px; }
+.tools-group-label { font-size:13px; font-weight:600; margin:0 0 12px; }
+.tools-price-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.tools-pricing .xui-label { overflow-wrap:anywhere; }
+.tools-pricing .xui-input { padding-inline:10px; font-variant-numeric:tabular-nums; }
+.tools-credentials { display:grid; align-content:start; gap:12px; }
+.tools-loss { color:var(--xui-warning); font-size:13px; line-height:1.6; margin:12px 0 0; }
+.tools-pricing[data-loss=true] { border-left:3px solid var(--xui-warning); padding-left:12px; }
+.tools-save { margin-top:24px; }
+.tools-feedback { margin-top:16px; overflow-wrap:anywhere; }
+.tools-success { color:var(--xui-success); }
+.tools-guide-items { display:grid; gap:16px; }
+.tools-guide-disclaimer { color:var(--xui-muted); line-height:1.6; margin:0 0 20px; }
+.tools-guide-item { border:1px solid var(--xui-border); border-radius:var(--xui-radius-panel); padding:16px; }
+.tools-guide-item[data-active=true] { background:var(--xui-subtle); }
+.tools-guide-item h3 { margin:0; font-size:15px; font-weight:600; }
+.tools-guide-heading { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.tools-guide-item p,.tools-guide-item dl { line-height:1.65; margin:12px 0 0; }
+.tools-guide-item dl { color:var(--xui-muted); font-size:13px; }
+.tools-guide-item dt { font-weight:600; }
+.tools-guide-item dd { margin:0 0 8px; }
+.tools-guide-dialog { width:min(680px,calc(100vw - 32px)); }
+@media(max-width:1200px) { .tools-provider { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; }.tools-provider-heading { grid-column:1/-1; }.tools-provider-links { flex-direction:row; flex-wrap:wrap; gap:16px; } }
+@media(max-width:700px) { .tools-section { padding:16px; }.tools-provider { grid-template-columns:minmax(0,1fr); padding:16px; gap:20px; }.tools-section-toolbar { align-items:stretch; }.tools-section-toolbar > .xui-field { flex:1 1 100%; }.tools-page .xui-page-header .xui-actions { width:100%; }.tools-save .xui-button { width:100%; } }
+
+.tools-guide-dialog .xui-button { min-height:44px; min-width:44px; }
+@media(max-width:600px) { .tools-page { padding:20px 16px; } }
+@media(max-width:380px) { .tools-price-fields { grid-template-columns:minmax(0,1fr); } }

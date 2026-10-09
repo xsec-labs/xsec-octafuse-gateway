@@ -1,49 +1,95 @@
 'use client';
-
-/**
- * 模型目录：CRUD、标签、定价字段；数据来自 `/api/admin/models`。
- * 左侧 Kind（LLM | Image，无 All）+ Vendor；右侧当前筛选模型卡片；`?kind=` / `?vendor=` 持久化（`useSearchParams` + Suspense）。
- * `?edit=<model_id>` 可从 Routes 等入口深链直接打开编辑弹窗（消费后从 URL 清除）。
- */
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
+import {
+	PageHeader,
+	ControlButton,
+	Input,
+	EmptyState,
+	Spinner,
+	Toolbar,
+	Badge,
+} from '@xsec/ui-react';
 import { useTranslations } from 'next-intl';
+import ShellError from '@/components/layout/ShellError';
 import { useModelsPageState } from './use-models-page-state';
 import { ModelCard } from './components/model-card';
-import { ModelCatalogToolbar } from './components/model-catalog-toolbar';
 import { ModelFilterSidebar } from './components/model-filter-sidebar';
-import { ModelImportModal } from './components/model-import-modal';
-import { ModelMetadataPreviewModal } from './components/model-metadata-preview-modal';
 import { ModelModal } from './components/model-modal';
-
+import { ModelMetadataPreviewModal } from './components/model-metadata-preview-modal';
+import './models.css';
+const ModelImportModal = dynamic(() =>
+	import('./components/model-import-modal').then((m) => m.ModelImportModal)
+);
 function ModelsContent() {
-	const t = useTranslations('models');
-	const tBrand = useTranslations('brand');
-	const tCommon = useTranslations('common');
-	const state = useModelsPageState();
-
-	if (state.isLoading) {
-		return (
-			<div className="flex items-center justify-center h-full">
-				<div className="text-gray-600">{tCommon('loading')}</div>
-			</div>
-		);
-	}
-
-	const createTitle = state.isAllVendors
-		? t('createTitleAll')
-		: t('createTitleVendor', { vendor: state.activeVendorTitle });
-
+	const t = useTranslations('models'),
+		brand = useTranslations('brand'),
+		common = useTranslations('common'),
+		feedback = useTranslations('models.feedback'),
+		{ attachSuccessFocus: successFocusRef, ...state } = useModelsPageState();
+	const ready =
+		state.list.status === 'ready' && state.currencyState.status === 'ready';
 	return (
-		<div className="min-w-0 overflow-x-hidden bg-gray-100/90 p-4 pb-6 sm:p-6 lg:p-8">
-			<div className="mb-5 sm:mb-6">
-				<h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('title')}</h1>
-				<p className="mt-1 text-sm text-gray-500">
-					{t('subtitle', { product: tBrand('product') })}
-				</p>
-			</div>
-
-			<div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white/70 shadow-sm ring-1 ring-black/[0.02]">
-				<div className="flex min-w-0 flex-col lg:flex-row lg:items-start">
+		<div
+			className="model-page"
+			ref={successFocusRef}
+			tabIndex={-1}
+			aria-label={t('title')}
+		>
+			<PageHeader
+				title={t('title')}
+				description={t('subtitle', { product: brand('product') })}
+				actions={
+					<>
+						<ControlButton
+							variant="outline"
+							onClick={state.openImportCatalogModal}
+							disabled={!ready || state.importSubmitting}
+						>
+							{common('import')}
+						</ControlButton>
+						<ControlButton
+							onClick={() =>
+								state.handleCreate(
+									state.isAllVendors ? undefined : state.activeVendorKey,
+									state.selectedKind
+								)
+							}
+							disabled={!ready || state.importSubmitting}
+						>
+							{common('new')}
+						</ControlButton>
+					</>
+				}
+			/>
+			{state.list.status === 'loading' ||
+			state.currencyState.status === 'loading' ? (
+				<Spinner label={common('loading')} />
+			) : null}
+			{state.list.status === 'error' ? (
+				<ShellError
+					title={feedback('listFailed')}
+					failure={state.list.failure}
+					action={
+						<ControlButton onClick={() => void state.refreshModels()}>
+							{feedback('readList')}
+						</ControlButton>
+					}
+				/>
+			) : null}
+			{state.currencyState.status === 'error' ? (
+				<ShellError
+					title={feedback('currencyFailed')}
+					failure={state.currencyState.failure}
+					action={
+						<ControlButton onClick={() => void state.loadCurrency()}>
+							{feedback('readCurrency')}
+						</ControlButton>
+					}
+				/>
+			) : null}
+			{ready ? (
+				<>
 					<ModelFilterSidebar
 						modelCount={state.models.length}
 						hasActiveFilter={state.hasActiveFilter}
@@ -57,53 +103,41 @@ function ModelsContent() {
 						onSelectKind={state.setSelectedKind}
 						onClearFilter={state.clearFilters}
 					/>
-
-					<section className="min-w-0 flex-1 bg-slate-100/70">
-						<ModelCatalogToolbar
-							activeVendorTitle={state.activeVendorTitle}
-							selectedCount={state.selectedVendorItems.length}
-							hasModels={state.models.length > 0}
-							importSubmitting={state.importSubmitting}
-							onImport={state.openImportCatalogModal}
-							onCreate={() => {
-								state.handleCreate(
-									state.isAllVendors ? undefined : state.activeVendorKey,
-									state.selectedKind === 'image'
-										? 'image'
-										: state.selectedKind === 'audio'
-											? 'audio'
-											: 'llm'
-								);
-							}}
-							createTitle={createTitle}
+					<Toolbar className="model-toolbar">
+						<Input
+							type="search"
+							aria-label={feedback('search')}
+							placeholder={feedback('search')}
+							value={state.modelSearch}
+							onChange={(event) => state.setModelSearch(event.target.value)}
 						/>
-
-						<div className="bg-slate-100/70 p-4 sm:p-6">
-							{state.models.length === 0 ? (
-								<div className="rounded-xl border border-dashed border-gray-300 bg-white/80 py-16 text-center text-gray-500 shadow-sm">
-									<p className="text-sm font-medium text-gray-600">{t('empty')}</p>
-									<p className="mt-1 text-xs text-gray-500">{t('emptyHint')}</p>
-								</div>
-							) : (
-								<div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-									{state.selectedVendorItems.map((model) => (
-										<ModelCard
-											key={model.id}
-											model={model}
-											billingCurrency={state.billingCurrency}
-											onEdit={state.handleEdit}
-											onViewMetadata={state.openMetadataPreview}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-					</section>
-				</div>
-			</div>
-
+						<Badge>
+							{state.filteredModels.length} / {state.selectedVendorItems.length}
+						</Badge>
+					</Toolbar>
+					{state.filteredModels.length ? (
+						<section className="model-list" aria-label={t('title')}>
+							{state.filteredModels.map((model) => (
+								<ModelCard
+									key={model.id}
+									model={model}
+									billingCurrency={state.billingCurrency}
+									onEdit={state.handleEdit}
+									onViewMetadata={state.openMetadataPreview}
+								/>
+							))}
+						</section>
+					) : (
+						<EmptyState
+							title={state.models.length ? t('import.noMatch') : t('empty')}
+							description={state.models.length ? undefined : t('emptyHint')}
+						/>
+					)}
+				</>
+			) : null}
 			<ModelModal
 				open={state.showModal}
+				feedback={state}
 				editingModel={state.editingModel}
 				formData={state.formData}
 				formKind={state.formKind}
@@ -131,52 +165,20 @@ function ModelsContent() {
 				onDelete={state.handleDelete}
 			/>
 
-			{state.metadataPreview && (
+			{state.metadataPreview ? (
 				<ModelMetadataPreviewModal
 					preview={state.metadataPreview}
 					onClose={() => state.setMetadataPreview(null)}
 				/>
-			)}
-
-			<ModelImportModal
-				open={state.showImportCatalogModal}
-				catalogRows={state.importCatalogRows}
-				filteredCatalogRows={state.filteredImportCatalogRows}
-				catalogSearch={state.importCatalogSearch}
-				catalogKind={state.importCatalogKind}
-				kindCounts={state.importCatalogKindCounts}
-				catalogLoading={state.importCatalogLoading}
-				catalogError={state.importCatalogError}
-				selected={state.importSelected}
-				selectedCount={state.importSelectedCount}
-				importableCount={state.importableCatalogCount}
-				submitting={state.importSubmitting}
-				billingCurrency={state.billingCurrency}
-				existingModelIds={state.existingModelIds}
-				onClose={() => state.setShowImportCatalogModal(false)}
-				onCatalogSearchChange={state.setImportCatalogSearch}
-				onCatalogKindChange={state.setImportCatalogKind}
-				onSelectAll={state.selectAllImportPresets}
-				onClearSelection={state.clearImportPresetSelection}
-				onReload={() => void state.loadImportCatalog()}
-				onTogglePreset={state.toggleImportPreset}
-				onImport={() => void state.runImportSelectedPresets()}
-			/>
+			) : null}
+			{state.showImportCatalogModal ? <ModelImportModal state={state} /> : null}
 		</div>
 	);
 }
-
 export default function GatewayModelsPage() {
-	const tCommon = useTranslations('common');
-
+	const t = useTranslations('common');
 	return (
-		<Suspense
-			fallback={
-				<div className="flex items-center justify-center h-full">
-					<div className="text-gray-600">{tCommon('loading')}</div>
-				</div>
-			}
-		>
+		<Suspense fallback={<Spinner label={t('loading')} />}>
 			<ModelsContent />
 		</Suspense>
 	);

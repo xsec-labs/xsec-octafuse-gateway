@@ -1,0 +1,429 @@
+.provider-page {
+	max-width: 1600px;
+	margin: auto;
+	padding: 32px;
+	color: var(--xui-text);
+}
+.provider-page .xui-page-header > div:first-child {
+	min-width: 0;
+}
+.provider-page .xui-page-header h1 {
+	overflow-wrap: anywhere;
+}
+.provider-intro-hint {
+	display: block;
+	margin-top: 8px;
+	font-size: 12px;
+}
+.provider-page > .xui-error {
+	margin: 16px 0;
+}
+.provider-toolbar {
+	padding: 16px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	background: var(--xui-surface);
+	gap: 16px;
+}
+.provider-search {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	max-width: 640px;
+}
+.provider-search > svg {
+	width: 18px;
+	height: 18px;
+	position: absolute;
+	top: 13px;
+	left: 12px;
+	color: var(--xui-muted);
+	pointer-events: none;
+}
+.provider-search > svg + .xui-input {
+	padding-left: 38px;
+}
+.provider-search > .xui-input {
+	padding-right: 48px;
+	min-height: 44px;
+}
+.provider-search > .xui-button {
+	position: absolute;
+	right: 0;
+	top: 0;
+	min-height: 44px;
+	min-width: 44px;
+}
+.provider-toolbar p {
+	margin: 0;
+	color: var(--xui-muted);
+	font-size: 13px;
+}
+.provider-list {
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	background: var(--xui-surface);
+	overflow: hidden;
+}
+.provider-card {
+	display: grid;
+	grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.6fr) minmax(160px, 0.8fr) minmax(
+			120px,
+			0.6fr
+		);
+	align-items: center;
+	gap: 24px;
+	padding: 16px 20px;
+	min-width: 0;
+}
+.provider-card + .provider-card {
+	border-top: 1px solid var(--xui-border);
+}
+.provider-identity {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	min-width: 0;
+}
+.provider-identity > div:last-child {
+	min-width: 0;
+	flex: 1;
+}
+.provider-card h2 {
+	font-size: 14px;
+	margin: 0;
+}
+.provider-name {
+	padding: 0;
+	min-height: 44px;
+	max-width: 100%;
+	white-space: normal;
+	word-break: break-word;
+	text-align: left;
+	justify-content: flex-start;
+	color: var(--xui-text) !important;
+}
+.provider-id {
+	font: 11px/1.5 ui-monospace, monospace;
+	color: var(--xui-muted);
+	overflow-wrap: anywhere;
+	margin: 0 0 6px;
+}
+.provider-caption {
+	font-size: 11px;
+	color: var(--xui-muted);
+	margin: 0 0 6px;
+}
+.provider-protocols {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-width: 0;
+}
+.provider-protocols > .provider-caption {
+	width: 100%;
+}
+.provider-protocol {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-control);
+	padding: 5px 7px;
+	font-size: 11px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+.provider-protocol > svg,
+.provider-protocol > span:first-child {
+	width: 16px;
+	height: 16px;
+}
+.provider-protocol > span {
+	color: var(--xui-muted);
+}
+.provider-protocol strong {
+	font-weight: 550;
+}
+.provider-credential {
+	min-width: 0;
+}
+.provider-credential > div {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+.provider-credential code {
+	font-size: 11px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+	flex: 1;
+}
+.provider-credential .xui-button {
+	min-width: 44px;
+	min-height: 44px;
+}
+.provider-status {
+	min-width: 0;
+}
+.provider-status > .xui-choice {
+	min-height: 44px;
+	font-size: 12px;
+}
+.provider-muted {
+	color: var(--xui-muted);
+	font-size: 13px;
+	line-height: 1.6;
+}
+.provider-loading {
+	padding: 32px 0;
+}
+.provider-copy-feedback {
+	display: block;
+	margin: 12px 0;
+}
+.provider-dialog {
+	width: min(860px, calc(100vw - 32px));
+	max-height: calc(100dvh - 32px);
+	display: flex;
+	flex-direction: column;
+}
+.provider-dialog .xui-dialog-header {
+	flex-shrink: 0;
+}
+.provider-dialog .xui-dialog-content {
+	min-height: 0;
+	overflow: auto;
+}
+.provider-dialog .xui-dialog-footer {
+	flex-shrink: 0;
+	flex-wrap: wrap;
+}
+.provider-dialog .xui-button,
+.provider-dialog .xui-input,
+.provider-confirmation .xui-button {
+	min-height: 44px;
+}
+.provider-dialog .xui-button[data-size='icon'],
+.provider-confirmation .xui-button[data-size='icon'] {
+	min-width: 44px;
+}
+.provider-form {
+	display: grid;
+	gap: 28px;
+}
+.provider-form h3 {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0 0 16px;
+}
+.provider-fields {
+	display: grid;
+	gap: 20px;
+}
+.provider-form > section + section {
+	border-top: 1px solid var(--xui-border);
+	padding-top: 24px;
+}
+.provider-protocol-form {
+	padding: 18px;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+	margin-top: 16px;
+}
+.provider-protocol-form h4 {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0 0 16px;
+}
+.provider-protocol-form summary {
+	cursor: pointer;
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	margin-top: 8px;
+	font-size: 13px;
+	color: var(--xui-text);
+}
+.provider-protocol-form summary:focus-visible {
+	outline: 2px solid var(--xui-focus);
+	outline-offset: 2px;
+}
+.provider-switch-hint {
+	display: block;
+	color: var(--xui-muted);
+	margin-top: 5px;
+	font-size: 12px;
+}
+.provider-footer-spacer {
+	flex: 1;
+}
+.provider-dialog .xui-error {
+	margin-bottom: 20px;
+}
+.provider-import-toolbar {
+	gap: 10px;
+}
+.provider-import-toolbar > .provider-search {
+	min-width: 100%;
+	max-width: none;
+}
+.provider-import-toolbar > span {
+	font-size: 12px;
+	color: var(--xui-muted);
+	margin-left: auto;
+}
+.provider-template-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	border: 1px solid var(--xui-border);
+	border-radius: var(--xui-radius-panel);
+}
+.provider-template-list li + li {
+	border-top: 1px solid var(--xui-border);
+}
+.provider-template-list .xui-choice {
+	display: flex;
+	align-items: flex-start;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 16px;
+	gap: 12px;
+	min-height: 44px;
+}
+.provider-template-list .xui-checkbox {
+	flex-shrink: 0;
+	margin-top: 3px;
+}
+.provider-template-list .xui-choice > span:not(.xui-checkbox) {
+	min-width: 0;
+	flex: 1;
+}
+.provider-template {
+	display: flex;
+	gap: 12px;
+	min-width: 0;
+}
+.provider-template > div:last-child {
+	min-width: 0;
+	flex: 1;
+}
+.provider-template p {
+	margin: 4px 0 0;
+	color: var(--xui-muted);
+	font-size: 12px;
+	line-height: 1.6;
+}
+.provider-template .provider-endpoint {
+	overflow-wrap: anywhere;
+}
+.provider-import-result {
+	padding: 14px 16px;
+	background: var(--xui-subtle);
+	border-radius: var(--xui-radius-control);
+	margin-bottom: 16px;
+	font-size: 13px;
+}
+.provider-import-result p {
+	margin: 6px 0 0;
+	color: var(--xui-muted);
+}
+.provider-import-result li {
+	overflow-wrap: anywhere;
+}
+.provider-confirmation {
+	z-index: 1003;
+}
+.provider-confirmation .xui-dialog-footer {
+	flex-wrap: wrap;
+}
+@media (max-width: 1200px) {
+	.provider-card {
+		grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.2fr);
+		gap: 16px;
+	}
+	.provider-credential {
+		grid-column: 1;
+	}
+	.provider-status {
+		grid-column: 2;
+	}
+	.provider-page {
+		padding: 24px;
+	}
+	.provider-page .xui-page-header {
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+}
+@media (max-width: 640px) {
+	.provider-page {
+		padding: 20px 16px;
+	}
+	.provider-card {
+		grid-template-columns: minmax(0, 1fr);
+		padding: 16px;
+		gap: 14px;
+	}
+	.provider-credential,
+	.provider-status {
+		grid-column: 1;
+	}
+	.provider-toolbar {
+		align-items: stretch;
+		flex-direction: column;
+	}
+	.provider-search {
+		width: 100%;
+		max-width: none;
+	}
+	.provider-dialog .xui-dialog-content,
+	.provider-dialog .xui-dialog-header,
+	.provider-dialog .xui-dialog-footer {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+	.provider-dialog .xui-dialog-footer {
+		gap: 8px;
+	}
+	.provider-dialog .xui-dialog-footer > .xui-button {
+		flex: 1;
+	}
+	.provider-dialog .provider-footer-spacer {
+		display: none;
+	}
+	.provider-protocol-form {
+		padding: 14px;
+	}
+	.provider-template-list .xui-choice {
+		padding: 14px;
+	}
+	.provider-template {
+		gap: 8px;
+	}
+	.provider-import-toolbar > span {
+		margin-left: 0;
+	}
+	.provider-dialog .xui-dialog-title {
+		overflow-wrap: anywhere;
+	}
+}
+
+.provider-page .xui-page-header > div:first-child {
+	flex: 1;
+}
+.provider-page .xui-page-header > .xui-actions {
+	flex-shrink: 0;
+}
+.provider-page .xui-switch,
+.provider-dialog .xui-switch {
+	flex-shrink: 0;
+}
+.provider-page .xui-choice > span,
+.provider-dialog .xui-choice > span {
+	min-width: 0;
+}
